@@ -3,7 +3,7 @@ import { Heart, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
-  { label: "О фонде", href: "#impact" },
+  { label: "Сообщество", href: "#community" },
   { label: "Помочь", href: "#donate" },
   { label: "Реквизиты", href: "#details" },
   { label: "Контакты", href: "#contacts" },
@@ -24,12 +24,12 @@ const Header = () => {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-background/90 backdrop-blur-lg shadow-sm border-b border-border/50"
+          ? "bg-background/80 backdrop-blur-xl shadow-lg border-b border-border/30"
           : "bg-transparent"
       }`}
     >
       <div className="container flex items-center justify-between h-16">
-        <a href="#" className="flex items-center gap-2 font-bold text-lg text-foreground">
+        <a href="#" className="flex items-center gap-2 font-bold text-lg">
           <Heart className="w-5 h-5 text-primary fill-primary/20" />
           <span>Выпускники Лицея</span>
         </a>
@@ -50,7 +50,7 @@ const Header = () => {
         </nav>
 
         <button
-          className="md:hidden p-2 text-foreground"
+          className="md:hidden p-2"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Меню"
         >
@@ -59,7 +59,7 @@ const Header = () => {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden bg-background/95 backdrop-blur-lg border-b border-border/50 pb-4">
+        <div className="md:hidden bg-background/95 backdrop-blur-xl border-b border-border/30 pb-4">
           <nav className="container flex flex-col gap-1">
             {navLinks.map((l) => (
               <a
