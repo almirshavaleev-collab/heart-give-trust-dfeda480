@@ -63,7 +63,7 @@ const HeroSection = () => {
 
       {/* Glow accents */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-primary/5 blur-[120px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full bg-blue-500/5 blur-[100px]" />
+      <div className="absolute bottom-1/4 right-1/4 w-72 h-72 rounded-full bg-ring/5 blur-[100px]" />
 
       <div className="container relative z-10 text-center py-32 md:py-40">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-sm text-primary font-medium mb-8 fade-in-up">
