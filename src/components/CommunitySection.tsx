@@ -1,0 +1,61 @@
+import { GraduationCap, Heart, Lightbulb } from "lucide-react";
+import alumniGroup from "@/assets/alumni-group.jpg";
+
+const overlayCards = [
+  { icon: GraduationCap, title: "Помогаем лицею", text: "Инвестируем в инфраструктуру и образовательные программы" },
+  { icon: Heart, title: "Поддерживаем учеников", text: "Стипендии, наставничество и развитие талантов" },
+  { icon: Lightbulb, title: "Развиваем инициативы", text: "Проекты выпускников для улучшения образования" },
+];
+
+const CommunitySection = () => (
+  <section id="community" className="py-24 md:py-32 relative overflow-hidden">
+    <div className="container">
+      <div className="text-center mb-16">
+        <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">Наше сообщество</p>
+        <h2 className="text-3xl md:text-4xl font-bold">
+          Мы — сообщество <span className="text-gradient">выпускников</span>
+        </h2>
+        <p className="mt-4 text-muted-foreground max-w-xl mx-auto leading-relaxed">
+          Единство, поддержка и преемственность — мы объединяем выпускников разных лет для развития лицея и помощи ученикам
+        </p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-10 items-center">
+        {/* Photo */}
+        <div className="relative rounded-3xl overflow-hidden group">
+          <img
+            src={alumniGroup}
+            alt="Выпускники лицея на встрече"
+            className="w-full h-80 md:h-96 object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
+          <div className="absolute bottom-6 left-6 right-6">
+            <p className="text-sm text-foreground/90 font-medium">Традиционная встреча выпускников</p>
+          </div>
+        </div>
+
+        {/* Cards */}
+        <div className="space-y-4">
+          {overlayCards.map((card, i) => (
+            <div
+              key={card.title}
+              className={`glass-card rounded-2xl p-6 card-elevated fade-in-up fade-in-up-delay-${i + 1}`}
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <card.icon className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">{card.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{card.text}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+export default CommunitySection;

@@ -8,19 +8,23 @@ const items = [
 ];
 
 const TrustSection = () => (
-  <section className="py-24 md:py-32 bg-muted/40">
-    <div className="container">
+  <section className="py-24 md:py-32 relative">
+    <div className="absolute inset-0 bg-gradient-to-b from-secondary/30 to-transparent" />
+    <div className="container relative z-10">
       <div className="text-center mb-16">
-        <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">Доверие и прозрачность</p>
-        <h2 className="text-3xl md:text-4xl font-bold text-foreground">Почему нам доверяют</h2>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card text-xs text-primary font-medium mb-6">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          Официально зарегистрированная организация
+        </div>
+        <h2 className="text-3xl md:text-4xl font-bold">Доверие и <span className="text-gradient">прозрачность</span></h2>
       </div>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {items.map((item) => (
-          <div key={item.title} className="text-center">
+          <div key={item.title} className="glass-card rounded-2xl p-6 text-center card-elevated">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <item.icon className="w-7 h-7 text-primary" />
             </div>
-            <h3 className="font-semibold text-foreground mb-1">{item.title}</h3>
+            <h3 className="font-semibold mb-1">{item.title}</h3>
             <p className="text-sm text-muted-foreground">{item.text}</p>
           </div>
         ))}
