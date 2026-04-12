@@ -1,0 +1,219 @@
+import { useParams, Link } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Heart, Target, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import {
+  getCampaignBySlug,
+  getOtherCampaigns,
+  formatAmount,
+  getProgress,
+} from "@/lib/campaigns";
+
+const CampaignPage = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const campaign = getCampaignBySlug(slug ?? "");
+
+  if (!campaign) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-2">Сбор не найден</h1>
+            <p className="text-muted-foreground mb-6">Такого сбора не существует или он был удалён.</p>
+            <Button asChild>
+              <Link to="/">На главную</Link>
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const progress = getProgress(campaign);
+  const remaining = campaign.goalAmount - campaign.collectedAmount;
+  const others = getOtherCampaigns(campaign.slug);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+
+      <main className="flex-1 pt-16">
+        {/* Breadcrumb */}
+        <div className="container pt-8 pb-4">
+          <Link
+            to="/#campaigns"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Все сборы
+          </Link>
+        </div>
+
+        {/* Hero image */}
+        <div className="container mb-10">
+          <div className="rounded-2xl overflow-hidden max-h-[420px]">
+            <img
+              src={campaign.image}
+              alt={campaign.title}
+              className="w-full h-full object-cover"
+              width={800}
+              height={512}
+            />
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="container max-w-4xl pb-24">
+          <div className="grid lg:grid-cols-3 gap-10">
+            {/* Left: description */}
+            <div className="lg:col-span-2 space-y-8">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+                  {campaign.title}
+                </h1>
+                <p className="text-muted-foreground leading-relaxed text-lg">
+                  {campaign.fullDescription}
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="card-light p-5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Users className="w-5 h-5 text-foreground" />
+                    <span className="text-sm font-medium text-foreground">Кому помогаем</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {campaign.beneficiary}
+                  </p>
+                </div>
+                <div className="card-light p-5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Target className="w-5 h-5 text-foreground" />
+                    <span className="text-sm font-medium text-foreground">Цель сбора</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {campaign.purpose}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: progress card (sticky) */}
+            <div className="lg:col-span-1">
+              <div className="card-light p-6 lg:sticky lg:top-24">
+                {/* Progress bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Прогресс</span>
+                    <span className="font-semibold text-foreground">{progress}%</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-700"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Amounts */}
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Собрано</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatAmount(campaign.collectedAmount)} ₽
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Цель</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatAmount(campaign.goalAmount)} ₽
+                    </span>
+                  </div>
+                  <div className="border-t border-border pt-3 flex justify-between">
+                    <span className="text-sm text-muted-foreground">Осталось</span>
+                    <span className="text-sm font-semibold text-accent">
+                      {formatAmount(Math.max(0, remaining))} ₽
+                    </span>
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <Button size="xl" className="w-full" asChild>
+                  <a href="/#donate">
+                    <Heart className="w-5 h-5" />
+                    Помочь сейчас
+                  </a>
+                </Button>
+
+                <p className="text-xs text-center text-muted-foreground mt-3">
+                  Безопасная оплата · Скоро через ЮKassa
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Other campaigns */}
+        {others.length > 0 && (
+          <section className="py-16 section-alt">
+            <div className="container">
+              <h2 className="text-2xl font-bold text-foreground mb-8">Другие сборы</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {others.map((c) => {
+                  const p = getProgress(c);
+                  return (
+                    <Link
+                      key={c.id}
+                      to={`/campaigns/${c.slug}`}
+                      className="group card-light overflow-hidden flex flex-col"
+                    >
+                      <div className="relative h-40 overflow-hidden">
+                        <img
+                          src={c.image}
+                          alt={c.title}
+                          loading="lazy"
+                          width={800}
+                          height={512}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      </div>
+                      <div className="p-5 flex flex-col flex-1">
+                        <h3 className="font-semibold text-foreground mb-1">{c.title}</h3>
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2 flex-1">
+                          {c.shortDescription}
+                        </p>
+                        <div className="h-2 rounded-full bg-secondary overflow-hidden mb-2">
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${p}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{formatAmount(c.collectedAmount)} ₽</span>
+                          <span>из {formatAmount(c.goalAmount)} ₽</span>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
+                            Подробнее
+                          </span>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all" />
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default CampaignPage;
