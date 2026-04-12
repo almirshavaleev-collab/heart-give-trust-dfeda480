@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import CommunitySection from "@/components/CommunitySection";
+import CampaignsSection from "@/components/CampaignsSection";
 import DonationWidget from "@/components/DonationWidget";
 import TrustSection from "@/components/TrustSection";
 import DetailsSection from "@/components/DetailsSection";
@@ -15,6 +16,7 @@ const Index = () => (
     <Header />
     <HeroSection />
     <CommunitySection />
+    <CampaignsSection />
     <DonationWidget />
     <TrustSection />
     <DetailsSection />
