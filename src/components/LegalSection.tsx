@@ -24,11 +24,11 @@ const legalDocs = [
 ];
 
 const LegalSection = () => (
-  <section id="legal" className="py-24 md:py-32">
+  <section id="legal" className="py-24 md:py-32 section-alt">
     <div className="container max-w-2xl">
       <div className="text-center mb-16">
-        <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">Документы</p>
-        <h2 className="text-3xl md:text-4xl font-bold">Правовая <span className="text-gradient">информация</span></h2>
+        <p className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">Документы</p>
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground">Правовая информация</h2>
       </div>
 
       <Accordion type="single" collapsible className="space-y-3">
@@ -36,9 +36,9 @@ const LegalSection = () => (
           <AccordionItem
             key={doc.id}
             value={doc.id}
-            className="glass-card rounded-2xl px-6 overflow-hidden border-0"
+            className="card-light px-6 overflow-hidden border-0"
           >
-            <AccordionTrigger className="text-left font-medium hover:no-underline py-5">
+            <AccordionTrigger className="text-left font-medium hover:no-underline py-5 text-foreground">
               {doc.title}
             </AccordionTrigger>
             <AccordionContent className="text-muted-foreground pb-5 leading-relaxed text-sm">

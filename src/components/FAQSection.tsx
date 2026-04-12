@@ -8,12 +8,11 @@ const faqs = [
 ];
 
 const FAQSection = () => (
-  <section id="faq" className="py-24 md:py-32 relative">
-    <div className="absolute inset-0 bg-gradient-to-b from-secondary/20 to-transparent" />
-    <div className="container max-w-2xl relative z-10">
+  <section id="faq" className="py-24 md:py-32">
+    <div className="container max-w-2xl">
       <div className="text-center mb-16">
-        <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">Ответы</p>
-        <h2 className="text-3xl md:text-4xl font-bold">Частые <span className="text-gradient">вопросы</span></h2>
+        <p className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">Ответы</p>
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground">Частые вопросы</h2>
       </div>
 
       <Accordion type="single" collapsible className="space-y-3">
@@ -21,9 +20,9 @@ const FAQSection = () => (
           <AccordionItem
             key={i}
             value={`faq-${i}`}
-            className="glass-card rounded-2xl px-6 overflow-hidden border-0"
+            className="card-light px-6 overflow-hidden border-0"
           >
-            <AccordionTrigger className="text-left font-medium hover:no-underline py-5">
+            <AccordionTrigger className="text-left font-medium hover:no-underline py-5 text-foreground">
               {faq.q}
             </AccordionTrigger>
             <AccordionContent className="text-muted-foreground pb-5 leading-relaxed">

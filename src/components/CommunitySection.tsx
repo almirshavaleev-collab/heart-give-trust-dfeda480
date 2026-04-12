@@ -8,12 +8,12 @@ const overlayCards = [
 ];
 
 const CommunitySection = () => (
-  <section id="community" className="py-24 md:py-32 relative overflow-hidden">
+  <section id="community" className="py-24 md:py-32 section-alt">
     <div className="container">
       <div className="text-center mb-16">
-        <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">Наше сообщество</p>
-        <h2 className="text-3xl md:text-4xl font-bold">
-          Мы — сообщество <span className="text-gradient">выпускников</span>
+        <p className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">Наше сообщество</p>
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground">
+          Мы — сообщество выпускников
         </h2>
         <p className="mt-4 text-muted-foreground max-w-xl mx-auto leading-relaxed">
           Единство, поддержка и преемственность — мы объединяем выпускников разных лет для развития лицея и помощи ученикам
@@ -22,15 +22,14 @@ const CommunitySection = () => (
 
       <div className="grid lg:grid-cols-2 gap-10 items-center">
         {/* Photo */}
-        <div className="relative rounded-3xl overflow-hidden group">
+        <div className="relative rounded-2xl overflow-hidden">
           <img
             src={alumniGroup}
             alt="Выпускники лицея на встрече"
-            className="w-full h-80 md:h-96 object-cover transition-transform duration-700 group-hover:scale-105"
+            className="w-full h-80 md:h-96 object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
-          <div className="absolute bottom-6 left-6 right-6">
-            <p className="text-sm text-foreground/90 font-medium">Традиционная встреча выпускников</p>
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-foreground/60 to-transparent p-6">
+            <p className="text-sm text-background font-medium">Традиционная встреча выпускников</p>
           </div>
         </div>
 
@@ -39,14 +38,14 @@ const CommunitySection = () => (
           {overlayCards.map((card, i) => (
             <div
               key={card.title}
-              className={`glass-card rounded-2xl p-6 card-elevated fade-in-up fade-in-up-delay-${i + 1}`}
+              className={`card-light p-6 fade-in-up fade-in-up-delay-${i + 1}`}
             >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <card.icon className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
+                  <card.icon className="w-6 h-6 text-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-1">{card.title}</h3>
+                  <h3 className="font-semibold text-lg mb-1 text-foreground">{card.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{card.text}</p>
                 </div>
               </div>

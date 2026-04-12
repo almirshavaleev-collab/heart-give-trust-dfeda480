@@ -36,27 +36,27 @@ const CopyButton = ({ text }: { text: string }) => {
       className="p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
       aria-label="Скопировать"
     >
-      {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+      {copied ? <Check className="w-4 h-4 text-accent" /> : <Copy className="w-4 h-4" />}
     </button>
   );
 };
 
 const DetailsSection = () => (
-  <section id="details" className="py-24 md:py-32">
+  <section id="details" className="py-24 md:py-32 section-alt">
     <div className="container max-w-3xl">
       <div className="text-center mb-16">
-        <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">Банковские данные</p>
-        <h2 className="text-3xl md:text-4xl font-bold">Реквизиты <span className="text-gradient">фонда</span></h2>
+        <p className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">Банковские данные</p>
+        <h2 className="text-3xl md:text-4xl font-bold text-foreground">Реквизиты фонда</h2>
         <p className="mt-3 text-muted-foreground">ФОНД «ВЫПУСКНИКИ ЛИЦЕЯ «ЛИГА»</p>
       </div>
 
-      <div className="glass-card rounded-3xl overflow-hidden card-elevated">
-        <div className="divide-y divide-border/50">
+      <div className="card-light overflow-hidden">
+        <div className="divide-y divide-border">
           {details.map((row) => (
             <div key={row.label} className="flex items-center justify-between gap-4 px-6 py-4">
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground mb-0.5">{row.label}</p>
-                <p className="text-sm font-medium break-all">{row.value}</p>
+                <p className="text-sm font-medium text-foreground break-all">{row.value}</p>
               </div>
               <CopyButton text={row.value} />
             </div>
@@ -66,9 +66,9 @@ const DetailsSection = () => (
 
       <div className="grid sm:grid-cols-2 gap-4 mt-6">
         {addresses.map((addr) => (
-          <div key={addr.label} className="glass-card rounded-2xl p-5 card-elevated">
+          <div key={addr.label} className="card-light p-5">
             <p className="text-xs text-muted-foreground mb-1">{addr.label}</p>
-            <p className="text-sm leading-relaxed">{addr.value}</p>
+            <p className="text-sm leading-relaxed text-foreground">{addr.value}</p>
             <div className="mt-2 flex justify-end">
               <CopyButton text={addr.value} />
             </div>

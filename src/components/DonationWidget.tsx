@@ -42,29 +42,28 @@ const DonationWidget = () => {
 
   return (
     <>
-      <section id="donate" className="py-24 md:py-32 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.03] to-transparent" />
-        <div className="container max-w-xl relative z-10">
+      <section id="donate" className="py-24 md:py-32 section-alt">
+        <div className="container max-w-xl">
           <div className="text-center mb-10">
-            <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-3">Сделать вклад</p>
-            <h2 className="text-3xl md:text-4xl font-bold">Поддержать <span className="text-gradient">фонд</span></h2>
+            <p className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">Сделать вклад</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground">Поддержать фонд</h2>
           </div>
 
-          <div className="glass-card rounded-3xl p-8 md:p-10 card-elevated glow-accent">
+          <div className="card-light p-8 md:p-10">
             {/* Toggle */}
-            <div className="flex rounded-2xl bg-secondary p-1 mb-8">
+            <div className="flex rounded-xl bg-secondary p-1 mb-8">
               <button
                 onClick={() => setRecurring(false)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  !recurring ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground"
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  !recurring ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
                 }`}
               >
                 Разово
               </button>
               <button
                 onClick={() => setRecurring(true)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  recurring ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground"
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  recurring ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
                 }`}
               >
                 Ежемесячно
@@ -77,10 +76,10 @@ const DonationWidget = () => {
                 <button
                   key={val}
                   onClick={() => handlePreset(val)}
-                  className={`py-3 rounded-2xl text-sm font-semibold transition-all border ${
+                  className={`py-3 rounded-xl text-sm font-semibold transition-all border ${
                     amount === val
-                      ? "bg-primary text-primary-foreground border-primary shadow-md glow-accent"
-                      : "bg-secondary border-border hover:border-primary/30"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background border-border hover:border-foreground/20"
                   }`}
                 >
                   {val.toLocaleString("ru-RU")} ₽
@@ -93,14 +92,14 @@ const DonationWidget = () => {
               placeholder="Другая сумма, ₽"
               value={customAmount}
               onChange={(e) => handleCustom(e.target.value)}
-              className="rounded-2xl h-12 text-center text-base mb-6 bg-secondary border-border"
+              className="rounded-xl h-12 text-center text-base mb-6 bg-background border-border"
             />
 
             {/* Fields */}
             <div className="space-y-3 mb-6">
-              <Input placeholder="Имя" value={name} onChange={(e) => setName(e.target.value)} className="rounded-2xl h-12 bg-secondary border-border" />
-              <Input placeholder="Телефон" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-2xl h-12 bg-secondary border-border" />
-              <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-2xl h-12 bg-secondary border-border" />
+              <Input placeholder="Имя" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl h-12 bg-background border-border" />
+              <Input placeholder="Телефон" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl h-12 bg-background border-border" />
+              <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-xl h-12 bg-background border-border" />
             </div>
 
             {/* Consent */}
@@ -115,15 +114,14 @@ const DonationWidget = () => {
               </div>
               <span className="text-xs text-muted-foreground leading-relaxed">
                 Я согласен(а) на обработку персональных данных и ознакомлен(а) с{" "}
-                <a href="#privacy" className="text-primary hover:underline">политикой конфиденциальности</a> и{" "}
-                <a href="#terms" className="text-primary hover:underline">пользовательским соглашением</a>
+                <a href="#privacy" className="text-foreground hover:underline">политикой конфиденциальности</a> и{" "}
+                <a href="#terms" className="text-foreground hover:underline">пользовательским соглашением</a>
               </span>
             </label>
 
             <Button
-              variant="hero"
               size="xl"
-              className="w-full glow-accent"
+              className="w-full"
               disabled={!activeAmount || !consent}
               onClick={handleSubmit}
             >
@@ -139,14 +137,14 @@ const DonationWidget = () => {
       </section>
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="rounded-3xl max-w-md glass-card border-border">
+        <DialogContent className="rounded-2xl max-w-md border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl">Онлайн-оплата скоро</DialogTitle>
+            <DialogTitle className="text-xl text-foreground">Онлайн-оплата скоро</DialogTitle>
             <DialogDescription className="text-base leading-relaxed mt-2">
               Онлайн-оплата скоро будет доступна через ЮKassa. Пока вы можете воспользоваться реквизитами фонда.
             </DialogDescription>
           </DialogHeader>
-          <Button variant="hero" className="mt-4" asChild>
+          <Button className="mt-4" asChild>
             <a href="#details" onClick={() => setShowModal(false)}>
               Перейти к реквизитам
             </a>
