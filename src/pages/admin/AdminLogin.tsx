@@ -126,7 +126,7 @@ export default function AdminLogin() {
               </div>
             )}
             {error && <p className="text-sm text-destructive">{error}</p>}
-            {success && <p className="text-sm text-green-600">{success}</p>}
+            {success && <p className="text-sm text-primary">{success}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading
                 ? (mode === 'login' ? 'Вход...' : 'Регистрация...')
