@@ -173,7 +173,7 @@ export default function AdminCampaigns() {
                 <Input value={form.purpose || ''} onChange={(e) => setForm({ ...form, purpose: e.target.value })} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Целевая сумма ₽</label>
                 <Input type="number" value={form.target_amount || 0} onChange={(e) => setForm({ ...form, target_amount: Number(e.target.value) })} />
@@ -192,6 +192,10 @@ export default function AdminCampaigns() {
                     <SelectItem value="completed">Завершён</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Порядок</label>
+                <Input type="number" value={(form as any).sort_order ?? 0} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) } as any)} />
               </div>
             </div>
             <div className="space-y-1.5">
