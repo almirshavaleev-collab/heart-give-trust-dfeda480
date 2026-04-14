@@ -17,7 +17,7 @@ type CampaignInsert = Database['public']['Tables']['campaigns']['Insert'];
 const emptyCampaign: Partial<CampaignInsert> = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
-  status: 'draft', beneficiary: '', purpose: '',
+  status: 'draft', beneficiary: '', purpose: '', sort_order: 0,
 };
 
 export default function AdminCampaigns() {
