@@ -25,6 +25,7 @@ export type Database = {
           purpose: string | null
           short_description: string | null
           slug: string
+          sort_order: number
           status: string
           target_amount: number
           title: string
@@ -40,6 +41,7 @@ export type Database = {
           purpose?: string | null
           short_description?: string | null
           slug: string
+          sort_order?: number
           status?: string
           target_amount?: number
           title: string
@@ -55,6 +57,7 @@ export type Database = {
           purpose?: string | null
           short_description?: string | null
           slug?: string
+          sort_order?: number
           status?: string
           target_amount?: number
           title?: string
