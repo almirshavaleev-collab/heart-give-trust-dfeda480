@@ -1,18 +1,32 @@
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Heart, Target, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import {
-  getCampaignBySlug,
-  getOtherCampaigns,
-  formatAmount,
-  getProgress,
-} from "@/lib/campaigns";
+import { useCampaignBySlug, useOtherCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
 
 const CampaignPage = () => {
   const { slug } = useParams<{ slug: string }>();
-  const campaign = getCampaignBySlug(slug ?? "");
+  const { data: campaign, isLoading } = useCampaignBySlug(slug ?? "");
+  const { data: others = [] } = useOtherCampaigns(slug ?? "");
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 pt-16">
+          <div className="container pt-8 space-y-6">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-[420px] w-full rounded-2xl" />
+            <Skeleton className="h-10 w-2/3" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!campaign) {
     return (
@@ -32,9 +46,8 @@ const CampaignPage = () => {
     );
   }
 
-  const progress = getProgress(campaign);
-  const remaining = campaign.goalAmount - campaign.collectedAmount;
-  const others = getOtherCampaigns(campaign.slug);
+  const progress = getProgress(campaign.target_amount, campaign.collected_amount);
+  const remaining = campaign.target_amount - campaign.collected_amount;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -44,7 +57,7 @@ const CampaignPage = () => {
         {/* Breadcrumb */}
         <div className="container pt-8 pb-4">
           <Link
-            to="/#campaigns"
+            to="/campaigns"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -53,17 +66,17 @@ const CampaignPage = () => {
         </div>
 
         {/* Hero image */}
-        <div className="container mb-10">
-          <div className="rounded-2xl overflow-hidden max-h-[420px]">
-            <img
-              src={campaign.image}
-              alt={campaign.title}
-              className="w-full h-full object-cover"
-              width={800}
-              height={512}
-            />
+        {campaign.cover_image && (
+          <div className="container mb-10">
+            <div className="rounded-2xl overflow-hidden max-h-[420px]">
+              <img
+                src={campaign.cover_image}
+                alt={campaign.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content */}
         <div className="container max-w-4xl pb-24">
@@ -75,29 +88,33 @@ const CampaignPage = () => {
                   {campaign.title}
                 </h1>
                 <p className="text-muted-foreground leading-relaxed text-lg">
-                  {campaign.fullDescription}
+                  {campaign.full_description}
                 </p>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="card-light p-5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Users className="w-5 h-5 text-foreground" />
-                    <span className="text-sm font-medium text-foreground">Кому помогаем</span>
+                {campaign.beneficiary && (
+                  <div className="card-light p-5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Users className="w-5 h-5 text-foreground" />
+                      <span className="text-sm font-medium text-foreground">Кому помогаем</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {campaign.beneficiary}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {campaign.beneficiary}
-                  </p>
-                </div>
-                <div className="card-light p-5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Target className="w-5 h-5 text-foreground" />
-                    <span className="text-sm font-medium text-foreground">Цель сбора</span>
+                )}
+                {campaign.purpose && (
+                  <div className="card-light p-5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Target className="w-5 h-5 text-foreground" />
+                      <span className="text-sm font-medium text-foreground">Цель сбора</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {campaign.purpose}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {campaign.purpose}
-                  </p>
-                </div>
+                )}
               </div>
             </div>
 
@@ -123,13 +140,13 @@ const CampaignPage = () => {
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Собрано</span>
                     <span className="text-sm font-semibold text-foreground">
-                      {formatAmount(campaign.collectedAmount)} ₽
+                      {formatAmount(campaign.collected_amount)} ₽
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Цель</span>
                     <span className="text-sm font-semibold text-foreground">
-                      {formatAmount(campaign.goalAmount)} ₽
+                      {formatAmount(campaign.target_amount)} ₽
                     </span>
                   </div>
                   <div className="border-t border-border pt-3 flex justify-between">
@@ -141,9 +158,9 @@ const CampaignPage = () => {
                 </div>
 
                 {/* CTA */}
-                <Button size="xl" className="w-full" asChild>
+                <Button size="lg" className="w-full" asChild>
                   <a href="/#donate">
-                    <Heart className="w-5 h-5" />
+                    <Heart className="w-5 h-5 mr-2" />
                     Помочь сейчас
                   </a>
                 </Button>
@@ -163,37 +180,38 @@ const CampaignPage = () => {
               <h2 className="text-2xl font-bold text-foreground mb-8">Другие сборы</h2>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {others.map((c) => {
-                  const p = getProgress(c);
+                  const p = getProgress(c.target_amount, c.collected_amount);
                   return (
                     <Link
                       key={c.id}
                       to={`/campaigns/${c.slug}`}
                       className="group card-light overflow-hidden flex flex-col"
                     >
-                      <div className="relative h-40 overflow-hidden">
-                        <img
-                          src={c.image}
-                          alt={c.title}
-                          loading="lazy"
-                          width={800}
-                          height={512}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
+                      <div className="relative h-40 overflow-hidden bg-secondary">
+                        {c.cover_image ? (
+                          <img
+                            src={c.cover_image}
+                            alt={c.title}
+                            loading="lazy"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                            Нет фото
+                          </div>
+                        )}
                       </div>
                       <div className="p-5 flex flex-col flex-1">
                         <h3 className="font-semibold text-foreground mb-1">{c.title}</h3>
                         <p className="text-sm text-muted-foreground mb-3 line-clamp-2 flex-1">
-                          {c.shortDescription}
+                          {c.short_description}
                         </p>
                         <div className="h-2 rounded-full bg-secondary overflow-hidden mb-2">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${p}%` }}
-                          />
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${p}%` }} />
                         </div>
                         <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{formatAmount(c.collectedAmount)} ₽</span>
-                          <span>из {formatAmount(c.goalAmount)} ₽</span>
+                          <span>{formatAmount(c.collected_amount)} ₽</span>
+                          <span>из {formatAmount(c.target_amount)} ₽</span>
                         </div>
                         <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
                           <span className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
