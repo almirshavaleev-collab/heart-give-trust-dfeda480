@@ -36,11 +36,24 @@ export default function AdminCampaigns() {
     },
   });
 
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+
+  const sanitizeSlug = (s: string) =>
+    s.replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]/g, '-').replace(/-+/g, '-').slice(0, 80);
+
   const uploadImage = async (file: File) => {
-    const ext = file.name.split('.').pop();
-    const path = `${Date.now()}.${ext}`;
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      throw new Error('Допустимы только JPEG, PNG и WebP');
+    }
+    if (file.size > MAX_SIZE) {
+      throw new Error('Размер файла не должен превышать 5 МБ');
+    }
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const slug = sanitizeSlug(form.slug || form.title || 'campaign');
+    const path = `campaigns/${slug}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from('campaign-images').upload(path, file);
-    if (error) throw error;
+    if (error) throw new Error(`Не удалось загрузить обложку: ${error.message}`);
     const { data: { publicUrl } } = supabase.storage.from('campaign-images').getPublicUrl(path);
     return publicUrl;
   };
@@ -56,10 +69,10 @@ export default function AdminCampaigns() {
 
       if (editing) {
         const { error } = await supabase.from('campaigns').update(payload).eq('id', editing.id);
-        if (error) throw error;
+        if (error) throw new Error(`Ошибка обновления: ${error.message}`);
       } else {
         const { error } = await supabase.from('campaigns').insert(payload);
-        if (error) throw error;
+        if (error) throw new Error(`Ошибка создания: ${error.message}`);
       }
     },
     onSuccess: () => {
@@ -70,7 +83,7 @@ export default function AdminCampaigns() {
       setImageFile(null);
       toast.success(editing ? 'Сбор обновлён' : 'Сбор создан');
     },
-    onError: () => toast.error('Ошибка сохранения'),
+    onError: (err: Error) => toast.error(err.message || 'Ошибка сохранения'),
   });
 
   const deleteMutation = useMutation({
