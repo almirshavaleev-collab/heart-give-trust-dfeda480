@@ -1,45 +1,46 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import { usePublishedCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePublishedCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
 
-const CampaignsSection = () => {
-  const { data: campaigns = [], isLoading } = usePublishedCampaigns(4);
+const CampaignsListPage = () => {
+  const { data: campaigns = [], isLoading } = usePublishedCampaigns();
 
   return (
-    <section id="campaigns" className="py-24 md:py-32">
-      <div className="container">
-        <div className="text-center mb-16">
-          <p className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">
-            Помощь адресно
-          </p>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground">
-            Целевые сборы
-          </h2>
-          <p className="mt-4 text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Каждый сбор — конкретная цель с прозрачной отчётностью. Выберите проект, который вам близок.
-          </p>
-        </div>
+    <div className="min-h-screen flex flex-col">
+      <Header />
 
-        {isLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card-light overflow-hidden">
-                <Skeleton className="h-48 w-full" />
-                <div className="p-5 space-y-3">
-                  <Skeleton className="h-5 w-3/4" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-2 w-full rounded-full" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              </div>
-            ))}
+      <main className="flex-1 pt-16">
+        <div className="container py-12 md:py-20">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Все целевые сборы
+            </h1>
+            <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              Каждый сбор — конкретная цель с прозрачной отчётностью.
+            </p>
           </div>
-        ) : campaigns.length === 0 ? (
-          <p className="text-center text-muted-foreground">Активных сборов пока нет.</p>
-        ) : (
-          <>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          {isLoading ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="card-light overflow-hidden">
+                  <Skeleton className="h-48 w-full" />
+                  <div className="p-5 space-y-3">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-2 w-full rounded-full" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : campaigns.length === 0 ? (
+            <p className="text-center text-muted-foreground">Активных сборов пока нет.</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {campaigns.map((campaign) => {
                 const progress = getProgress(campaign.target_amount, campaign.collected_amount);
                 return (
@@ -48,7 +49,6 @@ const CampaignsSection = () => {
                     to={`/campaigns/${campaign.slug}`}
                     className="group card-light overflow-hidden flex flex-col"
                   >
-                    {/* Image */}
                     <div className="relative h-48 overflow-hidden bg-secondary">
                       {campaign.cover_image ? (
                         <img
@@ -64,7 +64,6 @@ const CampaignsSection = () => {
                       )}
                     </div>
 
-                    {/* Content */}
                     <div className="p-5 flex flex-col flex-1">
                       <h3 className="font-semibold text-foreground mb-1 leading-snug">
                         {campaign.title}
@@ -73,7 +72,6 @@ const CampaignsSection = () => {
                         {campaign.short_description}
                       </p>
 
-                      {/* Progress */}
                       <div className="mb-3">
                         <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                           <span>Собрано</span>
@@ -96,7 +94,6 @@ const CampaignsSection = () => {
                         </span>
                       </div>
 
-                      {/* CTA */}
                       <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                         <span className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
                           Подробнее
@@ -108,22 +105,13 @@ const CampaignsSection = () => {
                 );
               })}
             </div>
+          )}
+        </div>
+      </main>
 
-            {/* Show all link */}
-            <div className="text-center mt-10">
-              <Link
-                to="/campaigns"
-                className="inline-flex items-center gap-2 text-sm font-medium text-foreground hover:text-accent transition-colors"
-              >
-                Смотреть все сборы
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </>
-        )}
-      </div>
-    </section>
+      <Footer />
+    </div>
   );
 };
 
-export default CampaignsSection;
+export default CampaignsListPage;
