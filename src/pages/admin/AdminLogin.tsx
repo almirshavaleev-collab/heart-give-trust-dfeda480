@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 type Mode = 'login' | 'register';
 
@@ -15,8 +16,23 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // If already logged in as admin, redirect
+  useEffect(() => {
+    if (!authLoading && user && isAdmin) {
+      navigate('/admin');
+    }
+  }, [authLoading, user, isAdmin, navigate]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,35 +40,53 @@ export default function AdminLogin() {
     setSuccess('');
     setLoading(true);
 
-    if (mode === 'register') {
-      if (password !== confirmPassword) {
-        setError('Пароли не совпадают');
-        setLoading(false);
-        return;
-      }
-      if (password.length < 6) {
-        setError('Пароль должен быть не менее 6 символов');
-        setLoading(false);
-        return;
-      }
-      const { error: signUpError } = await signUp(email, password);
-      if (signUpError) {
-        setError(signUpError.message);
-        setLoading(false);
-        return;
-      }
-      setSuccess('Регистрация прошла успешно! Проверьте email для подтверждения.');
+    // Safety timeout — 15s max
+    timeoutRef.current = setTimeout(() => {
       setLoading(false);
-      return;
-    }
+      setError('Не удалось завершить вход. Попробуйте ещё раз.');
+    }, 15000);
 
-    const { error: signInError } = await signIn(email, password);
-    if (signInError) {
-      setError('Неверный email или пароль');
+    try {
+      if (mode === 'register') {
+        if (password !== confirmPassword) {
+          setError('Пароли не совпадают');
+          return;
+        }
+        if (password.length < 6) {
+          setError('Пароль должен быть не менее 6 символов');
+          return;
+        }
+        const { error: signUpError } = await signUp(email, password);
+        if (signUpError) {
+          setError(signUpError.message);
+          return;
+        }
+        setSuccess('Регистрация прошла успешно! Проверьте email для подтверждения.');
+        return;
+      }
+
+      // Login flow
+      const { error: signInError, isAdmin: adminResult } = await signIn(email, password);
+      if (signInError) {
+        setError('Неверный email или пароль');
+        return;
+      }
+
+      if (!adminResult) {
+        setError('Нет доступа. Только администраторы могут войти в панель управления.');
+        return;
+      }
+
+      console.log('[login] redirect to /admin');
+      toast.success('Вход выполнен');
+      navigate('/admin');
+    } catch (err: any) {
+      console.error('[login] unexpected error', err);
+      setError(err?.message || 'Произошла непредвиденная ошибка');
+    } finally {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setLoading(false);
-      return;
     }
-    navigate('/admin');
   };
 
   const switchMode = (newMode: Mode) => {
