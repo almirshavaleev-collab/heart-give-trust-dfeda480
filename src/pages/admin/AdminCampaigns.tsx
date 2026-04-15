@@ -39,9 +39,6 @@ export default function AdminCampaigns() {
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
   const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
-  const sanitizeSlug = (s: string) =>
-    s.replace(/[^a-zA-Z0-9а-яА-ЯёЁ_-]/g, '-').replace(/-+/g, '-').slice(0, 80);
-
   const uploadImage = async (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
       throw new Error('Допустимы только JPEG, PNG и WebP');
@@ -50,11 +47,22 @@ export default function AdminCampaigns() {
       throw new Error('Размер файла не должен превышать 5 МБ');
     }
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const slug = sanitizeSlug(form.slug || form.title || 'campaign');
-    const path = `campaigns/${slug}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('campaign-images').upload(path, file);
-    if (error) throw new Error(`Не удалось загрузить обложку: ${error.message}`);
-    const { data: { publicUrl } } = supabase.storage.from('campaign-images').getPublicUrl(path);
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+
+    console.log('[upload] bucket:', 'campaign-images');
+    console.log('[upload] original name:', file.name);
+    console.log('[upload] safe path:', safeName);
+
+    const { error } = await supabase.storage.from('campaign-images').upload(safeName, file, {
+      cacheControl: '3600',
+      upsert: true,
+    });
+    if (error) {
+      console.error('[upload] error:', error);
+      throw new Error(`Не удалось загрузить обложку: ${error.message}`);
+    }
+    const { data: { publicUrl } } = supabase.storage.from('campaign-images').getPublicUrl(safeName);
+    console.log('[upload] publicUrl:', publicUrl);
     return publicUrl;
   };
 
