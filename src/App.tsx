@@ -13,6 +13,7 @@ import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import AdminNews from "./pages/admin/AdminNews.tsx";
 import AdminReports from "./pages/admin/AdminReports.tsx";
+import AdminDonations from "./pages/admin/AdminDonations.tsx";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="campaigns" element={<AdminCampaigns />} />
             <Route path="news" element={<AdminNews />} />
             <Route path="reports" element={<AdminReports />} />
+            <Route path="donations" element={<AdminDonations />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
