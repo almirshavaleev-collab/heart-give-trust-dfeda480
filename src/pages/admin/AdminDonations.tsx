@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,22 +8,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  TrendingUp,
   Wallet,
   Calendar,
   CalendarDays,
@@ -35,6 +19,8 @@ import {
   XCircle,
   ChevronDown,
 } from "lucide-react";
+
+const DonationsCharts = lazy(() => import("./DonationsCharts"));
 
 type DonationRow = {
   id: string;
@@ -271,132 +257,43 @@ export default function AdminDonations() {
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-lg">Поступления за 30 дней</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">По дню оплаты</p>
-            </div>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <ChartContainer
-            config={{ amount: { label: "Сумма", color: "hsl(var(--primary))" } }}
-            className="h-[260px] w-full"
-          >
-            <ResponsiveContainer>
-              <BarChart data={dailyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} interval={3} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  fontSize={11}
-                  tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}к` : `${v}`)}
-                />
-                <ChartTooltip
-                  content={<ChartTooltipContent formatter={(v) => formatRub(Number(v))} />}
-                />
-                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
+      {/* Charts (lazy + error boundary so any failure doesn't blank the page) */}
+      <Suspense
+        fallback={
+          <Card className="p-6">
+            <p className="text-sm text-muted-foreground">Загрузка графиков...</p>
+          </Card>
+        }
+      >
+        <DonationsCharts donations={allDonations} />
+      </Suspense>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-lg">Поступления по месяцам</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Последние 12 месяцев</p>
-            </div>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <ChartContainer
-            config={{ amount: { label: "Сумма", color: "hsl(var(--primary))" } }}
-            className="h-[260px] w-full"
-          >
-            <ResponsiveContainer>
-              <LineChart data={monthlyData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  fontSize={11}
-                  tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}к` : `${v}`)}
-                />
-                <ChartTooltip
-                  content={<ChartTooltipContent formatter={(v) => formatRub(Number(v))} />}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "hsl(var(--primary))" }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-      </div>
-
-      {/* Status & Summary cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-6 lg:col-span-1">
-          <h2 className="font-semibold text-lg mb-4">Статусы платежей</h2>
-          <ChartContainer
-            config={{ count: { label: "Кол-во", color: "hsl(var(--primary))" } }}
-            className="h-[200px] w-full"
-          >
-            <ResponsiveContainer>
-              <BarChart data={statusData} layout="vertical" margin={{ top: 0, right: 8, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} />
-                <YAxis dataKey="status" type="category" tickLine={false} axisLine={false} fontSize={11} width={80} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </Card>
-
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SummaryCard
-            icon={<Trophy className="h-5 w-5 text-primary" />}
-            label="Крупнейшее пожертвование"
-            value={stats.largest ? formatRub(stats.largest.amount) : "—"}
-            sub={stats.largest ? (stats.largest.donor_name || stats.largest.donor_email || "Аноним") : undefined}
-          />
-          <SummaryCard
-            icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
-            label="Последнее успешное"
-            value={
-              stats.lastSucceeded
-                ? formatRub(stats.lastSucceeded.amount)
-                : "—"
-            }
-            sub={
-              stats.lastSucceeded
-                ? fmtDateTime(stats.lastSucceeded.paid_at ?? stats.lastSucceeded.created_at)
-                : undefined
-            }
-          />
-          <SummaryCard
-            icon={<Clock className="h-5 w-5 text-muted-foreground" />}
-            label="В ожидании оплаты"
-            value={stats.pendingCount.toLocaleString("ru-RU")}
-            sub="платежей в статусе pending"
-          />
-          <SummaryCard
-            icon={<XCircle className="h-5 w-5 text-destructive" />}
-            label="Отменено / не прошло"
-            value={stats.canceledCount.toLocaleString("ru-RU")}
-            sub="canceled + failed"
-          />
-        </div>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SummaryCard
+          icon={<Trophy className="h-5 w-5 text-primary" />}
+          label="Крупнейшее пожертвование"
+          value={stats.largest ? formatRub(stats.largest.amount) : "—"}
+          sub={stats.largest ? (stats.largest.donor_name || stats.largest.donor_email || "Аноним") : undefined}
+        />
+        <SummaryCard
+          icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
+          label="Последнее успешное"
+          value={stats.lastSucceeded ? formatRub(stats.lastSucceeded.amount) : "—"}
+          sub={stats.lastSucceeded ? fmtDateTime(stats.lastSucceeded.paid_at ?? stats.lastSucceeded.created_at) : undefined}
+        />
+        <SummaryCard
+          icon={<Clock className="h-5 w-5 text-muted-foreground" />}
+          label="В ожидании оплаты"
+          value={stats.pendingCount.toLocaleString("ru-RU")}
+          sub="платежей в статусе pending"
+        />
+        <SummaryCard
+          icon={<XCircle className="h-5 w-5 text-destructive" />}
+          label="Отменено / не прошло"
+          value={stats.canceledCount.toLocaleString("ru-RU")}
+          sub="canceled + failed"
+        />
       </div>
 
       {/* Recent successful donations */}
