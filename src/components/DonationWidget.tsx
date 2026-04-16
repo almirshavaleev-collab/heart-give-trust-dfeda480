@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Heart, Check } from "lucide-react";
+import { Heart, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import type { DonationIntent } from "@/lib/donation";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const presets = [500, 1000, 3000, 5000];
 
@@ -16,6 +17,7 @@ const DonationWidget = () => {
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const activeAmount = amount ?? (customAmount ? Number(customAmount) : 0);
 
@@ -30,14 +32,39 @@ const DonationWidget = () => {
   };
 
   const handleSubmit = async () => {
-    if (!activeAmount || !consent) return;
-    const _intent: DonationIntent = {
-      amount: activeAmount,
-      currency: "RUB",
-      recurring,
-      donor: { name, phone, email },
-    };
-    setShowModal(true);
+    if (!activeAmount || !consent || loading) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-payment", {
+        body: {
+          amount: activeAmount,
+          return_url: `${window.location.origin}/thank-you`,
+          description: recurring
+            ? `Ежемесячное пожертвование ${activeAmount} ₽`
+            : `Пожертвование ${activeAmount} ₽`,
+        },
+      });
+
+      if (error) throw error;
+
+      const url = data?.confirmation?.confirmation_url;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
+      throw new Error(data?.error || "Не удалось создать платёж");
+    } catch (e) {
+      console.error("Donation error:", e);
+      toast({
+        title: "Ошибка оплаты",
+        description: (e as Error).message || "Попробуйте ещё раз или используйте реквизиты ниже.",
+        variant: "destructive",
+      });
+      setShowModal(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -122,15 +149,24 @@ const DonationWidget = () => {
             <Button
               size="xl"
               className="w-full"
-              disabled={!activeAmount || !consent}
+              disabled={!activeAmount || !consent || loading}
               onClick={handleSubmit}
             >
-              <Heart className="w-5 h-5" />
-              Поддержать {activeAmount ? `${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Переход к оплате...
+                </>
+              ) : (
+                <>
+                  <Heart className="w-5 h-5" />
+                  Поддержать {activeAmount ? `${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+                </>
+              )}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground mt-4">
-              Безопасная оплата · Скоро через ЮKassa
+              Безопасная оплата через ЮKassa
             </p>
           </div>
         </div>
@@ -139,9 +175,9 @@ const DonationWidget = () => {
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="rounded-2xl max-w-md border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl text-foreground">Онлайн-оплата скоро</DialogTitle>
+            <DialogTitle className="text-xl text-foreground">Не удалось перейти к оплате</DialogTitle>
             <DialogDescription className="text-base leading-relaxed mt-2">
-              Онлайн-оплата скоро будет доступна через ЮKassa. Пока вы можете воспользоваться реквизитами фонда.
+              Попробуйте ещё раз чуть позже или воспользуйтесь банковскими реквизитами фонда.
             </DialogDescription>
           </DialogHeader>
           <Button className="mt-4" asChild>
