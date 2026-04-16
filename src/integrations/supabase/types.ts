@@ -65,6 +65,45 @@ export type Database = {
         }
         Relationships: []
       }
+      donations: {
+        Row: {
+          amount: number
+          campaign_id: string | null
+          created_at: string
+          donor_email: string | null
+          donor_name: string | null
+          donor_phone: string | null
+          id: string
+          paid_at: string | null
+          status: string
+          yookassa_payment_id: string | null
+        }
+        Insert: {
+          amount: number
+          campaign_id?: string | null
+          created_at?: string
+          donor_email?: string | null
+          donor_name?: string | null
+          donor_phone?: string | null
+          id?: string
+          paid_at?: string | null
+          status?: string
+          yookassa_payment_id?: string | null
+        }
+        Update: {
+          amount?: number
+          campaign_id?: string | null
+          created_at?: string
+          donor_email?: string | null
+          donor_name?: string | null
+          donor_phone?: string | null
+          id?: string
+          paid_at?: string | null
+          status?: string
+          yookassa_payment_id?: string | null
+        }
+        Relationships: []
+      }
       news: {
         Row: {
           content: string | null
@@ -179,9 +218,38 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          event: string | null
+          id: string
+          payload: Json
+          provider: string
+        }
+        Insert: {
+          created_at?: string
+          event?: string | null
+          id?: string
+          payload: Json
+          provider?: string
+        }
+        Update: {
+          created_at?: string
+          event?: string | null
+          id?: string
+          payload?: Json
+          provider?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      donations_total: {
+        Row: {
+          total_raised: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
