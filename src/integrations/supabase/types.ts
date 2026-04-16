@@ -221,24 +221,39 @@ export type Database = {
       webhook_logs: {
         Row: {
           created_at: string
+          donation_id: string | null
           event: string | null
           id: string
+          object_id: string | null
+          object_status: string | null
           payload: Json
           provider: string
+          result: string | null
+          source_ip: string | null
         }
         Insert: {
           created_at?: string
+          donation_id?: string | null
           event?: string | null
           id?: string
+          object_id?: string | null
+          object_status?: string | null
           payload: Json
           provider?: string
+          result?: string | null
+          source_ip?: string | null
         }
         Update: {
           created_at?: string
+          donation_id?: string | null
           event?: string | null
           id?: string
+          object_id?: string | null
+          object_status?: string | null
           payload?: Json
           provider?: string
+          result?: string | null
+          source_ip?: string | null
         }
         Relationships: []
       }
