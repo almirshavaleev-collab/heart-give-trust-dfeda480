@@ -42,6 +42,11 @@ const DonationWidget = () => {
           description: recurring
             ? `Ежемесячное пожертвование ${activeAmount} ₽`
             : `Пожертвование ${activeAmount} ₽`,
+          donor_name: name || null,
+          donor_email: email || null,
+          donor_phone: phone || null,
+          // TODO: при донате со страницы конкретной кампании передавать campaign_id
+          campaign_id: null,
         },
       });
 
