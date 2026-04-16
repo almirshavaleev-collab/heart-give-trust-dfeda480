@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Heart, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import logoH from "@/assets/logo_h.svg";
 
 const navLinks = [
   { label: "Сообщество", href: "#community" },
@@ -29,9 +30,12 @@ const Header = () => {
       }`}
     >
       <div className="container flex items-center justify-between h-16">
-        <a href="#" className="flex items-center gap-2 font-bold text-lg text-foreground">
-          <Heart className="w-5 h-5 text-accent" />
-          <span>Выпускники Лицея</span>
+        <a href="#" className="flex items-center gap-3 cursor-pointer group">
+          <img
+            src={logoH}
+            alt="Фонд Выпускники Лицея «ЛИГА»"
+            className="h-10 md:h-12 w-auto transition-transform duration-200 group-hover:scale-105"
+          />
         </a>
 
         <nav className="hidden md:flex items-center gap-1">
