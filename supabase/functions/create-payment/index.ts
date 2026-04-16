@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     const returnUrl: string = body?.return_url || "https://ligafund.ru/thank-you";
     const description: string = body?.description || "Пожертвование в Фонд «Выпускники Лицея «Лига»";
 
-    if (!amount || amount < 10 || amount > 1_000_000) {
+    if (!amount || amount < 1 || amount > 1_000_000) {
       return new Response(
         JSON.stringify({ error: "Некорректная сумма" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
