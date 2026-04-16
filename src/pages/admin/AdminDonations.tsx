@@ -270,41 +270,30 @@ export default function AdminDonations() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SummaryCard
-            icon={<Trophy className="h-5 w-5 text-primary" />}
-            label="Крупнейшее пожертвование"
-            value={stats.largest ? formatRub(stats.largest.amount) : "—"}
-            sub={stats.largest ? (stats.largest.donor_name || stats.largest.donor_email || "Аноним") : undefined}
-          />
-          <SummaryCard
-            icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
-            label="Последнее успешное"
-            value={
-              stats.lastSucceeded
-                ? formatRub(stats.lastSucceeded.amount)
-                : "—"
-            }
-            sub={
-              stats.lastSucceeded
-                ? fmtDateTime(stats.lastSucceeded.paid_at ?? stats.lastSucceeded.created_at)
-                : undefined
-            }
-          />
-          <SummaryCard
-            icon={<Clock className="h-5 w-5 text-muted-foreground" />}
-            label="В ожидании оплаты"
-            value={stats.pendingCount.toLocaleString("ru-RU")}
-            sub="платежей в статусе pending"
-          />
-          <SummaryCard
-            icon={<XCircle className="h-5 w-5 text-destructive" />}
-            label="Отменено / не прошло"
-            value={stats.canceledCount.toLocaleString("ru-RU")}
-            sub="canceled + failed"
-          />
-        </div>
+        <SummaryCard
+          icon={<Trophy className="h-5 w-5 text-primary" />}
+          label="Крупнейшее пожертвование"
+          value={stats.largest ? formatRub(stats.largest.amount) : "—"}
+          sub={stats.largest ? (stats.largest.donor_name || stats.largest.donor_email || "Аноним") : undefined}
+        />
+        <SummaryCard
+          icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
+          label="Последнее успешное"
+          value={stats.lastSucceeded ? formatRub(stats.lastSucceeded.amount) : "—"}
+          sub={stats.lastSucceeded ? fmtDateTime(stats.lastSucceeded.paid_at ?? stats.lastSucceeded.created_at) : undefined}
+        />
+        <SummaryCard
+          icon={<Clock className="h-5 w-5 text-muted-foreground" />}
+          label="В ожидании оплаты"
+          value={stats.pendingCount.toLocaleString("ru-RU")}
+          sub="платежей в статусе pending"
+        />
+        <SummaryCard
+          icon={<XCircle className="h-5 w-5 text-destructive" />}
+          label="Отменено / не прошло"
+          value={stats.canceledCount.toLocaleString("ru-RU")}
+          sub="canceled + failed"
+        />
       </div>
 
       {/* Recent successful donations */}
