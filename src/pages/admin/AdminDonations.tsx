@@ -2,6 +2,14 @@ import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,6 +26,10 @@ import {
   Clock,
   XCircle,
   ChevronDown,
+  ArrowUpDown,
+  Target,
+  HeartHandshake,
+  Search,
 } from "lucide-react";
 
 const DonationsCharts = lazy(() => import("./DonationsCharts"));
@@ -29,10 +41,15 @@ type DonationRow = {
   yookassa_payment_id: string | null;
   donor_name: string | null;
   donor_email: string | null;
+  donor_phone: string | null;
   campaign_id: string | null;
+  is_anonymous: boolean;
+  payment_type: string;
   created_at: string;
   paid_at: string | null;
 };
+
+type CampaignLite = { id: string; title: string };
 
 type WebhookLogRow = {
   id: string;
