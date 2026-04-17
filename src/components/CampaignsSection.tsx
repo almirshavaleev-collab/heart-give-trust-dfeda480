@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import { usePublishedCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
+import { useActiveCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CampaignsSection = () => {
-  const { data: campaigns = [], isLoading } = usePublishedCampaigns(4);
+  const { data: campaigns = [], isLoading } = useActiveCampaigns(4);
 
   return (
     <section id="campaigns" className="py-24 md:py-32">

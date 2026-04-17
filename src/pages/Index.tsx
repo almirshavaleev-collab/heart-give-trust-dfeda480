@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import CommunitySection from "@/components/CommunitySection";
 import CampaignsSection from "@/components/CampaignsSection";
+import CompletedCampaignsSection from "@/components/CompletedCampaignsSection";
 import DonationWidget from "@/components/DonationWidget";
 import TrustSection from "@/components/TrustSection";
 import DetailsSection from "@/components/DetailsSection";
