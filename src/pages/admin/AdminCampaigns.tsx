@@ -190,7 +190,7 @@ export default function AdminCampaigns() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-8 gap-1.5 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                          className="h-8 gap-1.5 text-xs"
                           onClick={() => statusMutation.mutate({ id: c.id, status: 'completed' })}
                           title="Перевести сбор в статус «Завершён»"
                         >
