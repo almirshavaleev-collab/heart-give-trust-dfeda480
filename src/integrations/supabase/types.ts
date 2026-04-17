@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           beneficiary: string | null
           collected_amount: number
+          completed_at: string | null
           cover_image: string | null
           created_at: string
           full_description: string | null
@@ -34,6 +35,7 @@ export type Database = {
         Insert: {
           beneficiary?: string | null
           collected_amount?: number
+          completed_at?: string | null
           cover_image?: string | null
           created_at?: string
           full_description?: string | null
@@ -50,6 +52,7 @@ export type Database = {
         Update: {
           beneficiary?: string | null
           collected_amount?: number
+          completed_at?: string | null
           cover_image?: string | null
           created_at?: string
           full_description?: string | null
