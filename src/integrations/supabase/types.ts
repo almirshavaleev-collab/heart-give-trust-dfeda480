@@ -280,6 +280,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_campaign_collected: {
+        Args: { _amount: number; _campaign_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"
