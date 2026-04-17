@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Target, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Target, Users, CheckCircle2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/Header";
@@ -49,6 +49,7 @@ const CampaignPage = () => {
 
   const progress = getProgress(campaign.target_amount, campaign.collected_amount);
   const remaining = campaign.target_amount - campaign.collected_amount;
+  const isCompleted = campaign.status === "completed";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -85,6 +86,12 @@ const CampaignPage = () => {
             {/* Left: description */}
             <div className="space-y-8 min-w-0">
               <div>
+                {isCompleted && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-foreground text-sm font-medium mb-4">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Сбор завершён
+                  </div>
+                )}
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
                   {campaign.title}
                 </h1>
