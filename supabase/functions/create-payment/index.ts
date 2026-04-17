@@ -14,8 +14,11 @@ Deno.serve(async (req) => {
     const donorName: string | null = body?.donor_name ?? null;
     const donorEmail: string | null = body?.donor_email ?? null;
     const donorPhone: string | null = body?.donor_phone ?? null;
-    // TODO: при привязке к конкретной кампании передавать campaign_id из фронта
     const campaignId: string | null = body?.campaign_id ?? null;
+    const isAnonymous: boolean = Boolean(body?.is_anonymous);
+    const rawPaymentType: string = body?.payment_type ?? "one_time";
+    const paymentType: "one_time" | "monthly" =
+      rawPaymentType === "monthly" ? "monthly" : "one_time";
 
     if (!amount || amount < 1 || amount > 1_000_000) {
       return new Response(
@@ -48,7 +51,9 @@ Deno.serve(async (req) => {
         donor_name: donorName,
         donor_email: donorEmail,
         donor_phone: donorPhone,
-        campaign_id: campaignId, // TODO: связать с конкретной кампанией
+        campaign_id: campaignId,
+        is_anonymous: isAnonymous,
+        payment_type: paymentType,
       })
       .select("id")
       .single();

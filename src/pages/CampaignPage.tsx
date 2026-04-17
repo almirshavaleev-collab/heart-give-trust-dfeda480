@@ -1,9 +1,10 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Heart, Target, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Target, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import DonationWidget from "@/components/DonationWidget";
 import { useCampaignBySlug, useOtherCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
 
 const CampaignPage = () => {
@@ -118,10 +119,9 @@ const CampaignPage = () => {
               </div>
             </div>
 
-            {/* Right: progress card (sticky) */}
-            <div className="lg:col-span-1">
-              <div className="card-light p-6 lg:sticky lg:top-24">
-                {/* Progress bar */}
+            {/* Right: progress + donation widget */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="card-light p-6">
                 <div className="mb-4">
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Прогресс</span>
@@ -135,8 +135,7 @@ const CampaignPage = () => {
                   </div>
                 </div>
 
-                {/* Amounts */}
-                <div className="space-y-3 mb-6">
+                <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Собрано</span>
                     <span className="text-sm font-semibold text-foreground">
@@ -156,19 +155,18 @@ const CampaignPage = () => {
                     </span>
                   </div>
                 </div>
-
-                {/* CTA */}
-                <Button size="lg" className="w-full" asChild>
-                  <a href="/#donate">
-                    <Heart className="w-5 h-5 mr-2" />
-                    Помочь сейчас
-                  </a>
-                </Button>
-
-                <p className="text-xs text-center text-muted-foreground mt-3">
-                  Безопасная оплата · Скоро через ЮKassa
-                </p>
               </div>
+
+              <DonationWidget
+                mode="campaign"
+                embedded
+                campaign={{
+                  id: campaign.id,
+                  title: campaign.title,
+                  target_amount: campaign.target_amount,
+                  collected_amount: campaign.collected_amount,
+                }}
+              />
             </div>
           </div>
         </div>
