@@ -435,11 +435,23 @@ export default function AdminDonations() {
 
       {/* All donations — full table with filters */}
       <Card className="p-6">
-        <div className="flex flex-col gap-1 mb-5">
-          <h2 className="font-semibold text-lg">Все пожертвования</h2>
-          <p className="text-xs text-muted-foreground">
-            Показано {filteredDonations.length} из {allDonations.length}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+          <div className="flex flex-col gap-1">
+            <h2 className="font-semibold text-lg">Все пожертвования</h2>
+            <p className="text-xs text-muted-foreground">
+              Показано {filteredDonations.length} из {allDonations.length}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 self-start sm:self-auto"
+            disabled={filteredDonations.length === 0}
+            onClick={() => exportDonationsCSV(filteredDonations, campaignTitleById)}
+          >
+            <Download className="h-4 w-4" />
+            Экспорт CSV
+          </Button>
         </div>
 
         {/* Filters */}
