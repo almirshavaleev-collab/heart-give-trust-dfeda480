@@ -431,6 +431,181 @@ export default function AdminDonations() {
         )}
       </Card>
 
+      {/* All donations — full table with filters */}
+      <Card className="p-6">
+        <div className="flex flex-col gap-1 mb-5">
+          <h2 className="font-semibold text-lg">Все пожертвования</h2>
+          <p className="text-xs text-muted-foreground">
+            Показано {filteredDonations.length} из {allDonations.length}
+          </p>
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-5">
+          <div className="relative xl:col-span-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск: имя, email, телефон, ID..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger><SelectValue placeholder="Статус" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="succeeded">Успешные</SelectItem>
+              <SelectItem value="pending">В ожидании</SelectItem>
+              <SelectItem value="canceled">Отменённые</SelectItem>
+              <SelectItem value="failed">Ошибка</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger><SelectValue placeholder="Тип доната" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все типы</SelectItem>
+              <SelectItem value="general">Общий донат</SelectItem>
+              <SelectItem value="campaign">В сбор</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+            <SelectTrigger><SelectValue placeholder="Сбор" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все сборы</SelectItem>
+              {campaigns.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={anonFilter} onValueChange={setAnonFilter}>
+            <SelectTrigger><SelectValue placeholder="Анонимность" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все донаты</SelectItem>
+              <SelectItem value="anon">Только анонимные</SelectItem>
+              <SelectItem value="named">С именем</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={paymentTypeFilter} onValueChange={setPaymentTypeFilter}>
+            <SelectTrigger><SelectValue placeholder="Тип платежа" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все платежи</SelectItem>
+              <SelectItem value="one_time">Разовый</SelectItem>
+              <SelectItem value="recurring">Ежемесячный</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {filteredDonations.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Нет пожертвований по выбранным фильтрам</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-4 font-medium">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => {
+                        if (sortBy === "date") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        else { setSortBy("date"); setSortDir("desc"); }
+                      }}
+                    >
+                      Дата <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </th>
+                  <th className="py-2 pr-4 font-medium">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => {
+                        if (sortBy === "amount") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        else { setSortBy("amount"); setSortDir("desc"); }
+                      }}
+                    >
+                      Сумма <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </th>
+                  <th className="py-2 pr-4 font-medium">Статус</th>
+                  <th className="py-2 pr-4 font-medium">Тип</th>
+                  <th className="py-2 pr-4 font-medium">Сбор</th>
+                  <th className="py-2 pr-4 font-medium">Донор</th>
+                  <th className="py-2 pr-4 font-medium">Контакты</th>
+                  <th className="py-2 pr-4 font-medium">Платёж</th>
+                  <th className="py-2 font-medium">YooKassa ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDonations.slice(0, 200).map((d) => {
+                  const campaignTitle = d.campaign_id ? campaignTitleById.get(d.campaign_id) : null;
+                  return (
+                    <tr key={d.id} className="border-b last:border-0 hover:bg-secondary/30 transition-colors align-top">
+                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
+                        {fmtDateTime(d.created_at)}
+                      </td>
+                      <td className="py-3 pr-4 font-semibold whitespace-nowrap">{formatRub(d.amount)}</td>
+                      <td className="py-3 pr-4">
+                        <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
+                      </td>
+                      <td className="py-3 pr-4">
+                        {d.campaign_id ? (
+                          <Badge variant="outline" className="border-primary/40 text-primary">
+                            <Target className="h-3 w-3 mr-1" /> В сбор
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            <HeartHandshake className="h-3 w-3 mr-1" /> Общий
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 max-w-[200px] truncate">
+                        {campaignTitle ? (
+                          <span title={campaignTitle}>{campaignTitle}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {d.is_anonymous ? (
+                          <span className="text-muted-foreground italic">Аноним</span>
+                        ) : (
+                          d.donor_name || <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-xs text-muted-foreground">
+                        {d.is_anonymous ? (
+                          "—"
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            {d.donor_email && <span>{d.donor_email}</span>}
+                            {d.donor_phone && <span>{d.donor_phone}</span>}
+                            {!d.donor_email && !d.donor_phone && "—"}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <Badge variant="outline" className="text-xs">
+                          {d.payment_type === "recurring" ? "Ежемесячный" : "Разовый"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 font-mono text-xs text-muted-foreground">
+                        {d.yookassa_payment_id?.slice(0, 12) ?? "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredDonations.length > 200 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Показаны первые 200 записей. Уточните фильтры для просмотра остальных.
+              </p>
+            )}
+          </div>
+        )}
+      </Card>
+
       {/* Technical info — collapsible */}
       <Collapsible>
         <Card className="p-0 overflow-hidden">
