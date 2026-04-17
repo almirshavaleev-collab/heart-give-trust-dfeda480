@@ -1,17 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Heart, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const presets = [500, 1000, 3000, 5000];
+const MAX_AMOUNT = 500_000;
+const MIN_AMOUNT = 1;
 
 const DonationWidget = () => {
   const [amount, setAmount] = useState<number | null>(1000);
   const [customAmount, setCustomAmount] = useState("");
   const [recurring, setRecurring] = useState(false);
+  const [anonymous, setAnonymous] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -19,7 +23,21 @@ const DonationWidget = () => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const activeAmount = amount ?? (customAmount ? Number(customAmount) : 0);
+  const rawAmount = amount ?? (customAmount ? Math.floor(Number(customAmount)) : 0);
+  const activeAmount = Number.isFinite(rawAmount) && rawAmount > 0 ? rawAmount : 0;
+  const amountTooHigh = activeAmount > MAX_AMOUNT;
+  const amountValid = activeAmount >= MIN_AMOUNT && !amountTooHigh;
+
+  // Когда включается анонимный режим — подставляем "Аноним" и чистим телефон
+  useEffect(() => {
+    if (anonymous) {
+      setName("Аноним");
+      setPhone("");
+    } else if (name === "Аноним") {
+      setName("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anonymous]);
 
   const handlePreset = (val: number) => {
     setAmount(val);
@@ -27,14 +45,59 @@ const DonationWidget = () => {
   };
 
   const handleCustom = (val: string) => {
-    setCustomAmount(val);
+    // Только цифры, без минусов / плюсов / e
+    const cleaned = val.replace(/[^\d]/g, "");
+    setCustomAmount(cleaned);
     setAmount(null);
   };
 
+  const nameValid = anonymous ? true : name.trim().length > 0;
+  const canSubmit = amountValid && nameValid && consent && !loading;
+
   const handleSubmit = async () => {
-    if (!activeAmount || !consent || loading) return;
+    if (loading) return;
+
+    if (!amountValid) {
+      if (amountTooHigh) {
+        toast({
+          title: "Сумма слишком большая",
+          description: `Максимальная сумма — ${MAX_AMOUNT.toLocaleString("ru-RU")} ₽`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Некорректная сумма",
+          description: "Введите положительную сумму пожертвования",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    if (!nameValid) {
+      toast({
+        title: "Укажите имя",
+        description: "Введите имя или включите анонимное пожертвование",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!consent) {
+      toast({
+        title: "Требуется согласие",
+        description: "Подтвердите согласие на обработку персональных данных",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      const finalName = anonymous ? "Аноним" : name.trim();
+      const finalPhone = anonymous ? null : (phone.trim() || null);
+      const finalEmail = email.trim() || null;
+
       const { data, error } = await supabase.functions.invoke("create-payment", {
         body: {
           amount: activeAmount,
@@ -42,9 +105,9 @@ const DonationWidget = () => {
           description: recurring
             ? `Ежемесячное пожертвование ${activeAmount} ₽`
             : `Пожертвование ${activeAmount} ₽`,
-          donor_name: name || null,
-          donor_email: email || null,
-          donor_phone: phone || null,
+          donor_name: finalName,
+          donor_email: finalEmail,
+          donor_phone: finalPhone,
           // TODO: при донате со страницы конкретной кампании передавать campaign_id
           campaign_id: null,
         },
@@ -82,7 +145,7 @@ const DonationWidget = () => {
           </div>
 
           <div className="card-light p-8 md:p-10">
-            {/* Toggle */}
+            {/* Toggle разово/ежемесячно */}
             <div className="flex rounded-xl bg-secondary p-1 mb-8">
               <button
                 onClick={() => setRecurring(false)}
@@ -121,17 +184,68 @@ const DonationWidget = () => {
 
             <Input
               type="number"
+              inputMode="numeric"
+              min={MIN_AMOUNT}
+              max={MAX_AMOUNT}
+              step={1}
               placeholder="Другая сумма, ₽"
               value={customAmount}
               onChange={(e) => handleCustom(e.target.value)}
-              className="rounded-xl h-12 text-center text-base mb-6 bg-background border-border"
+              onKeyDown={(e) => {
+                if (["-", "+", "e", "E", ".", ","].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onPaste={(e) => {
+                const pasted = e.clipboardData.getData("text");
+                if (/[^\d]/.test(pasted)) {
+                  e.preventDefault();
+                  const cleaned = pasted.replace(/[^\d]/g, "");
+                  if (cleaned) handleCustom(cleaned);
+                }
+              }}
+              className="rounded-xl h-12 text-center text-base mb-2 bg-background border-border"
             />
+            {amountTooHigh && (
+              <p className="text-xs text-destructive mb-4 text-center">
+                Максимальная сумма — {MAX_AMOUNT.toLocaleString("ru-RU")} ₽
+              </p>
+            )}
+            {!amountTooHigh && <div className="mb-4" />}
+
+            {/* Анонимное пожертвование */}
+            <label className="flex items-center justify-between gap-3 mb-4 p-3 rounded-xl bg-secondary/50 border border-border cursor-pointer">
+              <div>
+                <p className="text-sm font-medium text-foreground">Анонимное пожертвование</p>
+                <p className="text-xs text-muted-foreground">Имя и телефон не сохраняются</p>
+              </div>
+              <Switch checked={anonymous} onCheckedChange={setAnonymous} />
+            </label>
 
             {/* Fields */}
             <div className="space-y-3 mb-6">
-              <Input placeholder="Имя" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl h-12 bg-background border-border" />
-              <Input placeholder="Телефон" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl h-12 bg-background border-border" />
-              <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-xl h-12 bg-background border-border" />
+              <Input
+                placeholder={anonymous ? "Аноним" : "Имя"}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={anonymous}
+                className="rounded-xl h-12 bg-background border-border disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              <Input
+                placeholder={anonymous ? "Не используется" : "Телефон"}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={anonymous}
+                className="rounded-xl h-12 bg-background border-border disabled:opacity-60 disabled:cursor-not-allowed"
+              />
+              <Input
+                placeholder={anonymous ? "Email (необязательно)" : "Email"}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="rounded-xl h-12 bg-background border-border"
+              />
             </div>
 
             {/* Consent */}
@@ -154,7 +268,7 @@ const DonationWidget = () => {
             <Button
               size="xl"
               className="w-full"
-              disabled={!activeAmount || !consent || loading}
+              disabled={!canSubmit}
               onClick={handleSubmit}
             >
               {loading ? (
@@ -165,7 +279,7 @@ const DonationWidget = () => {
               ) : (
                 <>
                   <Heart className="w-5 h-5" />
-                  Поддержать {activeAmount ? `${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+                  Поддержать {amountValid ? `${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
                 </>
               )}
             </Button>
