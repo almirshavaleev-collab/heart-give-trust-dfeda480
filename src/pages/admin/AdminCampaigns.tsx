@@ -296,6 +296,32 @@ export default function AdminCampaigns() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletingCampaign} onOpenChange={(o) => !o && setDeletingCampaign(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить сбор?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Сбор «{deletingCampaign?.title}» будет удалён без возможности восстановления.
+              Если по нему уже есть пожертвования, удаление будет отклонено — переведите его в статус «Завершён».
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingCampaign) {
+                  deleteMutation.mutate(deletingCampaign.id);
+                  setDeletingCampaign(null);
+                }
+              }}
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
