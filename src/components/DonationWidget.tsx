@@ -32,6 +32,7 @@ interface DonationWidgetProps {
 
 const DonationWidget = ({ mode = "general", campaign = null, embedded = false }: DonationWidgetProps) => {
   const isCampaign = mode === "campaign" && campaign;
+  const [campaignClosed, setCampaignClosed] = useState(false);
 
   const [amount, setAmount] = useState<number | null>(1000);
   const [customAmount, setCustomAmount] = useState("");
@@ -127,14 +128,35 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         },
       });
 
-      if (error) throw error;
+      // При non-2xx supabase.functions.invoke возвращает error c context: Response
+      let errBody: { error?: string; code?: string } | null = null;
+      if (error) {
+        const ctx = (error as unknown as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try { errBody = await ctx.clone().json(); } catch { /* ignore */ }
+        }
+      }
+      const errCode = errBody?.code ?? (data as { code?: string } | null)?.code;
+      const errMsg = errBody?.error ?? (data as { error?: string } | null)?.error ?? (error as Error | null)?.message;
+
+      if (errCode === "CAMPAIGN_NOT_ACTIVE") {
+        setCampaignClosed(true);
+        toast({
+          title: "Сбор завершён",
+          description: "Этот сбор уже завершён. Вы можете поддержать фонд или выбрать другой актуальный сбор.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (error) throw new Error(errMsg || error.message);
 
       const url = data?.confirmation?.confirmation_url;
       if (url) {
         window.location.href = url;
         return;
       }
-      throw new Error(data?.error || "Не удалось создать платёж");
+      throw new Error(errMsg || "Не удалось создать платёж");
     } catch (e) {
       console.error("Donation error:", e);
       toast({
@@ -147,6 +169,29 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       setLoading(false);
     }
   };
+
+  // Если сервер сообщил что сбор закрыт — заменяем виджет на блок благодарности
+  if (campaignClosed && isCampaign) {
+    return (
+      <div className="card-light p-6 text-center space-y-4">
+        <div className="mx-auto w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+          <Check className="w-6 h-6 text-foreground" />
+        </div>
+        <div className="space-y-1.5">
+          <h3 className="font-semibold text-foreground text-lg">Сбор завершён</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Пожертвования по этому сбору больше не принимаются. Спасибо всем, кто принял участие.
+          </p>
+        </div>
+        <Button asChild className="w-full" size="lg">
+          <a href="/#donate">
+            <Heart className="w-4 h-4 mr-2" />
+            Поддержать фонд
+          </a>
+        </Button>
+      </div>
+    );
+  }
 
   const Card = (
     <div className={cn("card-light w-full", embedded ? "p-5 sm:p-6" : "p-8 md:p-10")}>
