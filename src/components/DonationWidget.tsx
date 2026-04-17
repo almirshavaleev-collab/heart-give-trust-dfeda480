@@ -149,9 +149,9 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   };
 
   const Card = (
-    <div className="card-light p-8 md:p-10">
+    <div className={cn("card-light w-full", embedded ? "p-5 sm:p-6" : "p-8 md:p-10")}>
       {/* Тип платежа */}
-      <div className="flex rounded-xl bg-secondary p-1 mb-8">
+      <div className="flex gap-2 rounded-xl bg-secondary p-1 mb-6">
         <button
           onClick={() => setRecurring(false)}
           className={cn(
@@ -165,7 +165,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           type="button"
           disabled
           title="Скоро"
-          className="flex-1 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed inline-flex items-center justify-center gap-1.5"
+          className="flex-1 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
         >
           Ежемесячно
           <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-background/60 border border-border">
@@ -174,14 +174,19 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         </button>
       </div>
 
-      {/* Presets */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+      {/* Presets — адаптивная сетка: 2 кол. в узком embedded, 4 на широком */}
+      <div
+        className={cn(
+          "grid gap-2 mb-4",
+          embedded ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"
+        )}
+      >
         {presets.map((val) => (
           <button
             key={val}
             onClick={() => handlePreset(val)}
             className={cn(
-              "py-3 rounded-xl text-sm font-semibold transition-all border",
+              "h-12 rounded-xl text-sm font-semibold transition-all border whitespace-nowrap",
               amount === val
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "bg-background border-border hover:border-foreground/20"
@@ -215,20 +220,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         className="rounded-xl h-12 text-center text-base mb-2 bg-background border-border"
       />
       {amountTooHigh ? (
-        <p className="text-xs text-destructive mb-4 text-center">
+        <p className="text-xs text-destructive mb-5 text-center">
           Максимальная сумма — {MAX_AMOUNT.toLocaleString("ru-RU")} ₽
         </p>
       ) : (
-        <div className="mb-4" />
+        <div className="mb-5" />
       )}
 
-      <div className="space-y-3 mb-6">
+      <div className="space-y-4 mb-6">
         <div>
-          <div className="flex items-center justify-between gap-4 mb-2 px-1">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-2 px-0.5">
             <label htmlFor="donor-name" className="text-sm font-medium text-foreground">
               Ваше имя
             </label>
-            <label className="flex items-center gap-2.5 cursor-pointer select-none py-1.5 -my-1.5">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none py-1 -my-1">
               <span
                 className={cn(
                   "text-sm transition-colors",
@@ -266,7 +271,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         />
       </div>
 
-      <label className="flex items-start gap-3 mb-8 cursor-pointer">
+      <label className="flex items-start gap-3 mb-6 cursor-pointer">
         <div
           onClick={() => setConsent(!consent)}
           className={cn(
@@ -276,14 +281,19 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         >
           {consent && <Check className="w-3 h-3 text-primary-foreground" />}
         </div>
-        <span className="text-xs text-muted-foreground leading-relaxed">
+        <span className="text-xs text-muted-foreground leading-[1.55] flex-1 min-w-0">
           Я согласен(а) на обработку персональных данных и ознакомлен(а) с{" "}
           <a href="#privacy" className="text-foreground hover:underline">политикой конфиденциальности</a> и{" "}
           <a href="#terms" className="text-foreground hover:underline">пользовательским соглашением</a>
         </span>
       </label>
 
-      <Button size="xl" className="w-full" disabled={!canSubmit} onClick={handleSubmit}>
+      <Button
+        size="xl"
+        className="w-full min-h-[52px] whitespace-normal text-center leading-tight"
+        disabled={!canSubmit}
+        onClick={handleSubmit}
+      >
         {loading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -291,9 +301,11 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           </>
         ) : (
           <>
-            <Heart className="w-5 h-5" />
-            {isCampaign ? "Поддержать сбор" : "Поддержать"}
-            {amountValid ? ` ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+            <Heart className="w-5 h-5 shrink-0" />
+            <span>
+              {isCampaign ? "Поддержать сбор" : "Поддержать"}
+              {amountValid ? ` ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+            </span>
           </>
         )}
       </Button>

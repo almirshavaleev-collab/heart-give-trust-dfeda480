@@ -80,10 +80,10 @@ const CampaignPage = () => {
         )}
 
         {/* Content */}
-        <div className="container max-w-4xl pb-24">
-          <div className="grid lg:grid-cols-3 gap-10">
+        <div className="container max-w-6xl pb-24">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
             {/* Left: description */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="space-y-8 min-w-0">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
                   {campaign.title}
@@ -120,9 +120,9 @@ const CampaignPage = () => {
             </div>
 
             {/* Right: progress + donation widget */}
-            <div className="lg:col-span-1 space-y-6">
+            <div className="space-y-5 min-w-0 lg:sticky lg:top-24 self-start">
               <div className="card-light p-6">
-                <div className="mb-4">
+                <div className="mb-5">
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Прогресс</span>
                     <span className="font-semibold text-foreground">{progress}%</span>
