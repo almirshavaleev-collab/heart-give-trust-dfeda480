@@ -2,6 +2,14 @@ import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,6 +26,10 @@ import {
   Clock,
   XCircle,
   ChevronDown,
+  ArrowUpDown,
+  Target,
+  HeartHandshake,
+  Search,
 } from "lucide-react";
 
 const DonationsCharts = lazy(() => import("./DonationsCharts"));
@@ -29,10 +41,15 @@ type DonationRow = {
   yookassa_payment_id: string | null;
   donor_name: string | null;
   donor_email: string | null;
+  donor_phone: string | null;
   campaign_id: string | null;
+  is_anonymous: boolean;
+  payment_type: string;
   created_at: string;
   paid_at: string | null;
 };
+
+type CampaignLite = { id: string; title: string };
 
 type WebhookLogRow = {
   id: string;
@@ -70,14 +87,27 @@ const fmtDate = (s: string) => new Date(s).toLocaleDateString("ru-RU", { day: "2
 export default function AdminDonations() {
   const [allDonations, setAllDonations] = useState<DonationRow[]>([]);
   const [logs, setLogs] = useState<WebhookLogRow[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignLite[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters & sort
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all"); // all | general | campaign
+  const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [anonFilter, setAnonFilter] = useState<string>("all"); // all | anon | named
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"date" | "amount">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     (async () => {
-      const [d, l] = await Promise.all([
+      const [d, l, c] = await Promise.all([
         (supabase as any)
           .from("donations")
-          .select("id, amount, status, yookassa_payment_id, donor_name, donor_email, campaign_id, created_at, paid_at")
+          .select(
+            "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, campaign_id, is_anonymous, payment_type, created_at, paid_at",
+          )
           .order("created_at", { ascending: false })
           .limit(1000),
         (supabase as any)
@@ -85,11 +115,14 @@ export default function AdminDonations() {
           .select("id, provider, event, source_ip, object_id, object_status, donation_id, result, created_at")
           .order("created_at", { ascending: false })
           .limit(50),
+        (supabase as any).from("campaigns").select("id, title").order("title"),
       ]);
       if (d.error) console.error(d.error);
       if (l.error) console.error(l.error);
+      if (c.error) console.error(c.error);
       setAllDonations((d.data ?? []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
       setLogs(l.data ?? []);
+      setCampaigns(c.data ?? []);
       setLoading(false);
     })();
   }, []);
@@ -123,6 +156,9 @@ export default function AdminDonations() {
     );
     const lastSucceeded = succeeded[0] ?? null; // already sorted desc by created_at
 
+    const generalSum = succeeded.filter((d) => !d.campaign_id).reduce((s, d) => s + d.amount, 0);
+    const campaignSum = succeeded.filter((d) => !!d.campaign_id).reduce((s, d) => s + d.amount, 0);
+
     return {
       total,
       monthSum,
@@ -135,8 +171,49 @@ export default function AdminDonations() {
       largest,
       lastSucceeded,
       succeeded,
+      generalSum,
+      campaignSum,
     };
   }, [allDonations]);
+
+  const campaignTitleById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of campaigns) m.set(c.id, c.title);
+    return m;
+  }, [campaigns]);
+
+  const filteredDonations = useMemo(() => {
+    let list = allDonations.filter((d) => {
+      if (statusFilter !== "all" && d.status !== statusFilter) return false;
+      if (typeFilter === "general" && d.campaign_id) return false;
+      if (typeFilter === "campaign" && !d.campaign_id) return false;
+      if (campaignFilter !== "all" && d.campaign_id !== campaignFilter) return false;
+      if (anonFilter === "anon" && !d.is_anonymous) return false;
+      if (anonFilter === "named" && d.is_anonymous) return false;
+      if (paymentTypeFilter !== "all" && d.payment_type !== paymentTypeFilter) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const hay = [
+          d.donor_name,
+          d.donor_email,
+          d.donor_phone,
+          d.yookassa_payment_id,
+          campaignTitleById.get(d.campaign_id ?? "") ?? "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortBy === "amount") return (a.amount - b.amount) * dir;
+      return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+    });
+    return list;
+  }, [allDonations, statusFilter, typeFilter, campaignFilter, anonFilter, paymentTypeFilter, search, sortBy, sortDir, campaignTitleById]);
 
   // Daily aggregation — last 30 days
   const dailyData = useMemo(() => {
@@ -255,6 +332,18 @@ export default function AdminDonations() {
           value={`${stats.conversion.toFixed(1)}%`}
           hint={`${stats.successCount} из ${allDonations.length}`}
         />
+        <KpiCard
+          icon={<HeartHandshake className="h-5 w-5" />}
+          label="Общие донаты"
+          value={formatRub(stats.generalSum)}
+          hint="без привязки к сбору"
+        />
+        <KpiCard
+          icon={<Target className="h-5 w-5" />}
+          label="Донаты в сборы"
+          value={formatRub(stats.campaignSum)}
+          hint="целевые пожертвования"
+        />
       </div>
 
       {/* Charts (lazy + error boundary so any failure doesn't blank the page) */}
@@ -338,6 +427,181 @@ export default function AdminDonations() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </Card>
+
+      {/* All donations — full table with filters */}
+      <Card className="p-6">
+        <div className="flex flex-col gap-1 mb-5">
+          <h2 className="font-semibold text-lg">Все пожертвования</h2>
+          <p className="text-xs text-muted-foreground">
+            Показано {filteredDonations.length} из {allDonations.length}
+          </p>
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-5">
+          <div className="relative xl:col-span-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Поиск: имя, email, телефон, ID..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger><SelectValue placeholder="Статус" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="succeeded">Успешные</SelectItem>
+              <SelectItem value="pending">В ожидании</SelectItem>
+              <SelectItem value="canceled">Отменённые</SelectItem>
+              <SelectItem value="failed">Ошибка</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger><SelectValue placeholder="Тип доната" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все типы</SelectItem>
+              <SelectItem value="general">Общий донат</SelectItem>
+              <SelectItem value="campaign">В сбор</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={campaignFilter} onValueChange={setCampaignFilter}>
+            <SelectTrigger><SelectValue placeholder="Сбор" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все сборы</SelectItem>
+              {campaigns.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={anonFilter} onValueChange={setAnonFilter}>
+            <SelectTrigger><SelectValue placeholder="Анонимность" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все донаты</SelectItem>
+              <SelectItem value="anon">Только анонимные</SelectItem>
+              <SelectItem value="named">С именем</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={paymentTypeFilter} onValueChange={setPaymentTypeFilter}>
+            <SelectTrigger><SelectValue placeholder="Тип платежа" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все платежи</SelectItem>
+              <SelectItem value="one_time">Разовый</SelectItem>
+              <SelectItem value="recurring">Ежемесячный</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {filteredDonations.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Нет пожертвований по выбранным фильтрам</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-4 font-medium">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => {
+                        if (sortBy === "date") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        else { setSortBy("date"); setSortDir("desc"); }
+                      }}
+                    >
+                      Дата <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </th>
+                  <th className="py-2 pr-4 font-medium">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                      onClick={() => {
+                        if (sortBy === "amount") setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        else { setSortBy("amount"); setSortDir("desc"); }
+                      }}
+                    >
+                      Сумма <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </th>
+                  <th className="py-2 pr-4 font-medium">Статус</th>
+                  <th className="py-2 pr-4 font-medium">Тип</th>
+                  <th className="py-2 pr-4 font-medium">Сбор</th>
+                  <th className="py-2 pr-4 font-medium">Донор</th>
+                  <th className="py-2 pr-4 font-medium">Контакты</th>
+                  <th className="py-2 pr-4 font-medium">Платёж</th>
+                  <th className="py-2 font-medium">YooKassa ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDonations.slice(0, 200).map((d) => {
+                  const campaignTitle = d.campaign_id ? campaignTitleById.get(d.campaign_id) : null;
+                  return (
+                    <tr key={d.id} className="border-b last:border-0 hover:bg-secondary/30 transition-colors align-top">
+                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
+                        {fmtDateTime(d.created_at)}
+                      </td>
+                      <td className="py-3 pr-4 font-semibold whitespace-nowrap">{formatRub(d.amount)}</td>
+                      <td className="py-3 pr-4">
+                        <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
+                      </td>
+                      <td className="py-3 pr-4">
+                        {d.campaign_id ? (
+                          <Badge variant="outline" className="border-primary/40 text-primary">
+                            <Target className="h-3 w-3 mr-1" /> В сбор
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            <HeartHandshake className="h-3 w-3 mr-1" /> Общий
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 max-w-[200px] truncate">
+                        {campaignTitle ? (
+                          <span title={campaignTitle}>{campaignTitle}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {d.is_anonymous ? (
+                          <span className="text-muted-foreground italic">Аноним</span>
+                        ) : (
+                          d.donor_name || <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-xs text-muted-foreground">
+                        {d.is_anonymous ? (
+                          "—"
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            {d.donor_email && <span>{d.donor_email}</span>}
+                            {d.donor_phone && <span>{d.donor_phone}</span>}
+                            {!d.donor_email && !d.donor_phone && "—"}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4">
+                        <Badge variant="outline" className="text-xs">
+                          {d.payment_type === "recurring" ? "Ежемесячный" : "Разовый"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 font-mono text-xs text-muted-foreground">
+                        {d.yookassa_payment_id?.slice(0, 12) ?? "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {filteredDonations.length > 200 && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Показаны первые 200 записей. Уточните фильтры для просмотра остальных.
+              </p>
+            )}
           </div>
         )}
       </Card>
