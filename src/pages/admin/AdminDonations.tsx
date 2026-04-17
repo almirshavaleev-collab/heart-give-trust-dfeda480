@@ -751,3 +751,69 @@ function SummaryCard({
     </Card>
   );
 }
+
+// ---------- CSV export ----------
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const s = String(value);
+  if (/[",;\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function exportDonationsCSV(rows: DonationRow[], titleById: Map<string, string>) {
+  const headers = [
+    "created_at",
+    "paid_at",
+    "status",
+    "amount",
+    "payment_type",
+    "is_anonymous",
+    "donor_name",
+    "donor_email",
+    "donor_phone",
+    "yookassa_payment_id",
+    "campaign_id",
+    "campaign_title",
+    "donation_type",
+  ];
+
+  const lines = [
+    headers.join(";"),
+    ...rows.map((d) =>
+      [
+        d.created_at,
+        d.paid_at ?? "",
+        d.status,
+        d.amount,
+        d.payment_type,
+        d.is_anonymous ? "true" : "false",
+        d.is_anonymous ? "Аноним" : (d.donor_name ?? ""),
+        d.is_anonymous ? "" : (d.donor_email ?? ""),
+        d.is_anonymous ? "" : (d.donor_phone ?? ""),
+        d.yookassa_payment_id ?? "",
+        d.campaign_id ?? "",
+        d.campaign_id ? (titleById.get(d.campaign_id) ?? "") : "",
+        d.campaign_id ? "campaign" : "general",
+      ]
+        .map(csvEscape)
+        .join(";"),
+    ),
+  ];
+
+  // UTF-8 BOM — Excel корректно откроет кириллицу
+  const BOM = "\uFEFF";
+  const blob = new Blob([BOM + lines.join("\r\n")], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  a.href = url;
+  a.download = `donations-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
