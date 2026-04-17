@@ -2,11 +2,12 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import CompletedCampaignsSection from "@/components/CompletedCampaignsSection";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePublishedCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
+import { useActiveCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
 
 const CampaignsListPage = () => {
-  const { data: campaigns = [], isLoading } = usePublishedCampaigns();
+  const { data: campaigns = [], isLoading } = useActiveCampaigns();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -16,7 +17,7 @@ const CampaignsListPage = () => {
         <div className="container py-12 md:py-20">
           <div className="text-center mb-12">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Все целевые сборы
+              Активные сборы
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
               Каждый сбор — конкретная цель с прозрачной отчётностью.
@@ -38,7 +39,7 @@ const CampaignsListPage = () => {
               ))}
             </div>
           ) : campaigns.length === 0 ? (
-            <p className="text-center text-muted-foreground">Активных сборов пока нет.</p>
+            <p className="text-center text-muted-foreground">Активных сборов сейчас нет.</p>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {campaigns.map((campaign) => {
@@ -107,6 +108,8 @@ const CampaignsListPage = () => {
             </div>
           )}
         </div>
+
+        <CompletedCampaignsSection />
       </main>
 
       <Footer />

@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Target, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Target, Users, CheckCircle2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/Header";
@@ -49,6 +49,7 @@ const CampaignPage = () => {
 
   const progress = getProgress(campaign.target_amount, campaign.collected_amount);
   const remaining = campaign.target_amount - campaign.collected_amount;
+  const isCompleted = campaign.status === "completed";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -85,6 +86,12 @@ const CampaignPage = () => {
             {/* Left: description */}
             <div className="space-y-8 min-w-0">
               <div>
+                {isCompleted && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-foreground text-sm font-medium mb-4">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Сбор завершён
+                  </div>
+                )}
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
                   {campaign.title}
                 </h1>
@@ -129,7 +136,7 @@ const CampaignPage = () => {
                   </div>
                   <div className="h-3 rounded-full bg-secondary overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-primary transition-all duration-700"
+                      className={`h-full rounded-full transition-all duration-700 ${isCompleted ? "bg-foreground/70" : "bg-primary"}`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -148,25 +155,49 @@ const CampaignPage = () => {
                       {formatAmount(campaign.target_amount)} ₽
                     </span>
                   </div>
-                  <div className="border-t border-border pt-3 flex justify-between">
-                    <span className="text-sm text-muted-foreground">Осталось</span>
-                    <span className="text-sm font-semibold text-accent">
-                      {formatAmount(Math.max(0, remaining))} ₽
-                    </span>
-                  </div>
+                  {!isCompleted && (
+                    <div className="border-t border-border pt-3 flex justify-between">
+                      <span className="text-sm text-muted-foreground">Осталось</span>
+                      <span className="text-sm font-semibold text-accent">
+                        {formatAmount(Math.max(0, remaining))} ₽
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <DonationWidget
-                mode="campaign"
-                embedded
-                campaign={{
-                  id: campaign.id,
-                  title: campaign.title,
-                  target_amount: campaign.target_amount,
-                  collected_amount: campaign.collected_amount,
-                }}
-              />
+              {isCompleted ? (
+                <div className="card-light p-6 text-center space-y-4">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-foreground" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="font-semibold text-foreground text-lg">
+                      Этот сбор завершён
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Спасибо всем, кто помог. Вы делаете большое дело.
+                    </p>
+                  </div>
+                  <Button asChild className="w-full" size="lg">
+                    <Link to="/#donate">
+                      <Heart className="w-4 h-4 mr-2" />
+                      Поддержать фонд
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <DonationWidget
+                  mode="campaign"
+                  embedded
+                  campaign={{
+                    id: campaign.id,
+                    title: campaign.title,
+                    target_amount: campaign.target_amount,
+                    collected_amount: campaign.collected_amount,
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

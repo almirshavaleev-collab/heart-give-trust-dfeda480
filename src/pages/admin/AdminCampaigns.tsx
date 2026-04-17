@@ -105,6 +105,18 @@ export default function AdminCampaigns() {
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from('campaigns').update({ status }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      toast.success('Статус обновлён');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
+  });
+
   const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setOpen(true); };
   const openEdit = (c: Campaign) => { setEditing(c); setForm(c); setImageFile(null); setOpen(true); };
 
@@ -136,11 +148,23 @@ export default function AdminCampaigns() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      c.status === 'active' ? 'bg-green-100 text-green-700' :
-                      c.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>{statusLabel(c.status)}</span>
+                    <Select
+                      value={c.status}
+                      onValueChange={(v) => statusMutation.mutate({ id: c.id, status: v })}
+                    >
+                      <SelectTrigger className={`h-8 w-[140px] text-xs font-medium ${
+                        c.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                        c.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-gray-50 text-gray-600 border-gray-200'
+                      }`}>
+                        <SelectValue>{statusLabel(c.status)}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Черновик</SelectItem>
+                        <SelectItem value="active">Активный</SelectItem>
+                        <SelectItem value="completed">Завершён</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell className="text-right">{Number(c.target_amount).toLocaleString('ru-RU')} ₽</TableCell>
                   <TableCell className="text-right">{Number(c.collected_amount).toLocaleString('ru-RU')} ₽</TableCell>

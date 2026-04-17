@@ -37,6 +37,41 @@ export function usePublishedCampaigns(limit?: number) {
   });
 }
 
+export function useActiveCampaigns(limit?: number) {
+  return useQuery<PublicCampaign[]>({
+    queryKey: ["active-campaigns", limit],
+    queryFn: async () => {
+      let q = supabase
+        .from("campaigns")
+        .select("*")
+        .eq("status", "active")
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (limit) q = q.limit(limit);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as PublicCampaign[];
+    },
+  });
+}
+
+export function useCompletedCampaigns(limit?: number) {
+  return useQuery<PublicCampaign[]>({
+    queryKey: ["completed-campaigns", limit],
+    queryFn: async () => {
+      let q = supabase
+        .from("campaigns")
+        .select("*")
+        .eq("status", "completed")
+        .order("updated_at", { ascending: false });
+      if (limit) q = q.limit(limit);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as PublicCampaign[];
+    },
+  });
+}
+
 export function useCampaignBySlug(slug: string) {
   return useQuery<PublicCampaign | null>({
     queryKey: ["campaign", slug],
