@@ -156,6 +156,9 @@ export default function AdminDonations() {
     );
     const lastSucceeded = succeeded[0] ?? null; // already sorted desc by created_at
 
+    const generalSum = succeeded.filter((d) => !d.campaign_id).reduce((s, d) => s + d.amount, 0);
+    const campaignSum = succeeded.filter((d) => !!d.campaign_id).reduce((s, d) => s + d.amount, 0);
+
     return {
       total,
       monthSum,
@@ -168,8 +171,49 @@ export default function AdminDonations() {
       largest,
       lastSucceeded,
       succeeded,
+      generalSum,
+      campaignSum,
     };
   }, [allDonations]);
+
+  const campaignTitleById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of campaigns) m.set(c.id, c.title);
+    return m;
+  }, [campaigns]);
+
+  const filteredDonations = useMemo(() => {
+    let list = allDonations.filter((d) => {
+      if (statusFilter !== "all" && d.status !== statusFilter) return false;
+      if (typeFilter === "general" && d.campaign_id) return false;
+      if (typeFilter === "campaign" && !d.campaign_id) return false;
+      if (campaignFilter !== "all" && d.campaign_id !== campaignFilter) return false;
+      if (anonFilter === "anon" && !d.is_anonymous) return false;
+      if (anonFilter === "named" && d.is_anonymous) return false;
+      if (paymentTypeFilter !== "all" && d.payment_type !== paymentTypeFilter) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const hay = [
+          d.donor_name,
+          d.donor_email,
+          d.donor_phone,
+          d.yookassa_payment_id,
+          campaignTitleById.get(d.campaign_id ?? "") ?? "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortBy === "amount") return (a.amount - b.amount) * dir;
+      return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+    });
+    return list;
+  }, [allDonations, statusFilter, typeFilter, campaignFilter, anonFilter, paymentTypeFilter, search, sortBy, sortDir, campaignTitleById]);
 
   // Daily aggregation — last 30 days
   const dailyData = useMemo(() => {
