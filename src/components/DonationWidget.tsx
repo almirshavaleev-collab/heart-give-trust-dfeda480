@@ -128,11 +128,16 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         },
       });
 
-      // Edge Function вернула не-2xx (например, 409 для completed campaign)
-      const errCode = (data as { code?: string } | null)?.code
-        ?? (error as unknown as { context?: { code?: string } } | null)?.context?.code;
-      const errMsg = (data as { error?: string } | null)?.error
-        ?? (error as Error | null)?.message;
+      // При non-2xx supabase.functions.invoke возвращает error c context: Response
+      let errBody: { error?: string; code?: string } | null = null;
+      if (error) {
+        const ctx = (error as unknown as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try { errBody = await ctx.clone().json(); } catch { /* ignore */ }
+        }
+      }
+      const errCode = errBody?.code ?? (data as { code?: string } | null)?.code;
+      const errMsg = errBody?.error ?? (data as { error?: string } | null)?.error ?? (error as Error | null)?.message;
 
       if (errCode === "CAMPAIGN_NOT_ACTIVE") {
         setCampaignClosed(true);
@@ -144,7 +149,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         return;
       }
 
-      if (error) throw error;
+      if (error) throw new Error(errMsg || error.message);
 
       const url = data?.confirmation?.confirmation_url;
       if (url) {
