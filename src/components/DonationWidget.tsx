@@ -213,31 +213,40 @@ const DonationWidget = () => {
             )}
             {!amountTooHigh && <div className="mb-4" />}
 
-            {/* Анонимное пожертвование */}
-            <label className="flex items-center justify-between gap-3 mb-4 p-3 rounded-xl bg-secondary/50 border border-border cursor-pointer">
-              <div>
-                <p className="text-sm font-medium text-foreground">Анонимное пожертвование</p>
-                <p className="text-xs text-muted-foreground">Имя и телефон не сохраняются</p>
-              </div>
-              <Switch checked={anonymous} onCheckedChange={setAnonymous} />
-            </label>
-
             {/* Fields */}
             <div className="space-y-3 mb-6">
-              <Input
-                placeholder={anonymous ? "Аноним" : "Имя"}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={anonymous}
-                className="rounded-xl h-12 bg-background border-border disabled:opacity-60 disabled:cursor-not-allowed"
-              />
+              <div>
+                <div className="flex items-center justify-between gap-4 mb-2 px-1">
+                  <label htmlFor="donor-name" className="text-sm font-medium text-foreground">
+                    Ваше имя
+                  </label>
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none py-1.5 -my-1.5">
+                    <span
+                      className={`text-sm transition-colors ${
+                        anonymous ? "text-foreground font-medium" : "text-muted-foreground"
+                      }`}
+                    >
+                      Анонимно
+                    </span>
+                    <Switch checked={anonymous} onCheckedChange={setAnonymous} />
+                  </label>
+                </div>
+                <Input
+                  id="donor-name"
+                  placeholder={anonymous ? "Аноним" : "Введите имя"}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={anonymous}
+                  className="rounded-xl h-12 bg-background border-border disabled:bg-secondary/60 disabled:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-100"
+                />
+              </div>
               <Input
                 placeholder={anonymous ? "Не используется" : "Телефон"}
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 disabled={anonymous}
-                className="rounded-xl h-12 bg-background border-border disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-xl h-12 bg-background border-border disabled:bg-secondary/60 disabled:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-100"
               />
               <Input
                 placeholder={anonymous ? "Email (необязательно)" : "Email"}
