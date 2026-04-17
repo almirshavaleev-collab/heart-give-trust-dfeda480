@@ -87,14 +87,27 @@ const fmtDate = (s: string) => new Date(s).toLocaleDateString("ru-RU", { day: "2
 export default function AdminDonations() {
   const [allDonations, setAllDonations] = useState<DonationRow[]>([]);
   const [logs, setLogs] = useState<WebhookLogRow[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignLite[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters & sort
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all"); // all | general | campaign
+  const [campaignFilter, setCampaignFilter] = useState<string>("all");
+  const [anonFilter, setAnonFilter] = useState<string>("all"); // all | anon | named
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"date" | "amount">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     (async () => {
-      const [d, l] = await Promise.all([
+      const [d, l, c] = await Promise.all([
         (supabase as any)
           .from("donations")
-          .select("id, amount, status, yookassa_payment_id, donor_name, donor_email, campaign_id, created_at, paid_at")
+          .select(
+            "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, campaign_id, is_anonymous, payment_type, created_at, paid_at",
+          )
           .order("created_at", { ascending: false })
           .limit(1000),
         (supabase as any)
@@ -102,11 +115,14 @@ export default function AdminDonations() {
           .select("id, provider, event, source_ip, object_id, object_status, donation_id, result, created_at")
           .order("created_at", { ascending: false })
           .limit(50),
+        (supabase as any).from("campaigns").select("id, title").order("title"),
       ]);
       if (d.error) console.error(d.error);
       if (l.error) console.error(l.error);
+      if (c.error) console.error(c.error);
       setAllDonations((d.data ?? []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
       setLogs(l.data ?? []);
+      setCampaigns(c.data ?? []);
       setLoading(false);
     })();
   }, []);
