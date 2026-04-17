@@ -159,23 +159,31 @@ Deno.serve(async (req) => {
 
       // 3. Находим донат
       let donationId: string | null = null;
+      let currentStatus: string | null = null;
+      let donationCampaignId: string | null = null;
+      let donationAmount: number | null = null;
+
       const { data: byPayment } = await supabase
         .from("donations")
-        .select("id, status")
+        .select("id, status, campaign_id, amount")
         .eq("yookassa_payment_id", paymentId)
         .maybeSingle();
 
-      let currentStatus: string | null = byPayment?.status ?? null;
       if (byPayment?.id) {
         donationId = byPayment.id;
+        currentStatus = byPayment.status;
+        donationCampaignId = byPayment.campaign_id ?? null;
+        donationAmount = Number(byPayment.amount);
       } else if (donationIdFromMeta) {
         const { data: byMeta } = await supabase
           .from("donations")
-          .select("id, status")
+          .select("id, status, campaign_id, amount")
           .eq("id", donationIdFromMeta)
           .maybeSingle();
         donationId = byMeta?.id ?? null;
         currentStatus = byMeta?.status ?? null;
+        donationCampaignId = byMeta?.campaign_id ?? null;
+        donationAmount = byMeta?.amount != null ? Number(byMeta.amount) : null;
       }
 
       if (!donationId) {
@@ -195,9 +203,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      // 5. Обновляем только если статус ещё не succeeded
-      // TODO: при привязке к кампании — здесь же увеличивать campaigns.collected_amount
-      const { error: updErr } = await supabase
+      // 5. Обновляем статус доната (защита от гонки через .neq)
+      const { data: updatedRows, error: updErr } = await supabase
         .from("donations")
         .update({
           status: "succeeded",
@@ -205,13 +212,29 @@ Deno.serve(async (req) => {
           yookassa_payment_id: paymentId,
         })
         .eq("id", donationId)
-        .neq("status", "succeeded"); // защита от гонки
+        .neq("status", "succeeded")
+        .select("id");
 
       if (updErr) {
         console.error("donation update error:", updErr);
         await writeLog("rejected_db_error", donationId);
       } else {
-        await writeLog("accepted", donationId);
+        // 6. Если донат целевой — атомарно увеличиваем сбор
+        const wasUpdated = (updatedRows?.length ?? 0) > 0;
+        if (wasUpdated && donationCampaignId && donationAmount && donationAmount > 0) {
+          const { error: rpcErr } = await supabase.rpc("increment_campaign_collected", {
+            _campaign_id: donationCampaignId,
+            _amount: donationAmount,
+          });
+          if (rpcErr) {
+            console.error("increment_campaign_collected error:", rpcErr);
+            await writeLog("accepted_campaign_increment_failed", donationId);
+          } else {
+            await writeLog("accepted_with_campaign", donationId);
+          }
+        } else {
+          await writeLog("accepted", donationId);
+        }
       }
     } else if (event === "payment.canceled" && paymentId) {
       let donationId: string | null = null;
