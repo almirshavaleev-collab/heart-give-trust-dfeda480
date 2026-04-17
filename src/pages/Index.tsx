@@ -18,6 +18,7 @@ const Index = () => (
     <HeroSection />
     <CommunitySection />
     <CampaignsSection />
+    <CompletedCampaignsSection limit={3} />
     <DonationWidget />
     <TrustSection />
     <DetailsSection />
