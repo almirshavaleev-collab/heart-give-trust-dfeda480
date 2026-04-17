@@ -332,6 +332,18 @@ export default function AdminDonations() {
           value={`${stats.conversion.toFixed(1)}%`}
           hint={`${stats.successCount} из ${allDonations.length}`}
         />
+        <KpiCard
+          icon={<HeartHandshake className="h-5 w-5" />}
+          label="Общие донаты"
+          value={formatRub(stats.generalSum)}
+          hint="без привязки к сбору"
+        />
+        <KpiCard
+          icon={<Target className="h-5 w-5" />}
+          label="Донаты в сборы"
+          value={formatRub(stats.campaignSum)}
+          hint="целевые пожертвования"
+        />
       </div>
 
       {/* Charts (lazy + error boundary so any failure doesn't blank the page) */}
