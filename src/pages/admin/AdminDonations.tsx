@@ -74,8 +74,8 @@ const statusVariant = (s: string): "default" | "secondary" | "destructive" | "ou
 
 const resultVariant = (r: string | null): "default" | "secondary" | "destructive" | "outline" => {
   if (!r) return "outline";
-  if (r === "accepted") return "default";
-  if (r.startsWith("rejected")) return "destructive";
+  if (r === "accepted" || r === "accepted_with_campaign") return "default";
+  if (r.startsWith("rejected") || r === "accepted_campaign_increment_failed") return "destructive";
   if (r.startsWith("ignored") || r === "already_processed") return "secondary";
   return "outline";
 };
@@ -102,31 +102,58 @@ export default function AdminDonations() {
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  const refresh = async () => {
+    const [d, l, c] = await Promise.all([
+      (supabase as any)
+        .from("donations")
+        .select(
+          "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, campaign_id, is_anonymous, payment_type, created_at, paid_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      (supabase as any)
+        .from("webhook_logs")
+        .select("id, provider, event, source_ip, object_id, object_status, donation_id, result, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      (supabase as any).from("campaigns").select("id, title").order("title"),
+    ]);
+    if (d.error) console.error(d.error);
+    if (l.error) console.error(l.error);
+    if (c.error) console.error(c.error);
+    setAllDonations((d.data ?? []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
+    setLogs(l.data ?? []);
+    setCampaigns(c.data ?? []);
+  };
+
   useEffect(() => {
     (async () => {
-      const [d, l, c] = await Promise.all([
-        (supabase as any)
-          .from("donations")
-          .select(
-            "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, campaign_id, is_anonymous, payment_type, created_at, paid_at",
-          )
-          .order("created_at", { ascending: false })
-          .limit(1000),
-        (supabase as any)
-          .from("webhook_logs")
-          .select("id, provider, event, source_ip, object_id, object_status, donation_id, result, created_at")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        (supabase as any).from("campaigns").select("id, title").order("title"),
-      ]);
-      if (d.error) console.error(d.error);
-      if (l.error) console.error(l.error);
-      if (c.error) console.error(c.error);
-      setAllDonations((d.data ?? []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
-      setLogs(l.data ?? []);
-      setCampaigns(c.data ?? []);
+      await refresh();
       setLoading(false);
     })();
+
+    // Realtime: обновляем таблицу при любом изменении донатов и логов
+    const channel = supabase
+      .channel("admin-donations-rt")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "donations" },
+        () => {
+          refresh();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "webhook_logs" },
+        () => {
+          refresh();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const stats = useMemo(() => {
