@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import DonationWidget from "@/components/DonationWidget";
+import CampaignDonationsList from "@/components/CampaignDonationsList";
 import {
   useCampaignBySlug,
   useOtherCampaigns,
@@ -227,6 +228,8 @@ const CampaignPage = () => {
               )}
             </div>
           </div>
+
+          <CampaignDonationsList campaignId={campaign.id} />
         </div>
 
         {/* Other campaigns */}
