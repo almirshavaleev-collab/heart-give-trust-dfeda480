@@ -42,6 +42,40 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // 0. Серверная защита: если донат целевой — проверяем статус сбора.
+    //    Платёж в неактивный сбор (completed/draft/archived) запрещён.
+    if (campaignId) {
+      const { data: campaign, error: campErr } = await supabase
+        .from("campaigns")
+        .select("id, status, title")
+        .eq("id", campaignId)
+        .maybeSingle();
+
+      if (campErr) {
+        console.error("campaign lookup error:", campErr);
+        return new Response(
+          JSON.stringify({ error: "Не удалось проверить сбор" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (!campaign) {
+        return new Response(
+          JSON.stringify({ error: "Сбор не найден" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (campaign.status !== "active") {
+        const message =
+          campaign.status === "completed"
+            ? "Сбор завершён — пожертвования больше не принимаются."
+            : "Сбор сейчас недоступен для пожертвований.";
+        return new Response(
+          JSON.stringify({ error: message, code: "CAMPAIGN_NOT_ACTIVE" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // 1. Сохраняем pending-донат
     const { data: donation, error: donationError } = await supabase
       .from("donations")
@@ -84,7 +118,6 @@ Deno.serve(async (req) => {
         description,
         metadata: {
           donation_id: donationId,
-          // TODO: передавать реальный campaign_id, пока 'general'
           campaign_id: campaignId ?? "general",
         },
       }),
@@ -94,7 +127,6 @@ Deno.serve(async (req) => {
 
     if (!ykResp.ok) {
       console.error("YooKassa error:", data);
-      // Помечаем донат как failed
       await supabase
         .from("donations")
         .update({ status: "failed" })

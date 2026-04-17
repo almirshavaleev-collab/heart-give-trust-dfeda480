@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -68,6 +68,16 @@ export default function AdminCampaigns() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Клиентская валидация
+      if (!form.title?.trim()) throw new Error('Укажите название сбора');
+      if (!form.slug?.trim()) throw new Error('Укажите slug (URL)');
+      if (!form.target_amount || Number(form.target_amount) <= 0) {
+        throw new Error('Целевая сумма должна быть больше 0');
+      }
+      if (Number(form.collected_amount ?? 0) < 0) {
+        throw new Error('Собранная сумма не может быть отрицательной');
+      }
+
       let coverImage = form.cover_image;
       if (imageFile) {
         coverImage = await uploadImage(imageFile);
@@ -102,6 +112,12 @@ export default function AdminCampaigns() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
       toast.success('Сбор удалён');
+    },
+    onError: (err: Error) => {
+      const msg = err.message?.includes('пожертвования')
+        ? 'Нельзя удалить сбор: по нему уже есть пожертвования. Переведите его в статус «Завершён».'
+        : err.message || 'Не удалось удалить сбор';
+      toast.error(msg);
     },
   });
 
@@ -169,7 +185,19 @@ export default function AdminCampaigns() {
                   <TableCell className="text-right">{Number(c.target_amount).toLocaleString('ru-RU')} ₽</TableCell>
                   <TableCell className="text-right">{Number(c.collected_amount).toLocaleString('ru-RU')} ₽</TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex items-center gap-1 justify-end">
+                      {Number(c.collected_amount) >= Number(c.target_amount) && c.status !== 'completed' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => statusMutation.mutate({ id: c.id, status: 'completed' })}
+                          title="Перевести сбор в статус «Завершён»"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Завершить
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(c.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
