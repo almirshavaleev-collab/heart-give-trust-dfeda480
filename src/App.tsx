@@ -14,8 +14,14 @@ import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import AdminNews from "./pages/admin/AdminNews.tsx";
 import AdminReports from "./pages/admin/AdminReports.tsx";
 import AdminDonations from "./pages/admin/AdminDonations.tsx";
+import { useCampaignsRealtime } from "./hooks/useCampaigns";
 
 const queryClient = new QueryClient();
+
+const RealtimeBridge = () => {
+  useCampaignsRealtime();
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -23,6 +29,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <RealtimeBridge />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/campaigns" element={<CampaignsListPage />} />

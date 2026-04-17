@@ -5,7 +5,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import DonationWidget from "@/components/DonationWidget";
-import { useCampaignBySlug, useOtherCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
+import {
+  useCampaignBySlug,
+  useOtherCampaigns,
+  formatAmount,
+  getProgress,
+  formatCompletedDate,
+} from "@/hooks/useCampaigns";
 
 const CampaignPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -70,12 +76,23 @@ const CampaignPage = () => {
         {/* Hero image */}
         {campaign.cover_image && (
           <div className="container mb-10">
-            <div className="rounded-2xl overflow-hidden max-h-[420px]">
+            <div className="relative rounded-2xl overflow-hidden max-h-[420px]">
               <img
                 src={campaign.cover_image}
                 alt={campaign.title}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${isCompleted ? "grayscale-[25%]" : ""}`}
               />
+              {isCompleted && (
+                <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/95 backdrop-blur text-sm font-medium text-foreground shadow-md">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Сбор завершён
+                  {campaign.completed_at && (
+                    <span className="text-muted-foreground">
+                      · {formatCompletedDate(campaign.completed_at)}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -90,6 +107,11 @@ const CampaignPage = () => {
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-foreground text-sm font-medium mb-4">
                     <CheckCircle2 className="w-4 h-4" />
                     Сбор завершён
+                    {campaign.completed_at && (
+                      <span className="text-muted-foreground">
+                        · {formatCompletedDate(campaign.completed_at)}
+                      </span>
+                    )}
                   </div>
                 )}
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
@@ -134,10 +156,10 @@ const CampaignPage = () => {
                     <span className="text-muted-foreground">Прогресс</span>
                     <span className="font-semibold text-foreground">{progress}%</span>
                   </div>
-                  <div className="h-3 rounded-full bg-secondary overflow-hidden">
+                  <div className={`h-3 rounded-full bg-secondary overflow-hidden ${isCompleted ? "opacity-70" : ""}`}>
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${isCompleted ? "bg-foreground/70" : "bg-primary"}`}
-                      style={{ width: `${progress}%` }}
+                      className={`h-full rounded-full transition-all duration-700 ${isCompleted ? "bg-foreground/60" : "bg-primary"}`}
+                      style={{ width: `${Math.min(100, progress)}%` }}
                     />
                   </div>
                 </div>
@@ -173,11 +195,16 @@ const CampaignPage = () => {
                   </div>
                   <div className="space-y-1.5">
                     <h3 className="font-semibold text-foreground text-lg">
-                      Этот сбор завершён
+                      Сбор завершён
                     </h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Спасибо всем, кто помог. Вы делаете большое дело.
+                      Спасибо всем, кто принял участие. Вы помогли реализовать этот проект.
                     </p>
+                    {campaign.completed_at && (
+                      <p className="text-xs text-muted-foreground pt-1">
+                        Завершён {formatCompletedDate(campaign.completed_at)}
+                      </p>
+                    )}
                   </div>
                   <Button asChild className="w-full" size="lg">
                     <Link to="/#donate">

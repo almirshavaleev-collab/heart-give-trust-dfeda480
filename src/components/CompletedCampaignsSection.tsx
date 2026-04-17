@@ -1,6 +1,11 @@
 import { Link } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
-import { useCompletedCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
+import {
+  useCompletedCampaigns,
+  formatAmount,
+  getProgress,
+  formatCompletedDate,
+} from "@/hooks/useCampaigns";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
@@ -101,6 +106,11 @@ const CompletedCampaignsSection = ({ limit = 6, showHeader = true }: Props) => {
                         из {formatAmount(c.target_amount)} ₽
                       </span>
                     </div>
+                    {c.completed_at && (
+                      <p className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground">
+                        Завершён {formatCompletedDate(c.completed_at)}
+                      </p>
+                    )}
                   </div>
                 </Link>
               );
