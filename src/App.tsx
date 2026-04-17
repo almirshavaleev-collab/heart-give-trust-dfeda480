@@ -14,6 +14,7 @@ import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import AdminNews from "./pages/admin/AdminNews.tsx";
 import AdminReports from "./pages/admin/AdminReports.tsx";
 import AdminDonations from "./pages/admin/AdminDonations.tsx";
+import ScrollToTop from "./components/ScrollToTop.tsx";
 import { useCampaignsRealtime } from "./hooks/useCampaigns";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ScrollToTop />
         <RealtimeBridge />
         <Routes>
           <Route path="/" element={<Index />} />
