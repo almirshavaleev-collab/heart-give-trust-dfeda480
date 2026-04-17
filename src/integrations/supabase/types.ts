@@ -74,7 +74,9 @@ export type Database = {
           donor_name: string | null
           donor_phone: string | null
           id: string
+          is_anonymous: boolean
           paid_at: string | null
+          payment_type: string
           status: string
           yookassa_payment_id: string | null
         }
@@ -86,7 +88,9 @@ export type Database = {
           donor_name?: string | null
           donor_phone?: string | null
           id?: string
+          is_anonymous?: boolean
           paid_at?: string | null
+          payment_type?: string
           status?: string
           yookassa_payment_id?: string | null
         }
@@ -98,7 +102,9 @@ export type Database = {
           donor_name?: string | null
           donor_phone?: string | null
           id?: string
+          is_anonymous?: boolean
           paid_at?: string | null
+          payment_type?: string
           status?: string
           yookassa_payment_id?: string | null
         }
