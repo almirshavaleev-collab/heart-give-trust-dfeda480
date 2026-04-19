@@ -247,16 +247,33 @@ const CoverImageEditor = ({
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Превью на сайте
             </p>
-            <div className="rounded-xl border border-border overflow-hidden">
-              <CampaignCover
-                src={editingSrc}
-                alt="Превью обложки"
-                crop={livePreviewCrop}
-                className="rounded-none"
-              />
+            <div className="space-y-3">
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1.5">Hero на странице сбора (12:5)</p>
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <CampaignCover
+                    src={editingSrc}
+                    alt="Превью hero"
+                    crop={livePreviewCrop}
+                    aspect={12 / 5}
+                    className="rounded-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground mb-1.5">Карточка в списке (16:9)</p>
+                <div className="rounded-xl border border-border overflow-hidden max-w-[260px]">
+                  <CampaignCover
+                    src={editingSrc}
+                    alt="Превью карточки"
+                    crop={livePreviewCrop}
+                    className="rounded-none"
+                  />
+                </div>
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Так обложка будет выглядеть на странице сбора и в карточках на сайте.
+              Так обложка будет выглядеть на странице сбора и в карточках.
             </p>
           </div>
         </div>

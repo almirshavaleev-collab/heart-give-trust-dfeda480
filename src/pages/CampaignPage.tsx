@@ -82,6 +82,7 @@ const CampaignPage = () => {
               src={campaign.cover_image}
               alt={campaign.title}
               cropSettings={campaign.crop_settings}
+              aspect={12 / 5}
               loading="eager"
               className="rounded-2xl"
               imgClassName={isCompleted ? "grayscale-[25%]" : ""}

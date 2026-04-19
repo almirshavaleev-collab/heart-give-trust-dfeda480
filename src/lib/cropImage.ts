@@ -25,8 +25,10 @@ export interface CropSettings {
   aspect: number;
 }
 
-/** Соотношение сторон обложки сбора — единое во всех местах сайта. */
+/** Соотношение сторон обложки сбора в карточках (16:9). */
 export const COVER_ASPECT = 16 / 9;
+/** Соотношение сторон hero-обложки на странице сбора (более широкое — 12:5 ≈ 2.4:1). */
+export const HERO_ASPECT = 12 / 5;
 
 export const DEFAULT_CROP: CropSettings = {
   x: 0,
