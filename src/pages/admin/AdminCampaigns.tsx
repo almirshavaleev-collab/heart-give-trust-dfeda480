@@ -36,8 +36,9 @@ const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
 export default function AdminCampaigns() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
-  const [form, setForm] = useState<Partial<CampaignInsert>>(emptyCampaign);
+  const [form, setForm] = useState<Partial<CampaignInsert> & { crop_settings?: unknown }>(emptyCampaign);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [editorCrop, setEditorCrop] = useState<CropSettings | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
   const qc = useQueryClient();
 
@@ -97,7 +98,12 @@ export default function AdminCampaigns() {
         coverImage = await uploadImage(imageFile);
       }
 
-      const payload = { ...form, cover_image: coverImage } as CampaignInsert;
+      const cropToSave = editorCrop ?? (form.crop_settings as any) ?? null;
+      const payload = {
+        ...form,
+        cover_image: coverImage,
+        crop_settings: cropToSave,
+      } as CampaignInsert;
 
       if (editing) {
         const { error } = await supabase.from('campaigns').update(payload).eq('id', editing.id);
@@ -113,6 +119,7 @@ export default function AdminCampaigns() {
       setEditing(null);
       setForm(emptyCampaign);
       setImageFile(null);
+      setEditorCrop(null);
       toast.success(editing ? 'Сбор обновлён' : 'Сбор создан');
     },
     onError: (err: Error) => toast.error(err.message || 'Ошибка сохранения'),
@@ -147,8 +154,8 @@ export default function AdminCampaigns() {
     onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
   });
 
-  const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setOpen(true); };
-  const openEdit = (c: Campaign) => { setEditing(c); setForm(c); setImageFile(null); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setEditorCrop(null); setOpen(true); };
+  const openEdit = (c: Campaign) => { setEditing(c); setForm(c as any); setImageFile(null); setEditorCrop(null); setOpen(true); };
 
   const statusLabel = (s: string) => ({ active: 'Активный', completed: 'Завершён', draft: 'Черновик' }[s] || s);
 
