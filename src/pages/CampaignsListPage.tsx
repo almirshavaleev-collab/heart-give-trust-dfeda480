@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import CompletedCampaignsSection from "@/components/CompletedCampaignsSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
+import CampaignCover from "@/components/CampaignCover";
 
 const CampaignsListPage = () => {
   const { data: campaigns = [], isLoading } = useActiveCampaigns();
@@ -50,20 +51,13 @@ const CampaignsListPage = () => {
                     to={`/campaigns/${campaign.slug}`}
                     className="group card-light overflow-hidden flex flex-col"
                   >
-                    <div className="relative h-48 overflow-hidden bg-secondary">
-                      {campaign.cover_image ? (
-                        <img
-                          src={campaign.cover_image}
-                          alt={campaign.title}
-                          loading="lazy"
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                          Нет фото
-                        </div>
-                      )}
-                    </div>
+                    <CampaignCover
+                      src={campaign.cover_image}
+                      alt={campaign.title}
+                      cropSettings={(campaign as any).crop_settings}
+                      className="rounded-none"
+                      imgClassName="transition-transform duration-500 group-hover:scale-105"
+                    />
 
                     <div className="p-5 flex flex-col flex-1">
                       <h3 className="font-semibold text-foreground mb-1 leading-snug">

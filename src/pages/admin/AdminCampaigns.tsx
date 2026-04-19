@@ -20,21 +20,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import CoverImageEditor from '@/components/admin/CoverImageEditor';
+import type { CropSettings } from '@/lib/cropImage';
 
 type Campaign = Database['public']['Tables']['campaigns']['Row'];
 type CampaignInsert = Database['public']['Tables']['campaigns']['Insert'];
 
-const emptyCampaign: Partial<CampaignInsert> = {
+const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
   status: 'draft', beneficiary: '', purpose: '', sort_order: 0,
+  crop_settings: null,
 };
 
 export default function AdminCampaigns() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
-  const [form, setForm] = useState<Partial<CampaignInsert>>(emptyCampaign);
+  const [form, setForm] = useState<Partial<CampaignInsert> & { crop_settings?: unknown }>(emptyCampaign);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [editorCrop, setEditorCrop] = useState<CropSettings | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
   const qc = useQueryClient();
 
@@ -94,7 +98,12 @@ export default function AdminCampaigns() {
         coverImage = await uploadImage(imageFile);
       }
 
-      const payload = { ...form, cover_image: coverImage } as CampaignInsert;
+      const cropToSave = editorCrop ?? (form.crop_settings as any) ?? null;
+      const payload = {
+        ...form,
+        cover_image: coverImage,
+        crop_settings: cropToSave,
+      } as CampaignInsert;
 
       if (editing) {
         const { error } = await supabase.from('campaigns').update(payload).eq('id', editing.id);
@@ -110,6 +119,7 @@ export default function AdminCampaigns() {
       setEditing(null);
       setForm(emptyCampaign);
       setImageFile(null);
+      setEditorCrop(null);
       toast.success(editing ? 'Сбор обновлён' : 'Сбор создан');
     },
     onError: (err: Error) => toast.error(err.message || 'Ошибка сохранения'),
@@ -144,8 +154,8 @@ export default function AdminCampaigns() {
     onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
   });
 
-  const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setOpen(true); };
-  const openEdit = (c: Campaign) => { setEditing(c); setForm(c); setImageFile(null); setOpen(true); };
+  const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setEditorCrop(null); setOpen(true); };
+  const openEdit = (c: Campaign) => { setEditing(c); setForm(c as any); setImageFile(null); setEditorCrop(null); setOpen(true); };
 
   const statusLabel = (s: string) => ({ active: 'Активный', completed: 'Завершён', draft: 'Черновик' }[s] || s);
 
@@ -284,8 +294,13 @@ export default function AdminCampaigns() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Обложка</label>
-              <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
-              {form.cover_image && <p className="text-xs text-muted-foreground truncate">Текущее: {form.cover_image}</p>}
+              <CoverImageEditor
+                imageUrl={form.cover_image || null}
+                cropSettings={form.crop_settings}
+                pendingFile={imageFile}
+                onFileChange={setImageFile}
+                onCropChange={setEditorCrop}
+              />
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Отмена</Button>

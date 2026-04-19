@@ -7,6 +7,7 @@ import {
   formatCompletedDate,
 } from "@/hooks/useCampaigns";
 import { Skeleton } from "@/components/ui/skeleton";
+import CampaignCover from "@/components/CampaignCover";
 
 interface Props {
   limit?: number;
@@ -57,25 +58,18 @@ const CompletedCampaignsSection = ({ limit = 6, showHeader = true }: Props) => {
                   to={`/campaigns/${c.slug}`}
                   className="group relative rounded-2xl border border-border bg-card overflow-hidden flex flex-col transition-all hover:border-foreground/20"
                 >
-                  {/* Image with overlay */}
-                  <div className="relative h-44 overflow-hidden bg-secondary">
-                    {c.cover_image ? (
-                      <img
-                        src={c.cover_image}
-                        alt={c.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover grayscale-[35%] opacity-90 transition-all duration-500 group-hover:grayscale-0 group-hover:opacity-100"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                        Нет фото
-                      </div>
-                    )}
+                  <CampaignCover
+                    src={c.cover_image}
+                    alt={c.title}
+                    cropSettings={(c as any).crop_settings}
+                    className="rounded-none"
+                    imgClassName="grayscale-[35%] opacity-90 transition-all duration-500 group-hover:grayscale-0 group-hover:opacity-100"
+                  >
                     <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur text-xs font-medium text-foreground shadow-sm">
                       <CheckCircle2 className="w-3.5 h-3.5 text-foreground" />
                       Сбор завершён
                     </div>
-                  </div>
+                  </CampaignCover>
 
                   <div className="p-5 flex flex-col flex-1">
                     <h3 className="font-semibold text-foreground mb-1 leading-snug">
