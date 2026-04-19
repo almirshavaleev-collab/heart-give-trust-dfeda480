@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import DonationWidget from "@/components/DonationWidget";
 import CampaignDonationsList from "@/components/CampaignDonationsList";
+import CampaignCover from "@/components/CampaignCover";
 import {
   useCampaignBySlug,
   useOtherCampaigns,
@@ -77,12 +78,14 @@ const CampaignPage = () => {
         {/* Hero image */}
         {campaign.cover_image && (
           <div className="container mb-10">
-            <div className="relative rounded-2xl overflow-hidden max-h-[420px]">
-              <img
-                src={campaign.cover_image}
-                alt={campaign.title}
-                className={`w-full h-full object-cover ${isCompleted ? "grayscale-[25%]" : ""}`}
-              />
+            <CampaignCover
+              src={campaign.cover_image}
+              alt={campaign.title}
+              cropSettings={campaign.crop_settings}
+              loading="eager"
+              className="rounded-2xl"
+              imgClassName={isCompleted ? "grayscale-[25%]" : ""}
+            >
               {isCompleted && (
                 <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/95 backdrop-blur text-sm font-medium text-foreground shadow-md">
                   <CheckCircle2 className="w-4 h-4" />
@@ -94,7 +97,7 @@ const CampaignPage = () => {
                   )}
                 </div>
               )}
-            </div>
+            </CampaignCover>
           </div>
         )}
 
@@ -246,20 +249,13 @@ const CampaignPage = () => {
                       to={`/campaigns/${c.slug}`}
                       className="group card-light overflow-hidden flex flex-col"
                     >
-                      <div className="relative h-40 overflow-hidden bg-secondary">
-                        {c.cover_image ? (
-                          <img
-                            src={c.cover_image}
-                            alt={c.title}
-                            loading="lazy"
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                            Нет фото
-                          </div>
-                        )}
-                      </div>
+                      <CampaignCover
+                        src={c.cover_image}
+                        alt={c.title}
+                        cropSettings={c.crop_settings}
+                        className="rounded-none"
+                        imgClassName="transition-transform duration-500 group-hover:scale-105"
+                      />
                       <div className="p-5 flex flex-col flex-1">
                         <h3 className="font-semibold text-foreground mb-1">{c.title}</h3>
                         <p className="text-sm text-muted-foreground mb-3 line-clamp-2 flex-1">

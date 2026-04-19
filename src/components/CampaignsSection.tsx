@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useActiveCampaigns, formatAmount, getProgress } from "@/hooks/useCampaigns";
 import { Skeleton } from "@/components/ui/skeleton";
+import CampaignCover from "@/components/CampaignCover";
 
 const CampaignsSection = () => {
   const { data: campaigns = [], isLoading } = useActiveCampaigns(4);
@@ -48,21 +49,13 @@ const CampaignsSection = () => {
                     to={`/campaigns/${campaign.slug}`}
                     className="group card-light overflow-hidden flex flex-col"
                   >
-                    {/* Image */}
-                    <div className="relative h-48 overflow-hidden bg-secondary">
-                      {campaign.cover_image ? (
-                        <img
-                          src={campaign.cover_image}
-                          alt={campaign.title}
-                          loading="lazy"
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
-                          Нет фото
-                        </div>
-                      )}
-                    </div>
+                    <CampaignCover
+                      src={campaign.cover_image}
+                      alt={campaign.title}
+                      cropSettings={(campaign as any).crop_settings}
+                      className="rounded-none"
+                      imgClassName="transition-transform duration-500 group-hover:scale-105"
+                    />
 
                     {/* Content */}
                     <div className="p-5 flex flex-col flex-1">
