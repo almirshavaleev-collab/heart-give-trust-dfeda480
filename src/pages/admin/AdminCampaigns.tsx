@@ -20,14 +20,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import CoverImageEditor from '@/components/admin/CoverImageEditor';
+import type { CropSettings } from '@/lib/cropImage';
 
 type Campaign = Database['public']['Tables']['campaigns']['Row'];
 type CampaignInsert = Database['public']['Tables']['campaigns']['Insert'];
 
-const emptyCampaign: Partial<CampaignInsert> = {
+const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
   status: 'draft', beneficiary: '', purpose: '', sort_order: 0,
+  crop_settings: null,
 };
 
 export default function AdminCampaigns() {
