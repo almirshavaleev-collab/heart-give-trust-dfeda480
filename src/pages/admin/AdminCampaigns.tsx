@@ -294,8 +294,13 @@ export default function AdminCampaigns() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Обложка</label>
-              <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
-              {form.cover_image && <p className="text-xs text-muted-foreground truncate">Текущее: {form.cover_image}</p>}
+              <CoverImageEditor
+                imageUrl={form.cover_image || null}
+                cropSettings={form.crop_settings}
+                pendingFile={imageFile}
+                onFileChange={setImageFile}
+                onCropChange={setEditorCrop}
+              />
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Отмена</Button>
