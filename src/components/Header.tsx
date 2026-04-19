@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoH from "@/assets/logo_h.svg";
@@ -30,13 +31,16 @@ const Header = () => {
       }`}
     >
       <div className="container flex items-center justify-between h-16">
-        <a href="#" className="flex items-center gap-3 cursor-pointer group">
+        <Link
+          to="/"
+          className="flex items-center gap-3 cursor-pointer group hover:opacity-80 transition-opacity"
+        >
           <img
             src={logoH}
             alt="Фонд Выпускники Лицея «ЛИГА»"
             className="h-10 md:h-12 w-auto transition-transform duration-200 group-hover:scale-105"
           />
-        </a>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-1">
           {navLinks.map((l) => (
