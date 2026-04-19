@@ -21,6 +21,7 @@ export type Database = {
           completed_at: string | null
           cover_image: string | null
           created_at: string
+          crop_settings: Json | null
           full_description: string | null
           id: string
           purpose: string | null
@@ -38,6 +39,7 @@ export type Database = {
           completed_at?: string | null
           cover_image?: string | null
           created_at?: string
+          crop_settings?: Json | null
           full_description?: string | null
           id?: string
           purpose?: string | null
@@ -55,6 +57,7 @@ export type Database = {
           completed_at?: string | null
           cover_image?: string | null
           created_at?: string
+          crop_settings?: Json | null
           full_description?: string | null
           id?: string
           purpose?: string | null
