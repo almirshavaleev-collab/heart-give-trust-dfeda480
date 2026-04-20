@@ -19,7 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Eye, EyeOff, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import CoverImageEditor from '@/components/admin/CoverImageEditor';
@@ -42,6 +42,7 @@ export default function AdminCampaigns() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [editorCrop, setEditorCrop] = useState<CropSettings | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'archived' | 'draft'>('all');
   const qc = useQueryClient();
 
   const { data: campaigns = [], isLoading } = useQuery({
@@ -171,7 +172,17 @@ export default function AdminCampaigns() {
   const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setEditorCrop(null); setOpen(true); };
   const openEdit = (c: Campaign) => { setEditing(c); setForm(c as any); setImageFile(null); setEditorCrop(null); setOpen(true); };
 
-  const statusLabel = (s: string) => ({ active: 'Активный', completed: 'Завершён', draft: 'Черновик' }[s] || s);
+  const statusLabel = (s: string) => ({ active: 'Активный', completed: 'Завершён', archived: 'Архив', draft: 'Черновик' }[s] || s);
+
+  const statusBadgeClass = (s: string) =>
+    s === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+    s === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+    s === 'archived' ? 'bg-gray-100 text-gray-600 border-gray-300' :
+    'bg-gray-50 text-gray-600 border-gray-200';
+
+  const filteredCampaigns = statusFilter === 'all'
+    ? campaigns
+    : campaigns.filter((c) => c.status === statusFilter);
 
   return (
     <div>
