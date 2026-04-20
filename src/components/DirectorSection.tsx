@@ -1,4 +1,5 @@
-import { User, Phone, Mail } from "lucide-react";
+import { Phone, Mail, Quote } from "lucide-react";
+import directorPhoto from "@/assets/director.jpg";
 
 const DirectorSection = () => (
   <section className="py-24 md:py-32">
@@ -9,13 +10,28 @@ const DirectorSection = () => (
       </div>
 
       <div className="card-light p-8 text-center">
-        <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-5">
-          <User className="w-10 h-10 text-foreground" />
+        <div className="mx-auto mb-6 w-32 h-40 sm:w-36 sm:h-44 md:w-40 md:h-52 overflow-hidden rounded-2xl shadow-lg ring-1 ring-border bg-secondary">
+          <img
+            src={directorPhoto}
+            alt="Саитгараев Ильяс — директор фонда"
+            className="w-full h-full object-cover object-center"
+            loading="lazy"
+          />
         </div>
         <h3 className="text-xl font-bold text-foreground">Саитгараев Ильяс</h3>
-        <p className="text-muted-foreground text-sm mt-1 mb-6">Директор благотворительного фонда</p>
+        <p className="text-muted-foreground text-sm mt-1 max-w-xs mx-auto">
+          Директор благотворительного фонда «Выпускники Лицея «ЛИГА»
+        </p>
 
-        <div className="space-y-3">
+        <figure className="my-6 mx-auto max-w-xs">
+          <Quote className="w-5 h-5 text-accent mx-auto mb-2 opacity-70" />
+          <blockquote className="text-base font-medium text-foreground italic leading-relaxed">
+            «Нормально делай — нормально будет»
+          </blockquote>
+        </figure>
+
+        <div className="space-y-3 pt-2 border-t border-border">
+          <div className="h-2" />
           <a href="tel:+79372993151" className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <Phone className="w-4 h-4" />
             +7 (937) 299-31-51
