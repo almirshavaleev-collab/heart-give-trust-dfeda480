@@ -1,4 +1,5 @@
 import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => (
   <footer className="border-t border-border py-10">
@@ -9,6 +10,7 @@ const Footer = () => (
           © {new Date().getFullYear()} Фонд «Выпускники Лицея «ЛИГА»
         </div>
         <div className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
+          <Link to="/offer" className="hover:text-foreground transition-colors">Публичная оферта</Link>
           <a href="#privacy" className="hover:text-foreground transition-colors">Политика конфиденциальности</a>
           <a href="#terms" className="hover:text-foreground transition-colors">Пользовательское соглашение</a>
           <a href="#refund" className="hover:text-foreground transition-colors">Возврат средств</a>
