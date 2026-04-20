@@ -327,9 +327,16 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           {consent && <Check className="w-3 h-3 text-primary-foreground" />}
         </div>
         <span className="text-xs text-muted-foreground leading-[1.55] flex-1 min-w-0">
-          Я согласен(а) на обработку персональных данных и ознакомлен(а) с{" "}
-          <a href="#privacy" className="text-foreground hover:underline">политикой конфиденциальности</a> и{" "}
-          <a href="#terms" className="text-foreground hover:underline">пользовательским соглашением</a>
+          Я принимаю условия{" "}
+          <a
+            href="/offer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground hover:underline"
+          >
+            публичной оферты
+          </a>{" "}
+          и согласен(а) на обработку персональных данных
         </span>
       </label>
 
