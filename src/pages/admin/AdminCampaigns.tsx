@@ -19,7 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Eye, EyeOff, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import CoverImageEditor from '@/components/admin/CoverImageEditor';
@@ -42,6 +42,7 @@ export default function AdminCampaigns() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [editorCrop, setEditorCrop] = useState<CropSettings | null>(null);
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'archived' | 'draft'>('all');
   const qc = useQueryClient();
 
   const { data: campaigns = [], isLoading } = useQuery({
@@ -171,13 +172,37 @@ export default function AdminCampaigns() {
   const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setEditorCrop(null); setOpen(true); };
   const openEdit = (c: Campaign) => { setEditing(c); setForm(c as any); setImageFile(null); setEditorCrop(null); setOpen(true); };
 
-  const statusLabel = (s: string) => ({ active: 'Активный', completed: 'Завершён', draft: 'Черновик' }[s] || s);
+  const statusLabel = (s: string) => ({ active: 'Активный', completed: 'Завершён', archived: 'Архив', draft: 'Черновик' }[s] || s);
+
+  const statusBadgeClass = (s: string) =>
+    s === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+    s === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+    s === 'archived' ? 'bg-gray-100 text-gray-600 border-gray-300' :
+    'bg-gray-50 text-gray-600 border-gray-200';
+
+  const filteredCampaigns = statusFilter === 'all'
+    ? campaigns
+    : campaigns.filter((c) => c.status === statusFilter);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-primary">Сборы</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Добавить сбор</Button>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="h-9 w-[170px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все сборы</SelectItem>
+              <SelectItem value="active">Активные</SelectItem>
+              <SelectItem value="completed">Завершённые</SelectItem>
+              <SelectItem value="archived">Архив</SelectItem>
+              <SelectItem value="draft">Черновики</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Добавить сбор</Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -196,7 +221,7 @@ export default function AdminCampaigns() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {campaigns.map((c) => (
+              {filteredCampaigns.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -214,17 +239,14 @@ export default function AdminCampaigns() {
                       value={c.status}
                       onValueChange={(v) => statusMutation.mutate({ id: c.id, status: v })}
                     >
-                      <SelectTrigger className={`h-8 w-[140px] text-xs font-medium ${
-                        c.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
-                        c.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                        'bg-gray-50 text-gray-600 border-gray-200'
-                      }`}>
+                      <SelectTrigger className={`h-8 w-[140px] text-xs font-medium ${statusBadgeClass(c.status)}`}>
                         <SelectValue>{statusLabel(c.status)}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="draft">Черновик</SelectItem>
                         <SelectItem value="active">Активный</SelectItem>
                         <SelectItem value="completed">Завершён</SelectItem>
+                        <SelectItem value="archived">Архив</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -254,6 +276,30 @@ export default function AdminCampaigns() {
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           Завершить
+                        </Button>
+                      )}
+                      {c.status === 'completed' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => statusMutation.mutate({ id: c.id, status: 'archived' })}
+                          title="Перенести сбор в архив"
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                          В архив
+                        </Button>
+                      )}
+                      {c.status === 'archived' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => statusMutation.mutate({ id: c.id, status: 'completed' })}
+                          title="Восстановить сбор из архива"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Восстановить
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
@@ -321,6 +367,7 @@ export default function AdminCampaigns() {
                     <SelectItem value="draft">Черновик</SelectItem>
                     <SelectItem value="active">Активный</SelectItem>
                     <SelectItem value="completed">Завершён</SelectItem>
+                    <SelectItem value="archived">Архив</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
