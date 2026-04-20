@@ -10,6 +10,7 @@ import ThankYou from "./pages/ThankYou.tsx";
 import Offer from "./pages/Offer.tsx";
 import PrivacyConsent from "./pages/PrivacyConsent.tsx";
 import Requisites from "./pages/Requisites.tsx";
+import Legal from "./pages/Legal.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AdminLogin from "./pages/admin/AdminLogin.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/offer" element={<Offer />} />
           <Route path="/privacy-consent" element={<PrivacyConsent />} />
           <Route path="/requisites" element={<Requisites />} />
+          <Route path="/legal" element={<Legal />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/campaigns" replace />} />
