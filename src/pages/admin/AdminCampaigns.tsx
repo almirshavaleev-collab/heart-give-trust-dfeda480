@@ -156,6 +156,18 @@ export default function AdminCampaigns() {
     onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
   });
 
+  const visibilityMutation = useMutation({
+    mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
+      const { error } = await supabase.from('campaigns').update({ visible }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      toast.success(vars.visible ? 'Сбор показан на сайте' : 'Сбор скрыт с сайта');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Не удалось изменить видимость'),
+  });
+
   const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setEditorCrop(null); setOpen(true); };
   const openEdit = (c: Campaign) => { setEditing(c); setForm(c as any); setImageFile(null); setEditorCrop(null); setOpen(true); };
 
