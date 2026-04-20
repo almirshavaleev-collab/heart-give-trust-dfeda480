@@ -28,14 +28,6 @@ const columns: { title: string; links: FooterLink[] }[] = [
     ],
   },
   {
-    title: "Отчеты",
-    links: [
-      { label: "Ежемесячные", href: "/#legal" },
-      { label: "Годовые", href: "/#legal" },
-      { label: "Фото/видео отчеты", href: "/#legal" },
-    ],
-  },
-  {
     title: "Правовая информация",
     links: [
       { label: "Политика конфиденциальности", to: "/legal#privacy" },
