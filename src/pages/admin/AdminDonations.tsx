@@ -433,7 +433,6 @@ export default function AdminDonations() {
                   <th className="py-2 pr-4 font-medium">Сумма</th>
                   <th className="py-2 pr-4 font-medium">Статус</th>
                   <th className="py-2 pr-4 font-medium">Донор</th>
-                  <th className="py-2 pr-4 font-medium">YooKassa ID</th>
                   <th className="py-2 font-medium">Оплачено</th>
                 </tr>
               </thead>
@@ -446,9 +445,6 @@ export default function AdminDonations() {
                       <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
                     </td>
                     <td className="py-3 pr-4">{d.donor_name || d.donor_email || "—"}</td>
-                    <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">
-                      {d.yookassa_payment_id?.slice(0, 12) ?? "—"}
-                    </td>
                     <td className="py-3 whitespace-nowrap text-muted-foreground">
                       {d.paid_at ? fmtDateTime(d.paid_at) : "—"}
                     </td>
@@ -573,8 +569,7 @@ export default function AdminDonations() {
                   <th className="py-2 pr-4 font-medium">Сбор</th>
                   <th className="py-2 pr-4 font-medium">Донор</th>
                   <th className="py-2 pr-4 font-medium">Контакты</th>
-                  <th className="py-2 pr-4 font-medium">Платёж</th>
-                  <th className="py-2 font-medium">YooKassa ID</th>
+                  <th className="py-2 font-medium">Платёж</th>
                 </tr>
               </thead>
               <tbody>
@@ -625,13 +620,10 @@ export default function AdminDonations() {
                           </div>
                         )}
                       </td>
-                      <td className="py-3 pr-4">
+                      <td className="py-3">
                         <Badge variant="outline" className="text-xs">
                           {d.payment_type === "recurring" ? "Ежемесячный" : "Разовый"}
                         </Badge>
-                      </td>
-                      <td className="py-3 font-mono text-xs text-muted-foreground">
-                        {d.yookassa_payment_id?.slice(0, 12) ?? "—"}
                       </td>
                     </tr>
                   );
