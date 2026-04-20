@@ -17,7 +17,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Pencil, Trash2, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import CoverImageEditor from '@/components/admin/CoverImageEditor';
@@ -30,7 +32,7 @@ const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
   status: 'draft', beneficiary: '', purpose: '', sort_order: 0,
-  crop_settings: null,
+  crop_settings: null, visible: true,
 };
 
 export default function AdminCampaigns() {
@@ -154,6 +156,18 @@ export default function AdminCampaigns() {
     onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
   });
 
+  const visibilityMutation = useMutation({
+    mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
+      const { error } = await supabase.from('campaigns').update({ visible }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      toast.success(vars.visible ? 'Сбор показан на сайте' : 'Сбор скрыт с сайта');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Не удалось изменить видимость'),
+  });
+
   const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setEditorCrop(null); setOpen(true); };
   const openEdit = (c: Campaign) => { setEditing(c); setForm(c as any); setImageFile(null); setEditorCrop(null); setOpen(true); };
 
@@ -175,6 +189,7 @@ export default function AdminCampaigns() {
               <TableRow>
                 <TableHead>Название</TableHead>
                 <TableHead>Статус</TableHead>
+                <TableHead>Видимость</TableHead>
                 <TableHead className="text-right">Цель</TableHead>
                 <TableHead className="text-right">Собрано</TableHead>
                 <TableHead className="w-24"></TableHead>
@@ -183,7 +198,17 @@ export default function AdminCampaigns() {
             <TableBody>
               {campaigns.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.title}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{c.title}</span>
+                      {!c.visible && (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-amber-300 bg-amber-50 text-amber-700">
+                          <EyeOff className="h-3 w-3" />
+                          Скрыт
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={c.status}
@@ -202,6 +227,18 @@ export default function AdminCampaigns() {
                         <SelectItem value="completed">Завершён</SelectItem>
                       </SelectContent>
                     </Select>
+                  </TableCell>
+                  <TableCell>
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                      <Switch
+                        checked={!!c.visible}
+                        onCheckedChange={(v) => visibilityMutation.mutate({ id: c.id, visible: v })}
+                      />
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${c.visible ? 'text-green-700' : 'text-muted-foreground'}`}>
+                        {c.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        {c.visible ? 'Видим' : 'Скрыт'}
+                      </span>
+                    </label>
                   </TableCell>
                   <TableCell className="text-right">{Number(c.target_amount).toLocaleString('ru-RU')} ₽</TableCell>
                   <TableCell className="text-right">{Number(c.collected_amount).toLocaleString('ru-RU')} ₽</TableCell>
@@ -226,7 +263,7 @@ export default function AdminCampaigns() {
                 </TableRow>
               ))}
               {campaigns.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Нет сборов</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Нет сборов</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -291,6 +328,16 @@ export default function AdminCampaigns() {
                 <label className="text-sm font-medium">Порядок</label>
                 <Input type="number" value={(form as any).sort_order ?? 0} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) } as any)} />
               </div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Показывать на сайте</p>
+                <p className="text-xs text-muted-foreground">Выключите, чтобы скрыть сбор из публичных списков</p>
+              </div>
+              <Switch
+                checked={form.visible !== false}
+                onCheckedChange={(v) => setForm({ ...form, visible: v })}
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Обложка</label>
