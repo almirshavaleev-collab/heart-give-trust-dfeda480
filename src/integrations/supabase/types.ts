@@ -32,6 +32,7 @@ export type Database = {
           target_amount: number
           title: string
           updated_at: string
+          visible: boolean
         }
         Insert: {
           beneficiary?: string | null
@@ -50,6 +51,7 @@ export type Database = {
           target_amount?: number
           title: string
           updated_at?: string
+          visible?: boolean
         }
         Update: {
           beneficiary?: string | null
@@ -68,6 +70,7 @@ export type Database = {
           target_amount?: number
           title?: string
           updated_at?: string
+          visible?: boolean
         }
         Relationships: []
       }
