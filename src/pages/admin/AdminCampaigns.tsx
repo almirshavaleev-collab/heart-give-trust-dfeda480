@@ -17,7 +17,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Pencil, Trash2, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import CoverImageEditor from '@/components/admin/CoverImageEditor';
@@ -30,7 +32,7 @@ const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
   status: 'draft', beneficiary: '', purpose: '', sort_order: 0,
-  crop_settings: null,
+  crop_settings: null, visible: true,
 };
 
 export default function AdminCampaigns() {
