@@ -188,7 +188,21 @@ export default function AdminCampaigns() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-primary">Сборы</h1>
-        <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Добавить сбор</Button>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="h-9 w-[170px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все сборы</SelectItem>
+              <SelectItem value="active">Активные</SelectItem>
+              <SelectItem value="completed">Завершённые</SelectItem>
+              <SelectItem value="archived">Архив</SelectItem>
+              <SelectItem value="draft">Черновики</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Добавить сбор</Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -207,7 +221,7 @@ export default function AdminCampaigns() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {campaigns.map((c) => (
+              {filteredCampaigns.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
@@ -225,17 +239,14 @@ export default function AdminCampaigns() {
                       value={c.status}
                       onValueChange={(v) => statusMutation.mutate({ id: c.id, status: v })}
                     >
-                      <SelectTrigger className={`h-8 w-[140px] text-xs font-medium ${
-                        c.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
-                        c.status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                        'bg-gray-50 text-gray-600 border-gray-200'
-                      }`}>
+                      <SelectTrigger className={`h-8 w-[140px] text-xs font-medium ${statusBadgeClass(c.status)}`}>
                         <SelectValue>{statusLabel(c.status)}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="draft">Черновик</SelectItem>
                         <SelectItem value="active">Активный</SelectItem>
                         <SelectItem value="completed">Завершён</SelectItem>
+                        <SelectItem value="archived">Архив</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
