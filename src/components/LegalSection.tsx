@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const legalDocs = [
@@ -14,7 +16,7 @@ const legalDocs = [
   {
     id: "refund",
     title: "Возврат средств",
-    content: `Возврат пожертвования возможен в течение 10 рабочих дней с момента перевода. Для оформления возврата свяжитесь с нами по email: ilyastgrv@gmail.com или по телефону: +7 (937) 299-31-51. Укажите дату, сумму перевода и реквизиты для возврата. Возврат осуществляется тем же способом, которым было сделано пожертвование.`,
+    content: `Пожертвования являются добровольными и безвозмездными. Возврат средств возможен в исключительных случаях: ошибка при платеже, двойное списание, техническая ошибка. Для оформления возврата свяжитесь с нами по email или телефону, указав дату и сумму платежа. Каждое обращение рассматривается индивидуально.`,
   },
   {
     id: "personal-data",
@@ -23,19 +25,43 @@ const legalDocs = [
   },
 ];
 
-const LegalSection = () => (
-  <section id="legal" className="py-24 md:py-32 section-alt">
+const validIds = legalDocs.map((d) => d.id);
+
+const LegalSection = () => {
+  const { hash } = useLocation();
+  const [openItem, setOpenItem] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const id = hash.replace("#", "");
+    if (validIds.includes(id)) {
+      setOpenItem(id);
+      // Defer scroll until after accordion mounts/expands
+      setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [hash]);
+
+  return (
+  <section id="legal" className="py-24 md:py-32 section-alt scroll-mt-24">
     <div className="container max-w-2xl">
       <div className="text-center mb-16">
         <p className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">Документы</p>
         <h2 className="text-3xl md:text-4xl font-bold text-foreground">Правовая информация</h2>
       </div>
 
-      <Accordion type="single" collapsible className="space-y-3">
+      <Accordion
+        type="single"
+        collapsible
+        className="space-y-3"
+        value={openItem}
+        onValueChange={setOpenItem}
+      >
         {legalDocs.map((doc) => (
           <AccordionItem
             key={doc.id}
             value={doc.id}
+            id={doc.id}
             className="card-light px-6 overflow-hidden border-0"
           >
             <AccordionTrigger className="text-left font-medium hover:no-underline py-5 text-foreground">
@@ -49,6 +75,7 @@ const LegalSection = () => (
       </Accordion>
     </div>
   </section>
-);
+  );
+};
 
 export default LegalSection;
