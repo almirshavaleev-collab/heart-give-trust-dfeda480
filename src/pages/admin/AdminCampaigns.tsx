@@ -278,6 +278,30 @@ export default function AdminCampaigns() {
                           Завершить
                         </Button>
                       )}
+                      {c.status === 'completed' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => statusMutation.mutate({ id: c.id, status: 'archived' })}
+                          title="Перенести сбор в архив"
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                          В архив
+                        </Button>
+                      )}
+                      {c.status === 'archived' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => statusMutation.mutate({ id: c.id, status: 'completed' })}
+                          title="Восстановить сбор из архива"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Восстановить
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => setDeletingCampaign(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
