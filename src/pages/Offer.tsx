@@ -9,178 +9,201 @@ const Offer = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <main className="flex-1 py-10 md:py-16">
-        <div className="container max-w-3xl">
-          <Button asChild variant="ghost" size="sm" className="mb-6 -ml-3">
-            <Link to="/">
-              <ArrowLeft className="w-4 h-4" />
-              На главную
-            </Link>
-          </Button>
-
-          <article className="space-y-6 text-sm leading-relaxed text-foreground">
-            <header className="space-y-2 pb-6 border-b border-border">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                Юридический документ
-              </p>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-                Публичная оферта о заключении договора пожертвования
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                Действует с {new Date().getFullYear()} года
-              </p>
-            </header>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">1. Общие положения</h2>
-              <p>
-                Настоящая публичная оферта (далее — «Оферта») является официальным предложением
-                Фонда «Выпускники Лицея «ЛИГА» (далее — «Фонд»), адресованным любому
-                дееспособному физическому или юридическому лицу (далее — «Жертвователь»),
-                заключить договор пожертвования (далее — «Договор») на условиях, изложенных ниже.
-              </p>
-              <p>
-                В соответствии со статьёй 437 Гражданского кодекса Российской Федерации данный
-                документ является публичной офертой. В случае принятия изложенных ниже условий
-                физическое или юридическое лицо, производящее акцепт настоящей оферты, становится
-                Жертвователем.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">2. Предмет договора</h2>
-              <p>
-                2.1. Жертвователь безвозмездно передаёт Фонду собственные денежные средства
-                (далее — «Пожертвование») на цели уставной деятельности Фонда.
-              </p>
-              <p>
-                2.2. Передача Жертвователем денежных средств является пожертвованием в соответствии
-                со статьёй 582 Гражданского кодекса Российской Федерации.
-              </p>
-              <p>
-                2.3. Пожертвование может быть направлено как на общие цели Фонда, так и на
-                конкретный благотворительный сбор, выбранный Жертвователем на сайте.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">3. Порядок заключения договора</h2>
-              <p>
-                3.1. Акцептом настоящей Оферты признаётся перечисление Жертвователем денежных
-                средств в пользу Фонда любым из способов, указанных на сайте Фонда.
-              </p>
-              <p>
-                3.2. Оферта считается акцептованной с момента поступления денежных средств на
-                расчётный счёт Фонда.
-              </p>
-              <p>
-                3.3. Совершая акцепт, Жертвователь подтверждает, что ознакомлен с условиями
-                настоящей Оферты, согласен с ними и принимает их в полном объёме.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">4. Размер и порядок передачи пожертвования</h2>
-              <p>
-                4.1. Сумма пожертвования определяется Жертвователем самостоятельно.
-              </p>
-              <p>
-                4.2. Пожертвование может быть совершено единовременно или на регулярной основе.
-              </p>
-              <p>
-                4.3. Жертвователь самостоятельно несёт расходы, связанные с переводом денежных
-                средств (комиссии банков, платёжных систем).
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">5. Права и обязанности сторон</h2>
-              <h3 className="text-base font-semibold text-foreground pt-1">5.1. Фонд обязуется:</h3>
-              <ul className="list-disc pl-5 space-y-1.5">
-                <li>использовать полученные средства строго в соответствии с уставными целями;</li>
-                <li>обеспечить прозрачность расходования средств;</li>
-                <li>при наличии целевого сбора — направить средства на указанные цели;</li>
-                <li>предоставить отчётность об использовании средств в открытом доступе.</li>
-              </ul>
-              <h3 className="text-base font-semibold text-foreground pt-1">5.2. Жертвователь имеет право:</h3>
-              <ul className="list-disc pl-5 space-y-1.5">
-                <li>получать информацию о ходе и результатах целевого сбора;</li>
-                <li>знакомиться с публичной отчётностью Фонда;</li>
-                <li>отказаться от регулярных пожертвований в любой момент.</li>
-              </ul>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">6. Изменение целевого назначения</h2>
-              <p>
-                6.1. В случае невозможности использования пожертвования по целевому назначению
-                (в том числе по причине достижения цели сбора, его отмены или изменения
-                обстоятельств) Фонд вправе с согласия Жертвователя или, при невозможности
-                его получения, самостоятельно перенаправить средства на иные уставные цели.
-              </p>
-              <p>
-                6.2. Перечисление денежных средств в адрес Фонда расценивается как согласие
-                Жертвователя с возможным изменением назначения пожертвования в случаях,
-                предусмотренных пунктом 6.1.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">7. Возврат пожертвования</h2>
-              <p>
-                7.1. Возврат пожертвования возможен в исключительных случаях: при ошибочном
-                перечислении средств или при невозможности использования пожертвования по
-                назначению.
-              </p>
-              <p>
-                7.2. Для возврата Жертвователь направляет письменное обращение с указанием реквизитов
-                и обстоятельств. Срок рассмотрения — до 30 рабочих дней.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">8. Обработка персональных данных</h2>
-              <p>
-                8.1. Совершая пожертвование, Жертвователь даёт согласие на обработку своих
-                персональных данных (имя, e-mail, телефон) в соответствии с Федеральным законом
-                №152-ФЗ «О персональных данных».
-              </p>
-              <p>
-                8.2. Цель обработки — исполнение настоящего Договора, информирование о деятельности
-                Фонда, формирование отчётности.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-xl font-semibold text-foreground pt-2">9. Прочие условия</h2>
-              <p>
-                9.1. Настоящая Оферта вступает в силу с момента публикации на сайте Фонда и
-                действует бессрочно.
-              </p>
-              <p>
-                9.2. Фонд вправе в одностороннем порядке вносить изменения в условия Оферты с
-                обязательной публикацией на сайте.
-              </p>
-              <p>
-                9.3. Все споры, возникающие из настоящего Договора, разрешаются в порядке,
-                предусмотренном законодательством Российской Федерации.
-              </p>
-            </section>
-
-            <section className="space-y-3 pt-6 border-t border-border">
-              <h2 className="text-xl font-semibold text-foreground">10. Реквизиты Фонда</h2>
-              <p className="text-muted-foreground">
-                Полные реквизиты Фонда указаны в разделе «Реквизиты» на главной странице сайта.
-              </p>
-            </section>
-          </article>
-
-          <div className="mt-10 pt-6 border-t border-border">
-            <Button asChild variant="outline" size="sm">
+        <div className="container">
+          <div className="max-w-3xl mx-auto">
+            <Button asChild variant="ghost" size="sm" className="mb-6 -ml-3">
               <Link to="/">
                 <ArrowLeft className="w-4 h-4" />
-                Вернуться на главную
+                На главную
               </Link>
             </Button>
+
+            <article className="space-y-6 text-sm leading-relaxed text-foreground">
+              <header className="space-y-2 pb-4 border-b border-border">
+                <h1 className="text-2xl font-bold text-foreground">
+                  Публичная оферта
+                </h1>
+                <p className="text-muted-foreground">
+                  о заключении договора пожертвования
+                </p>
+              </header>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold mt-6 text-foreground">1. Общие положения</h2>
+                <p>
+                  1.1. Настоящая публичная оферта (далее — «Оферта») является предложением
+                  ФОНДА «ВЫПУСКНИКИ ЛИЦЕЯ-ИНТЕРНАТА №1 г. АЛЬМЕТЬЕВСКА» (далее — «Фонд»)
+                  заключить с любым физическим или юридическим лицом (далее — «Благотворитель»)
+                  договор пожертвования (далее — «Договор») на условиях, изложенных ниже.
+                </p>
+                <p>
+                  1.2. Оферта является публичной офертой в соответствии со ст. 437 Гражданского
+                  кодекса Российской Федерации.
+                </p>
+                <p>
+                  1.3. Оферта вступает в силу с момента размещения на сайте Фонда по адресу:{" "}
+                  <a href="https://ligafund.ru" className="text-foreground underline hover:no-underline">
+                    ligafund.ru
+                  </a>
+                </p>
+                <p>
+                  1.4. Оферта действует бессрочно. Фонд вправе изменить или отменить Оферту в
+                  любое время без объяснения причин.
+                </p>
+                <p>1.5. Изменения вступают в силу с момента их публикации на сайте.</p>
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold mt-6 text-foreground">2. Предмет договора</h2>
+                <p>
+                  2.1. Благотворитель добровольно передает денежные средства Фонду в качестве
+                  пожертвования.
+                </p>
+                <p>
+                  2.2. Фонд принимает пожертвование и обязуется использовать его в рамках своей
+                  уставной деятельности.
+                </p>
+                <p>
+                  2.3. Пожертвование осуществляется в соответствии со ст. 582 Гражданского
+                  кодекса Российской Федерации.
+                </p>
+                <p>2.4. Размер пожертвования определяется Благотворителем самостоятельно.</p>
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold mt-6 text-foreground">3. Порядок заключения договора</h2>
+                <p>3.1. Договор считается заключенным с момента акцепта Оферты Благотворителем.</p>
+                <p>3.2. Акцептом Оферты считается:</p>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li>оплата через сайт Фонда (банковской картой, СБП, через сервис ЮKassa и иные способы)</li>
+                  <li>перевод по банковским реквизитам Фонда</li>
+                  <li>иные способы перечисления средств</li>
+                </ul>
+                <p>
+                  3.3. Датой заключения Договора считается дата поступления денежных средств на
+                  расчетный счет Фонда.
+                </p>
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold mt-6 text-foreground">4. Порядок использования пожертвований</h2>
+                <p>4.1. Все полученные средства используются строго в рамках уставной деятельности Фонда.</p>
+                <p>
+                  4.2. В случае достижения цели конкретного сбора либо утраты актуальности, Фонд
+                  вправе направить пожертвование на иные уставные цели и проекты.
+                </p>
+                <p>4.3. Фонд вправе публиковать отчеты о своей деятельности на сайте.</p>
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold mt-6 text-foreground">5. Персональные данные</h2>
+                <p>
+                  5.1. Благотворитель дает согласие на обработку своих персональных данных в
+                  соответствии с Федеральным законом №152-ФЗ «О персональных данных».
+                </p>
+                <p>5.2. Персональные данные используются исключительно для:</p>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li>обработки пожертвований</li>
+                  <li>ведения отчетности</li>
+                  <li>связи с Благотворителем</li>
+                </ul>
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold mt-6 text-foreground">6. Прочие условия</h2>
+                <p>6.1. Благотворитель подтверждает, что действует добровольно и осознанно.</p>
+                <p>
+                  6.2. Фонд не несет иных обязательств перед Благотворителем, кроме указанных в
+                  настоящей Оферте.
+                </p>
+                <p>6.3. Все споры решаются в соответствии с законодательством Российской Федерации.</p>
+              </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold mt-6 text-foreground">7. Реквизиты Фонда</h2>
+
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-muted-foreground">Полное наименование:</dt>
+                    <dd className="font-medium">ФОНД «ВЫПУСКНИКИ ЛИЦЕЯ-ИНТЕРНАТА №1 г. АЛЬМЕТЬЕВСКА»</dd>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <dt className="text-muted-foreground">ИНН:</dt>
+                      <dd className="font-medium">1644076378</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">КПП:</dt>
+                      <dd className="font-medium">164401001</dd>
+                    </div>
+                    <div>
+                      <dt className="text-muted-foreground">ОГРН:</dt>
+                      <dd className="font-medium">1161690050741</dd>
+                    </div>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">Расчетный счет:</dt>
+                    <dd className="font-medium">40703810462000000880</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">Корреспондентский счет:</dt>
+                    <dd className="font-medium">30101810600000000603</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">БИК:</dt>
+                    <dd className="font-medium">049205603</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">Банк:</dt>
+                    <dd className="font-medium">Отделение «Банк Татарстан» №8610 ПАО СБЕРБАНК г. Казань</dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">Юридический адрес:</dt>
+                    <dd className="font-medium">
+                      423440, Республика Татарстан, Альметьевский район,<br />
+                      пгт Нижняя Мактама, ул. Заводская, дом 12, кв. 37
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">Фактический адрес:</dt>
+                    <dd className="font-medium">
+                      423450, Республика Татарстан, г. Альметьевск,<br />
+                      ул. Тельмана, дом 55а
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">Телефон:</dt>
+                    <dd className="font-medium">
+                      <a href="tel:+78553440604" className="hover:underline">+7 (8553) 440-604</a>
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-muted-foreground">Email:</dt>
+                    <dd className="font-medium">
+                      <a href="mailto:456004a@mail.ru" className="hover:underline">456004a@mail.ru</a>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            </article>
+
+            <div className="mt-10 pt-6 border-t border-border">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/">
+                  <ArrowLeft className="w-4 h-4" />
+                  Вернуться на главную
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </main>
