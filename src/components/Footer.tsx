@@ -16,7 +16,7 @@ const columns: { title: string; links: FooterLink[] }[] = [
     title: "О фонде",
     links: [
       { label: "О фонде", href: "/#community" },
-      { label: "Реквизиты", href: "/#details" },
+      { label: "Реквизиты", to: "/requisites" },
       { label: "Документы", href: "/#legal" },
     ],
   },
