@@ -35,6 +35,15 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { label: "Фото/видео отчеты", href: "/#legal" },
     ],
   },
+  {
+    title: "Правовая информация",
+    links: [
+      { label: "Политика конфиденциальности", to: "/legal#privacy" },
+      { label: "Пользовательское соглашение", to: "/legal#terms" },
+      { label: "Возврат средств", to: "/legal#refund" },
+      { label: "Согласие на обработку ПД", to: "/legal#personal-data" },
+    ],
+  },
 ];
 
 const renderLink = (link: FooterLink) => {
@@ -67,7 +76,7 @@ const PaymentBadge = ({ label }: { label: string }) => (
 const Footer = () => (
   <footer className="border-t border-border bg-secondary/40">
     <div className="container py-14 md:py-16">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 lg:gap-10">
         {columns.map((col) => (
           <div key={col.title} className="flex flex-col gap-3">
             <h3 className="text-sm font-semibold text-foreground mb-1">
