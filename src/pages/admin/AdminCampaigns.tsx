@@ -329,6 +329,16 @@ export default function AdminCampaigns() {
                 <Input type="number" value={(form as any).sort_order ?? 0} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) } as any)} />
               </div>
             </div>
+            <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Показывать на сайте</p>
+                <p className="text-xs text-muted-foreground">Выключите, чтобы скрыть сбор из публичных списков</p>
+              </div>
+              <Switch
+                checked={form.visible !== false}
+                onCheckedChange={(v) => setForm({ ...form, visible: v })}
+              />
+            </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Обложка</label>
               <CoverImageEditor
