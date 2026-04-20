@@ -189,6 +189,7 @@ export default function AdminCampaigns() {
               <TableRow>
                 <TableHead>Название</TableHead>
                 <TableHead>Статус</TableHead>
+                <TableHead>Видимость</TableHead>
                 <TableHead className="text-right">Цель</TableHead>
                 <TableHead className="text-right">Собрано</TableHead>
                 <TableHead className="w-24"></TableHead>
@@ -197,7 +198,17 @@ export default function AdminCampaigns() {
             <TableBody>
               {campaigns.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.title}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{c.title}</span>
+                      {!c.visible && (
+                        <Badge variant="outline" className="text-[10px] gap-1 border-amber-300 bg-amber-50 text-amber-700">
+                          <EyeOff className="h-3 w-3" />
+                          Скрыт
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={c.status}
@@ -216,6 +227,18 @@ export default function AdminCampaigns() {
                         <SelectItem value="completed">Завершён</SelectItem>
                       </SelectContent>
                     </Select>
+                  </TableCell>
+                  <TableCell>
+                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                      <Switch
+                        checked={!!c.visible}
+                        onCheckedChange={(v) => visibilityMutation.mutate({ id: c.id, visible: v })}
+                      />
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${c.visible ? 'text-green-700' : 'text-muted-foreground'}`}>
+                        {c.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        {c.visible ? 'Видим' : 'Скрыт'}
+                      </span>
+                    </label>
                   </TableCell>
                   <TableCell className="text-right">{Number(c.target_amount).toLocaleString('ru-RU')} ₽</TableCell>
                   <TableCell className="text-right">{Number(c.collected_amount).toLocaleString('ru-RU')} ₽</TableCell>
@@ -240,7 +263,7 @@ export default function AdminCampaigns() {
                 </TableRow>
               ))}
               {campaigns.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Нет сборов</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Нет сборов</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
