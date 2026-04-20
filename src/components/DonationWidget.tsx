@@ -332,11 +332,19 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             href="/offer"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-foreground hover:underline"
+            className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
           >
             публичной оферты
           </a>{" "}
-          и согласен(а) на обработку персональных данных
+          и согласен(а) на{" "}
+          <a
+            href="/privacy-consent"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
+          >
+            обработку персональных данных
+          </a>
         </span>
       </label>
 
