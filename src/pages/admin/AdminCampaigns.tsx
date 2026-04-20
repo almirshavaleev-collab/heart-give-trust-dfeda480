@@ -367,6 +367,7 @@ export default function AdminCampaigns() {
                     <SelectItem value="draft">Черновик</SelectItem>
                     <SelectItem value="active">Активный</SelectItem>
                     <SelectItem value="completed">Завершён</SelectItem>
+                    <SelectItem value="archived">Архив</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
