@@ -165,25 +165,28 @@ Deno.serve(async (req) => {
 
       const { data: byPayment } = await supabase
         .from("donations")
-        .select("id, status, campaign_id, amount")
+        .select("id, status, campaign_id, amount, user_id")
         .eq("yookassa_payment_id", paymentId)
         .maybeSingle();
 
+      let donationUserId: string | null = null;
       if (byPayment?.id) {
         donationId = byPayment.id;
         currentStatus = byPayment.status;
         donationCampaignId = byPayment.campaign_id ?? null;
         donationAmount = Number(byPayment.amount);
+        donationUserId = byPayment.user_id ?? null;
       } else if (donationIdFromMeta) {
         const { data: byMeta } = await supabase
           .from("donations")
-          .select("id, status, campaign_id, amount")
+          .select("id, status, campaign_id, amount, user_id")
           .eq("id", donationIdFromMeta)
           .maybeSingle();
         donationId = byMeta?.id ?? null;
         currentStatus = byMeta?.status ?? null;
         donationCampaignId = byMeta?.campaign_id ?? null;
         donationAmount = byMeta?.amount != null ? Number(byMeta.amount) : null;
+        donationUserId = byMeta?.user_id ?? null;
       }
 
       if (!donationId) {
@@ -234,6 +237,14 @@ Deno.serve(async (req) => {
           }
         } else {
           await writeLog("accepted", donationId);
+        }
+
+        // Пересчёт достижений жертвователя (если донат привязан к пользователю)
+        if (wasUpdated && donationUserId) {
+          const { error: achErr } = await supabase.rpc("evaluate_user_achievements", {
+            _user_id: donationUserId,
+          });
+          if (achErr) console.error("evaluate_user_achievements error:", achErr);
         }
       }
     } else if (event === "payment.canceled" && paymentId) {

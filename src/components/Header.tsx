@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoH from "@/assets/logo_h.svg";
+import { useAuth } from "@/hooks/useAuth";
 
 const navLinks = [
   { label: "Сообщество", href: "#community" },
@@ -15,6 +16,7 @@ const navLinks = [
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -52,6 +54,12 @@ const Header = () => {
               {l.label}
             </a>
           ))}
+          <Button size="sm" variant="ghost" className="ml-2" asChild>
+            <Link to={user ? "/account/overview" : "/auth"}>
+              <User className="w-4 h-4 mr-1.5" />
+              {user ? "Кабинет" : "Войти"}
+            </Link>
+          </Button>
           <Button size="sm" className="ml-3" asChild>
             <a href="#donate">Помочь</a>
           </Button>
@@ -79,6 +87,14 @@ const Header = () => {
                 {l.label}
               </a>
             ))}
+            <Link
+              to={user ? "/account/overview" : "/auth"}
+              onClick={() => setMobileOpen(false)}
+              className="px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg inline-flex items-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              {user ? "Личный кабинет" : "Войти"}
+            </Link>
             <Button size="sm" className="mt-2" asChild>
               <a href="#donate" onClick={() => setMobileOpen(false)}>Помочь</a>
             </Button>

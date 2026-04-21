@@ -12,6 +12,14 @@ import PrivacyConsent from "./pages/PrivacyConsent.tsx";
 import Requisites from "./pages/Requisites.tsx";
 import Legal from "./pages/Legal.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import Auth from "./pages/Auth.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
+import AccountLayout from "./pages/account/AccountLayout.tsx";
+import AccountOverview from "./pages/account/AccountOverview.tsx";
+import AccountDonations from "./pages/account/AccountDonations.tsx";
+import AccountSubscriptions from "./pages/account/AccountSubscriptions.tsx";
+import AccountAchievements from "./pages/account/AccountAchievements.tsx";
+import AccountSettings from "./pages/account/AccountSettings.tsx";
 import AdminLogin from "./pages/admin/AdminLogin.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
@@ -45,6 +53,16 @@ const App = () => (
           <Route path="/privacy-consent" element={<PrivacyConsent />} />
           <Route path="/requisites" element={<Requisites />} />
           <Route path="/legal" element={<Legal />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/account" element={<AccountLayout />}>
+            <Route index element={<Navigate to="/account/overview" replace />} />
+            <Route path="overview" element={<AccountOverview />} />
+            <Route path="donations" element={<AccountDonations />} />
+            <Route path="subscriptions" element={<AccountSubscriptions />} />
+            <Route path="achievements" element={<AccountAchievements />} />
+            <Route path="settings" element={<AccountSettings />} />
+          </Route>
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/campaigns" replace />} />

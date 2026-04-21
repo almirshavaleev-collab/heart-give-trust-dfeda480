@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          sort_order?: number
+          title?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           beneficiary: string | null
@@ -79,45 +109,122 @@ export type Database = {
           amount: number
           campaign_id: string | null
           created_at: string
+          currency: string
           donor_email: string | null
           donor_name: string | null
           donor_phone: string | null
           id: string
           is_anonymous: boolean
+          is_recurring: boolean
           paid_at: string | null
+          payment_id: string | null
+          payment_method_type: string | null
+          payment_provider: string
           payment_type: string
           status: string
+          user_id: string | null
           yookassa_payment_id: string | null
         }
         Insert: {
           amount: number
           campaign_id?: string | null
           created_at?: string
+          currency?: string
           donor_email?: string | null
           donor_name?: string | null
           donor_phone?: string | null
           id?: string
           is_anonymous?: boolean
+          is_recurring?: boolean
           paid_at?: string | null
+          payment_id?: string | null
+          payment_method_type?: string | null
+          payment_provider?: string
           payment_type?: string
           status?: string
+          user_id?: string | null
           yookassa_payment_id?: string | null
         }
         Update: {
           amount?: number
           campaign_id?: string | null
           created_at?: string
+          currency?: string
           donor_email?: string | null
           donor_name?: string | null
           donor_phone?: string | null
           id?: string
           is_anonymous?: boolean
+          is_recurring?: boolean
           paid_at?: string | null
+          payment_id?: string | null
+          payment_method_type?: string | null
+          payment_provider?: string
           payment_type?: string
           status?: string
+          user_id?: string | null
           yookassa_payment_id?: string | null
         }
         Relationships: []
+      }
+      donor_subscriptions: {
+        Row: {
+          amount: number
+          campaign_id: string | null
+          canceled_at: string | null
+          created_at: string
+          currency: string
+          external_subscription_id: string | null
+          id: string
+          interval: string
+          next_payment_at: string | null
+          paused_at: string | null
+          payment_method_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          campaign_id?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          currency?: string
+          external_subscription_id?: string | null
+          id?: string
+          interval?: string
+          next_payment_at?: string | null
+          paused_at?: string | null
+          payment_method_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          campaign_id?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          currency?: string
+          external_subscription_id?: string | null
+          id?: string
+          interval?: string
+          next_payment_at?: string | null
+          paused_at?: string | null
+          payment_method_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donor_subscriptions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       news: {
         Row: {
@@ -160,25 +267,46 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          full_name: string | null
           id: string
+          is_public_donor: boolean
+          link_email_code: string | null
+          link_email_expires_at: string | null
+          phone: string | null
+          public_display_name: string | null
           updated_at: string
           user_id: string
+          wants_notifications: boolean
         }
         Insert: {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          full_name?: string | null
           id?: string
+          is_public_donor?: boolean
+          link_email_code?: string | null
+          link_email_expires_at?: string | null
+          phone?: string | null
+          public_display_name?: string | null
           updated_at?: string
           user_id: string
+          wants_notifications?: boolean
         }
         Update: {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          full_name?: string | null
           id?: string
+          is_public_donor?: boolean
+          link_email_code?: string | null
+          link_email_expires_at?: string | null
+          phone?: string | null
+          public_display_name?: string | null
           updated_at?: string
           user_id?: string
+          wants_notifications?: boolean
         }
         Relationships: []
       }
@@ -211,6 +339,35 @@ export type Database = {
           year?: number | null
         }
         Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          awarded_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          awarded_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          awarded_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -315,6 +472,14 @@ export type Database = {
       }
     }
     Functions: {
+      confirm_link_donations: {
+        Args: { _code: string; _user_id: string }
+        Returns: number
+      }
+      evaluate_user_achievements: {
+        Args: { _user_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -325,6 +490,10 @@ export type Database = {
       increment_campaign_collected: {
         Args: { _amount: number; _campaign_id: string }
         Returns: undefined
+      }
+      request_link_donations_code: {
+        Args: { _user_id: string }
+        Returns: string
       }
     }
     Enums: {

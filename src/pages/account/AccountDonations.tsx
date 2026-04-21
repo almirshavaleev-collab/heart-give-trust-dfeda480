@@ -1,0 +1,206 @@
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDonorDonations } from "@/hooks/useDonorData";
+import { formatRub, formatDate, statusLabel, paymentMethodLabel } from "@/lib/donor-format";
+import { Heart, Search, Mail } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
+const PAGE = 20;
+
+export default function AccountDonations() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const { data, isLoading, error } = useDonorDonations();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkStep, setLinkStep] = useState<"intro" | "code">("intro");
+  const [code, setCode] = useState("");
+  const [linkLoading, setLinkLoading] = useState(false);
+
+  const filtered = useMemo(() => {
+    let rows = data ?? [];
+    if (statusFilter !== "all") rows = rows.filter((r) => r.status === statusFilter);
+    if (typeFilter === "recurring") rows = rows.filter((r) => r.is_recurring);
+    if (typeFilter === "one_time") rows = rows.filter((r) => !r.is_recurring);
+    return rows;
+  }, [data, statusFilter, typeFilter]);
+
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const visible = filtered.slice((page - 1) * PAGE, page * PAGE);
+
+  const requestCode = async () => {
+    if (!user) return;
+    setLinkLoading(true);
+    try {
+      // For now: generate code via RPC and show it (email infra not configured in this iteration)
+      const { data: code, error } = await supabase.rpc("request_link_donations_code", { _user_id: user.id });
+      if (error) throw error;
+      // In production: send via email. For now, surface for manual entry.
+      toast({
+        title: "Код подтверждения готов",
+        description: `Введите код: ${code}. Срок действия — 15 минут.`,
+      });
+      setLinkStep("code");
+    } catch (e) {
+      toast({ title: "Ошибка", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  const confirmLink = async () => {
+    if (!user || !code) return;
+    setLinkLoading(true);
+    try {
+      const { data: count, error } = await supabase.rpc("confirm_link_donations", { _user_id: user.id, _code: code.trim() });
+      if (error) throw error;
+      toast({ title: "Готово", description: `Привязано пожертвований: ${count ?? 0}` });
+      setLinkOpen(false);
+      setLinkStep("intro");
+      setCode("");
+      qc.invalidateQueries({ queryKey: ["donor-donations"] });
+      qc.invalidateQueries({ queryKey: ["user-achievements"] });
+    } catch (e) {
+      toast({ title: "Не удалось привязать", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Мои пожертвования</h1>
+          <p className="text-muted-foreground mt-1 text-sm">История всех ваших вкладов в фонд.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setLinkOpen(true)}>
+          <Search className="w-4 h-4 mr-2" /> Найти мои прошлые пожертвования
+        </Button>
+      </div>
+
+      <Card className="border-border">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
+          <CardTitle className="text-lg">История</CardTitle>
+          <div className="flex flex-wrap gap-2">
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все статусы</SelectItem>
+                <SelectItem value="succeeded">Успешно</SelectItem>
+                <SelectItem value="pending">В обработке</SelectItem>
+                <SelectItem value="canceled">Отменён</SelectItem>
+                <SelectItem value="failed">Ошибка</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все типы</SelectItem>
+                <SelectItem value="one_time">Разовые</SelectItem>
+                <SelectItem value="recurring">Регулярные</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">{[0,1,2,3].map(i => <Skeleton key={i} className="h-12 rounded-xl" />)}</div>
+          ) : error ? (
+            <p className="text-sm text-destructive">Не удалось загрузить пожертвования.</p>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-10 space-y-3">
+              <div className="mx-auto w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
+                <Heart className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <p className="font-medium">Пока пусто</p>
+              <p className="text-sm text-muted-foreground">У вас пока нет пожертвований по выбранным фильтрам.</p>
+              <Button asChild><Link to="/#donate">Сделать первое пожертвование</Link></Button>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto -mx-2">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Дата</TableHead>
+                      <TableHead>Сбор</TableHead>
+                      <TableHead>Сумма</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead className="hidden md:table-cell">Способ</TableHead>
+                      <TableHead className="hidden md:table-cell">Тип</TableHead>
+                      <TableHead className="hidden md:table-cell">Видимость</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visible.map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="whitespace-nowrap text-sm">{formatDate(d.paid_at ?? d.created_at)}</TableCell>
+                        <TableCell className="text-sm">{d.campaign?.title ?? "Общий вклад"}</TableCell>
+                        <TableCell className="font-semibold">{formatRub(d.amount)}</TableCell>
+                        <TableCell><Badge variant={d.status === "succeeded" ? "default" : "secondary"}>{statusLabel(d.status)}</Badge></TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{paymentMethodLabel(d.payment_method_type)}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{d.is_recurring ? "Регулярный" : "Разовый"}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{d.is_anonymous ? "Анонимно" : "Открыто"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {pages > 1 && (
+                <div className="flex items-center justify-between pt-4">
+                  <p className="text-xs text-muted-foreground">Страница {page} из {pages}</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Назад</Button>
+                    <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Вперёд</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={linkOpen} onOpenChange={(v) => { setLinkOpen(v); if (!v) { setLinkStep("intro"); setCode(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Привязать прошлые пожертвования</DialogTitle>
+            <DialogDescription>
+              Мы найдём успешные пожертвования, сделанные с email <b>{user?.email}</b>, и привяжем их к вашему аккаунту.
+            </DialogDescription>
+          </DialogHeader>
+          {linkStep === "intro" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Для подтверждения мы сгенерируем одноразовый код. Срок действия — 15 минут.
+              </p>
+              <Button onClick={requestCode} disabled={linkLoading} className="w-full">
+                <Mail className="w-4 h-4 mr-2" /> Получить код подтверждения
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Input placeholder="Введите 6-значный код" value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, "").slice(0, 6))} />
+              <Button onClick={confirmLink} disabled={linkLoading || code.length !== 6} className="w-full">
+                Подтвердить и привязать
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
