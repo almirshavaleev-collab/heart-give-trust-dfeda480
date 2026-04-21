@@ -42,6 +42,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Если пришёл JWT авторизованного пользователя — извлекаем user_id,
+    // чтобы привязать донат к личному кабинету.
+    let userId: string | null = null;
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const userClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } },
+        );
+        const { data: userRes } = await userClient.auth.getUser();
+        userId = userRes?.user?.id ?? null;
+      } catch (e) {
+        console.warn("auth.getUser failed (non-fatal):", e);
+      }
+    }
+
     // 0. Серверная защита: если донат целевой — проверяем статус сбора.
     //    Платёж в неактивный сбор (completed/draft/archived) запрещён.
     if (campaignId) {
@@ -88,6 +106,8 @@ Deno.serve(async (req) => {
         campaign_id: campaignId,
         is_anonymous: isAnonymous,
         payment_type: paymentType,
+        user_id: userId,
+        is_recurring: paymentType === "monthly",
       })
       .select("id")
       .single();
