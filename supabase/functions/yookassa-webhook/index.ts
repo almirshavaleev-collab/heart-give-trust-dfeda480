@@ -238,6 +238,14 @@ Deno.serve(async (req) => {
         } else {
           await writeLog("accepted", donationId);
         }
+
+        // Пересчёт достижений жертвователя (если донат привязан к пользователю)
+        if (wasUpdated && donationUserId) {
+          const { error: achErr } = await supabase.rpc("evaluate_user_achievements", {
+            _user_id: donationUserId,
+          });
+          if (achErr) console.error("evaluate_user_achievements error:", achErr);
+        }
       }
     } else if (event === "payment.canceled" && paymentId) {
       let donationId: string | null = null;
