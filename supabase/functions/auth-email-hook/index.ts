@@ -9,6 +9,7 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
+import { buildEmailDebugPayload } from '../_shared/email-debug.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +79,121 @@ const SAMPLE_DATA: Record<string, object> = {
   reauthentication: {
     token: '123456',
   },
+}
+
+const buildTemplateProps = (data: Record<string, any>) => ({
+  siteName: SITE_NAME,
+  siteUrl: `https://${ROOT_DOMAIN}`,
+  recipient: data.email,
+  confirmationUrl: data.url,
+  token: data.token,
+  email: data.email,
+  newEmail: data.new_email,
+})
+
+async function renderEmailContent(emailType: string, templateProps: Record<string, any>) {
+  const EmailTemplate = EMAIL_TEMPLATES[emailType]
+
+  if (!EmailTemplate) {
+    throw new Error(`Unknown email type: ${emailType}`)
+  }
+
+  const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
+  const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
+    plainText: true,
+  })
+  const subject = EMAIL_SUBJECTS[emailType] || 'Notification'
+
+  return { EmailTemplate, html, text, subject }
+}
+
+const isRecoveryEmail = (emailType: string) => emailType === 'recovery'
+
+const logEmailDebug = ({ emailType, subject, siteName, html, text }: {
+  emailType: string
+  subject: string
+  siteName?: string
+  html: string
+  text: string
+}) => {
+  if (!isRecoveryEmail(emailType)) return
+
+  console.log('Auth email debug', buildEmailDebugPayload({
+    emailType,
+    subject,
+    siteName,
+    brandName: BRAND_NAME,
+    html,
+    text,
+  }))
+}
+
+async function handleDebugPreview(req: Request): Promise<Response> {
+  const previewCorsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+  }
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: previewCorsHeaders })
+  }
+
+  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  const authHeader = req.headers.get('Authorization')
+
+  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  let type: string
+  let templateData: Record<string, any> | undefined
+  try {
+    const body = await req.json()
+    type = body.type
+    templateData = body.templateData
+  } catch (_error) {
+    return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      status: 400,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
+    const sampleData = SAMPLE_DATA[type] || {}
+    const data = { ...sampleData, ...templateData }
+    const templateProps = type === 'recovery'
+      ? {
+          siteName: SITE_NAME,
+          confirmationUrl: data.confirmationUrl ?? SAMPLE_PROJECT_URL,
+        }
+      : buildTemplateProps(data)
+    const { html, text, subject } = await renderEmailContent(type, templateProps)
+
+    return new Response(JSON.stringify({
+      sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      ...buildEmailDebugPayload({
+        emailType: type,
+        subject,
+        siteName: SITE_NAME,
+        brandName: BRAND_NAME,
+        html,
+        text,
+      }),
+    }), {
+      status: 200,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  }
 }
 
 // Preview endpoint handler - returns rendered HTML without sending email
