@@ -207,16 +207,6 @@ async function handleRecoveryRenderDebug(req: Request): Promise<Response> {
     return new Response(null, { headers: debugCorsHeaders })
   }
 
-  const apiKey = Deno.env.get('LOVABLE_API_KEY')
-  const authHeader = req.headers.get('Authorization')
-
-  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...debugCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  }
-
   const results = []
 
   for (const scenario of recoveryDiagnosticsScenarios) {
