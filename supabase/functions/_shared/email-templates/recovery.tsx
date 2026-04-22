@@ -1,5 +1,6 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
+import { BRAND_NAME, BRAND_SIGNATURE } from '../brand.ts'
 import { Body, Button, Container, Head, Heading, Html, Link, Preview, Section, Text } from 'npm:@react-email/components@0.0.22'
 
 interface Props { siteName: string; confirmationUrl: string }
@@ -10,7 +11,7 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
     <Preview>Восстановление пароля в личном кабинете {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Восстановление пароля</Heading>
         <Text style={text}>
           Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете {siteName}.
@@ -26,7 +27,7 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
         <Text style={footer}>
           Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо — пароль останется прежним.
         </Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>

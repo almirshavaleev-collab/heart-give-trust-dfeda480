@@ -36,7 +36,8 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "heart-give-trust"
+import { BRAND_NAME } from '../_shared/brand.ts'
+const SITE_NAME = BRAND_NAME
 const SENDER_DOMAIN = "notify.ligafund.ru"
 const ROOT_DOMAIN = "ligafund.ru"
 const FROM_DOMAIN = "notify.ligafund.ru" // Domain shown in From address (may be root or sender subdomain)

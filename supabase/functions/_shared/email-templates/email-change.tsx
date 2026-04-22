@@ -1,5 +1,6 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
+import { BRAND_NAME, BRAND_SIGNATURE } from '../brand.ts'
 import { Body, Button, Container, Head, Heading, Html, Link, Preview, Section, Text } from 'npm:@react-email/components@0.0.22'
 
 interface Props { siteName: string; email: string; newEmail: string; confirmationUrl: string }
@@ -10,7 +11,7 @@ export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }:
     <Preview>Подтверждение смены email на {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Подтвердите смену email</Heading>
         <Text style={text}>
           Вы запросили изменение адреса электронной почты для аккаунта {siteName}: с{' '}
@@ -28,7 +29,7 @@ export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }:
         <Text style={footer}>
           Если вы не запрашивали изменение, срочно защитите свой аккаунт — смените пароль.
         </Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>

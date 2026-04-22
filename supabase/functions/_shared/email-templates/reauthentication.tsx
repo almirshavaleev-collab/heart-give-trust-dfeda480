@@ -1,5 +1,6 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
+import { BRAND_NAME, BRAND_SIGNATURE } from '../brand.ts'
 import { Body, Container, Head, Heading, Html, Preview, Section, Text } from 'npm:@react-email/components@0.0.22'
 
 interface Props { token: string }
@@ -10,14 +11,14 @@ export const ReauthenticationEmail = ({ token }: Props) => (
     <Preview>Код подтверждения личности</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Подтверждение личности</Heading>
         <Text style={text}>Используйте код ниже, чтобы подтвердить, что это вы:</Text>
         <Section style={codeBox}><Text style={codeStyle}>{token}</Text></Section>
         <Text style={footer}>
           Код действует ограниченное время. Если вы не запрашивали подтверждение, просто проигнорируйте письмо.
         </Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>
