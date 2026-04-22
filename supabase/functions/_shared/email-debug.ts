@@ -299,6 +299,11 @@ export const buildOutboundDiff = async (
       rendered: { ...rendered, fields: renderedFields },
       outbound: null,
       diff: null,
+      snippets: {
+        subject: buildFieldSnippets(rendered.subject, null, -1),
+        html: buildFieldSnippets(rendered.html, null, -1),
+        text: buildFieldSnippets(rendered.text, null, -1),
+      },
     }
   }
 
@@ -316,6 +321,11 @@ export const buildOutboundDiff = async (
     hasOutboundSnapshot: true,
     rendered: { ...rendered, fields: renderedFields },
     outbound: { ...outbound, fields: outboundFields },
+    snippets: {
+      subject: buildFieldSnippets(rendered.subject, outbound.subject, subjectDiffIdx),
+      html: buildFieldSnippets(rendered.html, outbound.html, htmlDiffIdx),
+      text: buildFieldSnippets(rendered.text, outbound.text, textDiffIdx),
+    },
     diff: {
       sameTemplateVersion: rendered.templateVersion === outbound.templateVersion,
       sameEmailType: rendered.emailType === outbound.emailType,
