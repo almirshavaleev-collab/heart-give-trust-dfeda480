@@ -9,7 +9,8 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
-import { buildEmailDebugPayload } from '../_shared/email-debug.ts'
+import { Body, Container, Head, Heading, Html, Preview, Section, Text } from 'npm:@react-email/components@0.0.22'
+import { buildEmailDebugPayload, buildRenderDiagnostics, inspectString } from '../_shared/email-debug.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,6 +110,121 @@ async function renderEmailContent(emailType: string, templateProps: Record<strin
 
 const isRecoveryEmail = (emailType: string) => emailType === 'recovery'
 
+const recoveryDiagnosticStrings = {
+  minimal: 'Восстановление пароля',
+  brandPlain: 'Фонд Лига',
+  brandQuoted: 'Фонд «Лига»',
+  brandAsciiQuoted: 'Фонд "Лига"',
+  cabinet: 'личный кабинет',
+  donorCabinet: 'личный кабинет жертвователя',
+  hardcodedSentence: 'Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете Фонд «Лига».',
+  sentencePrefix: 'Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ',
+}
+
+const recoveryDiagnosticsScenarios = [
+  {
+    id: 'text-minimal',
+    label: 'Text → Восстановление пароля',
+    jsx: '<Text>Восстановление пароля</Text>',
+    expected: recoveryDiagnosticStrings.minimal,
+    node: () => (
+      <Html lang="ru" dir="ltr">
+        <Head>
+          <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+          <meta charSet="utf-8" />
+        </Head>
+        <Body>
+          <Text>{recoveryDiagnosticStrings.minimal}</Text>
+        </Body>
+      </Html>
+    ),
+  },
+  {
+    id: 'text-brand-plain',
+    label: 'Text → Фонд Лига',
+    jsx: '<Text>Фонд Лига</Text>',
+    expected: recoveryDiagnosticStrings.brandPlain,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{recoveryDiagnosticStrings.brandPlain}</Text></Body></Html>,
+  },
+  {
+    id: 'text-brand-quotes',
+    label: 'Text → Фонд «Лига»',
+    jsx: '<Text>Фонд «Лига»</Text>',
+    expected: recoveryDiagnosticStrings.brandQuoted,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{recoveryDiagnosticStrings.brandQuoted}</Text></Body></Html>,
+  },
+  {
+    id: 'text-brand-ascii-quotes',
+    label: 'Text → Фонд "Лига"',
+    jsx: '<Text>Фонд "Лига"</Text>',
+    expected: recoveryDiagnosticStrings.brandAsciiQuoted,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{recoveryDiagnosticStrings.brandAsciiQuoted}</Text></Body></Html>,
+  },
+  {
+    id: 'text-cabinet',
+    label: 'Text → личный кабинет',
+    jsx: '<Text>личный кабинет</Text>',
+    expected: recoveryDiagnosticStrings.cabinet,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{recoveryDiagnosticStrings.cabinet}</Text></Body></Html>,
+  },
+  {
+    id: 'text-cabinet-brand',
+    label: 'Text → личный кабинет Фонд «Лига»',
+    jsx: '<Text>личный кабинет Фонд «Лига»</Text>',
+    expected: `личный кабинет ${BRAND_NAME}`,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{'личный кабинет '}{BRAND_NAME}</Text></Body></Html>,
+  },
+  {
+    id: 'text-long-hardcoded',
+    label: 'Text → длинная строка целиком',
+    jsx: '<Text>Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете Фонд «Лига».</Text>',
+    expected: recoveryDiagnosticStrings.hardcodedSentence,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{recoveryDiagnosticStrings.hardcodedSentence}</Text></Body></Html>,
+  },
+  {
+    id: 'text-long-interpolated',
+    label: 'Text → длинная строка + {BRAND_NAME}',
+    jsx: '<Text>{prefix}{BRAND_NAME}.</Text>',
+    expected: `${recoveryDiagnosticStrings.sentencePrefix}${BRAND_NAME}.`,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text></Body></Html>,
+  },
+  {
+    id: 'text-donor-cabinet',
+    label: 'Text → личный кабинет жертвователя',
+    jsx: '<Text>личный кабинет жертвователя</Text>',
+    expected: recoveryDiagnosticStrings.donorCabinet,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Text>{recoveryDiagnosticStrings.donorCabinet}</Text></Body></Html>,
+  },
+  {
+    id: 'heading-brand-quotes',
+    label: 'Heading → Фонд «Лига»',
+    jsx: '<Heading>Фонд «Лига»</Heading>',
+    expected: recoveryDiagnosticStrings.brandQuoted,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Heading>{recoveryDiagnosticStrings.brandQuoted}</Heading></Body></Html>,
+  },
+  {
+    id: 'container-text-interpolated',
+    label: 'Container/Text → длинная строка + {BRAND_NAME}',
+    jsx: '<Container><Text>{prefix}{BRAND_NAME}.</Text></Container>',
+    expected: `${recoveryDiagnosticStrings.sentencePrefix}${BRAND_NAME}.`,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Container><Text>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text></Container></Body></Html>,
+  },
+  {
+    id: 'section-text-interpolated',
+    label: 'Section/Text → длинная строка + {BRAND_NAME}',
+    jsx: '<Section><Text>{prefix}{BRAND_NAME}.</Text></Section>',
+    expected: `${recoveryDiagnosticStrings.sentencePrefix}${BRAND_NAME}.`,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Body><Section><Text>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text></Section></Body></Html>,
+  },
+  {
+    id: 'preview-interpolated',
+    label: 'Preview → Восстановление пароля в личном кабинете {BRAND_NAME}',
+    jsx: '<Preview>Восстановление пароля в личном кабинете {BRAND_NAME}</Preview>',
+    expected: `Восстановление пароля в личном кабинете ${BRAND_NAME}`,
+    node: () => <Html lang="ru" dir="ltr"><Head /><Preview>{`Восстановление пароля в личном кабинете ${BRAND_NAME}`}</Preview><Body><Text>ok</Text></Body></Html>,
+  },
+] as const
+
 const logEmailDebug = ({ emailType, subject, siteName, html, text }: {
   emailType: string
   subject: string
@@ -194,6 +310,62 @@ async function handleDebugPreview(req: Request): Promise<Response> {
       headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
     })
   }
+}
+
+async function handleRecoveryRenderDebug(req: Request): Promise<Response> {
+  const debugCorsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+  }
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: debugCorsHeaders })
+  }
+
+  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  const authHeader = req.headers.get('Authorization')
+
+  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...debugCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  }
+
+  const results = []
+
+  for (const scenario of recoveryDiagnosticsScenarios) {
+    const html = await renderAsync(scenario.node())
+    const text = await renderAsync(scenario.node(), { plainText: true })
+
+    results.push({
+      id: scenario.id,
+      ...buildRenderDiagnostics({
+        label: scenario.label,
+        jsx: scenario.jsx,
+        expected: scenario.expected,
+        html,
+        text,
+      }),
+    })
+  }
+
+  const firstBrokenScenario = results.find((scenario) => scenario.hasReplacementCharacter.html || scenario.hasReplacementCharacter.text)
+
+  console.log('Recovery render diagnostics', {
+    brandName: inspectString(BRAND_NAME),
+    firstBrokenScenario,
+    results,
+  })
+
+  return new Response(JSON.stringify({
+    brandName: inspectString(BRAND_NAME),
+    firstBrokenScenario,
+    results,
+  }), {
+    status: 200,
+    headers: { ...debugCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+  })
 }
 
 // Preview endpoint handler - returns rendered HTML without sending email
@@ -415,6 +587,10 @@ Deno.serve(async (req) => {
 
   if (url.pathname.endsWith('/debug-preview')) {
     return handleDebugPreview(req)
+  }
+
+  if (url.pathname.endsWith('/debug-recovery-render')) {
+    return handleRecoveryRenderDebug(req)
   }
 
   // Main webhook handler
