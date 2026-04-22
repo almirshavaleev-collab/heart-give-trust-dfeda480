@@ -39,7 +39,15 @@ const recordOutboundSnapshot = (snapshot: OutboundEmailSnapshot) => {
   }
 }
 
-const findOutboundSnapshot = (emailType: string, runId?: string) => {
+const findOutboundSnapshot = (
+  emailType: string,
+  runId?: string,
+  messageId?: string,
+) => {
+  if (messageId) {
+    const byMessage = outboundSnapshots.find((snap) => snap.messageId === messageId)
+    if (byMessage) return byMessage
+  }
   if (runId) {
     const exact = outboundSnapshots.find((snap) => snap.runId === runId)
     if (exact) return exact
@@ -298,11 +306,13 @@ async function handleDiffOutbound(req: Request): Promise<Response> {
 
   let type: string
   let runId: string | undefined
+  let messageId: string | undefined
   let templateData: Record<string, any> | undefined
   try {
     const body = await req.json()
     type = body.type
     runId = body.runId ?? body.run_id
+    messageId = body.messageId ?? body.message_id
     templateData = body.templateData
   } catch (_error) {
     return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
@@ -337,7 +347,7 @@ async function handleDiffOutbound(req: Request): Promise<Response> {
       text,
     }
 
-    const outboundSnapshot = findOutboundSnapshot(type, runId)
+    const outboundSnapshot = findOutboundSnapshot(type, runId, messageId)
 
     const diff = await buildOutboundDiff(renderedSnapshot, outboundSnapshot)
 
@@ -345,6 +355,14 @@ async function handleDiffOutbound(req: Request): Promise<Response> {
       templateVersion: AUTH_TEMPLATE_VERSION,
       requestedType: type,
       requestedRunId: runId ?? null,
+      requestedMessageId: messageId ?? null,
+      matchedBy: outboundSnapshot
+        ? messageId && outboundSnapshot.messageId === messageId
+          ? 'messageId'
+          : runId && outboundSnapshot.runId === runId
+            ? 'runId'
+            : 'emailType'
+        : null,
       sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       availableSnapshots: outboundSnapshots.map((snap) => ({
