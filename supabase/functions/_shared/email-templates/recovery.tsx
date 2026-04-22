@@ -11,13 +11,13 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
       <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
       <meta charSet="utf-8" />
     </Head>
-    <Preview>Восстановление пароля в личном кабинете {siteName}</Preview>
+    <Preview>Восстановление пароля в личном кабинете {BRAND_NAME}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Восстановление пароля</Heading>
         <Text style={text}>
-          Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете {siteName}.
+          Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете {BRAND_NAME}.
         </Text>
         <Text style={text}>Нажмите кнопку ниже, чтобы задать новый пароль:</Text>
         <Section style={{ textAlign: 'center', margin: '32px 0' }}>
