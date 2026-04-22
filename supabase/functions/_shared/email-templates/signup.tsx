@@ -7,7 +7,10 @@ interface Props { siteName: string; siteUrl: string; recipient: string; confirma
 
 export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: Props) => (
   <Html lang="ru" dir="ltr">
-    <Head />
+    <Head>
+      <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+      <meta charSet="utf-8" />
+    </Head>
     <Preview>Подтвердите email для входа в личный кабинет {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
