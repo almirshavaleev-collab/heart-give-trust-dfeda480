@@ -478,6 +478,20 @@ async function handleWebhook(req: Request): Promise<Response> {
 
   console.log('Auth email enqueued', { emailType, email: payload.data.email, run_id, templateVersion: AUTH_TEMPLATE_VERSION })
 
+  recordOutboundSnapshot({
+    capturedAt: new Date().toISOString(),
+    emailType,
+    templateVersion: AUTH_TEMPLATE_VERSION,
+    runId: run_id,
+    messageId,
+    subject,
+    to: payload.data.email,
+    from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+    senderDomain: SENDER_DOMAIN,
+    html,
+    text,
+  })
+
   return new Response(
     JSON.stringify({ success: true, queued: true }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
