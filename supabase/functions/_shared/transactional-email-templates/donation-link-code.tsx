@@ -21,7 +21,7 @@ const DonationLinkCodeEmail = ({ code, name }: DonationLinkCodeProps) => (
           {name ? `Здравствуйте, ${name}!` : 'Здравствуйте!'}
         </Heading>
         <Text style={text}>
-          Вы запросили код подтверждения, чтобы привязать прошлые пожертвования к своему личному кабинету в «{BRAND_NAME}».
+          Вы запросили код подтверждения, чтобы привязать прошлые пожертвования к своему личному кабинету в {BRAND_NAME}.
         </Text>
         <Section style={codeBox}>
           <Text style={codeText}>{code ?? '——————'}</Text>

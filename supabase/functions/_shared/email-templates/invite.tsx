@@ -8,7 +8,7 @@ interface Props { siteName: string; siteUrl: string; confirmationUrl: string }
 export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: Props) => (
   <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Приглашение присоединиться к {siteName}</Preview>
+    <Preview>Приглашение в {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>

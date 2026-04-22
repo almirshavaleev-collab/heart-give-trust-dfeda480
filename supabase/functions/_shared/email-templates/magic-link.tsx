@@ -8,7 +8,7 @@ interface Props { siteName: string; confirmationUrl: string }
 export const MagicLinkEmail = ({ siteName, confirmationUrl }: Props) => (
   <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Ссылка для входа в {siteName}</Preview>
+    <Preview>Ссылка для входа в личный кабинет {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
