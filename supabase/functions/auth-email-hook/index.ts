@@ -9,7 +9,13 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
-import { buildEmailDebugPayload, buildRenderDiagnostics, inspectString } from '../_shared/email-debug.ts'
+import {
+  buildEmailDebugPayload,
+  buildOutboundDiff,
+  buildRenderDiagnostics,
+  inspectString,
+  type OutboundEmailSnapshot,
+} from '../_shared/email-debug.ts'
 import { recoveryDiagnosticsScenarios } from '../_shared/recovery-render-debug.tsx'
 
 const corsHeaders = {
@@ -19,6 +25,27 @@ const corsHeaders = {
 }
 
 const AUTH_TEMPLATE_VERSION = 'AUTH_EMAIL_PIPELINE_V2_2026_04_22'
+
+// In-memory ring buffer for the most recent outbound payloads enqueued by this
+// edge function instance. Used by /diff-outbound to compare what was actually
+// sent to the email provider against a freshly rendered template.
+const OUTBOUND_SNAPSHOTS_LIMIT = 8
+const outboundSnapshots: OutboundEmailSnapshot[] = []
+
+const recordOutboundSnapshot = (snapshot: OutboundEmailSnapshot) => {
+  outboundSnapshots.unshift(snapshot)
+  if (outboundSnapshots.length > OUTBOUND_SNAPSHOTS_LIMIT) {
+    outboundSnapshots.length = OUTBOUND_SNAPSHOTS_LIMIT
+  }
+}
+
+const findOutboundSnapshot = (emailType: string, runId?: string) => {
+  if (runId) {
+    const exact = outboundSnapshots.find((snap) => snap.runId === runId)
+    if (exact) return exact
+  }
+  return outboundSnapshots.find((snap) => snap.emailType === emailType) ?? null
+}
 
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'SIGNUP TEMPLATE V2 · Подтвердите email — Фонд «Лига»',
@@ -249,6 +276,98 @@ async function handleRecoveryRenderDebug(req: Request): Promise<Response> {
   })
 }
 
+async function handleDiffOutbound(req: Request): Promise<Response> {
+  const previewCorsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+  }
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: previewCorsHeaders })
+  }
+
+  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  const authHeader = req.headers.get('Authorization')
+
+  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  }
+
+  let type: string
+  let runId: string | undefined
+  let templateData: Record<string, any> | undefined
+  try {
+    const body = await req.json()
+    type = body.type
+    runId = body.runId ?? body.run_id
+    templateData = body.templateData
+  } catch (_error) {
+    return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      status: 400,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  }
+
+  if (!type || !EMAIL_TEMPLATES[type]) {
+    return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
+      status: 400,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  }
+
+  try {
+    const sampleData = SAMPLE_DATA[type] || {}
+    const data = { ...sampleData, ...templateData }
+    const templateProps = type === 'recovery'
+      ? {
+          siteName: SITE_NAME,
+          confirmationUrl: data.confirmationUrl ?? SAMPLE_PROJECT_URL,
+        }
+      : buildTemplateProps(data)
+    const { html, text, subject } = await renderEmailContent(type, templateProps)
+
+    const renderedSnapshot = {
+      emailType: type,
+      templateVersion: AUTH_TEMPLATE_VERSION,
+      subject,
+      html,
+      text,
+    }
+
+    const outboundSnapshot = findOutboundSnapshot(type, runId)
+
+    const diff = await buildOutboundDiff(renderedSnapshot, outboundSnapshot)
+
+    return new Response(JSON.stringify({
+      templateVersion: AUTH_TEMPLATE_VERSION,
+      requestedType: type,
+      requestedRunId: runId ?? null,
+      sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      availableSnapshots: outboundSnapshots.map((snap) => ({
+        emailType: snap.emailType,
+        templateVersion: snap.templateVersion,
+        runId: snap.runId,
+        messageId: snap.messageId,
+        capturedAt: snap.capturedAt,
+      })),
+      ...diff,
+    }, null, 2), {
+      status: 200,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  }
+}
+
 // Preview endpoint handler - returns rendered HTML without sending email
 async function handlePreview(req: Request): Promise<Response> {
   const previewCorsHeaders = {
@@ -451,6 +570,20 @@ async function handleWebhook(req: Request): Promise<Response> {
 
   console.log('Auth email enqueued', { emailType, email: payload.data.email, run_id, templateVersion: AUTH_TEMPLATE_VERSION })
 
+  recordOutboundSnapshot({
+    capturedAt: new Date().toISOString(),
+    emailType,
+    templateVersion: AUTH_TEMPLATE_VERSION,
+    runId: run_id,
+    messageId,
+    subject,
+    to: payload.data.email,
+    from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+    senderDomain: SENDER_DOMAIN,
+    html,
+    text,
+  })
+
   return new Response(
     JSON.stringify({ success: true, queued: true }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -476,6 +609,10 @@ Deno.serve(async (req) => {
 
   if (url.pathname.endsWith('/debug-recovery-render')) {
     return handleRecoveryRenderDebug(req)
+  }
+
+  if (url.pathname.endsWith('/diff-outbound')) {
+    return handleDiffOutbound(req)
   }
 
   // Main webhook handler
