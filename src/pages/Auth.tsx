@@ -33,7 +33,7 @@ export default function AuthPage() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
-  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [signupStatus, setSignupStatus] = useState<"idle" | "confirmation-sent" | "account-exists">("idle");
 
   // reset
   const [resetEmail, setResetEmail] = useState("");
@@ -61,6 +61,7 @@ export default function AuthPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSignupStatus("idle");
     const nameRes = nameSchema.safeParse(signupName);
     const emailRes = emailSchema.safeParse(signupEmail);
     const passRes = passwordSchema.safeParse(signupPassword);
@@ -72,7 +73,7 @@ export default function AuthPage() {
       return;
     }
     setSignupLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: emailRes.data,
       password: passRes.data,
       options: {
@@ -85,7 +86,15 @@ export default function AuthPage() {
       toast({ title: "Не удалось зарегистрироваться", description: error.message, variant: "destructive" });
       return;
     }
-    setSignupSuccess(true);
+
+    const isExistingAccount = (data.user?.identities?.length ?? 0) === 0;
+
+    if (isExistingAccount) {
+      setSignupStatus("account-exists");
+      return;
+    }
+
+    setSignupStatus("confirmation-sent");
   };
 
   const handleReset = async (e: React.FormEvent) => {
@@ -144,15 +153,28 @@ export default function AuthPage() {
               </TabsContent>
 
               <TabsContent value="signup" className="space-y-4 mt-6">
-                {signupSuccess ? (
+                {signupStatus !== "idle" ? (
                   <div className="text-center space-y-3 py-4">
                     <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                       <Heart className="w-6 h-6 text-primary" />
                     </div>
-                    <h3 className="font-semibold">Подтвердите email</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Мы отправили письмо с ссылкой подтверждения на <b>{signupEmail}</b>. Откройте его, чтобы активировать аккаунт.
-                    </p>
+                    <h3 className="font-semibold">
+                      {signupStatus === "confirmation-sent" ? "Подтвердите email" : "Аккаунт уже существует"}
+                    </h3>
+                    {signupStatus === "confirmation-sent" ? (
+                      <p className="text-sm text-muted-foreground">
+                        Мы отправили письмо с ссылкой подтверждения на <b>{signupEmail}</b>. Откройте его, чтобы активировать аккаунт.
+                      </p>
+                    ) : (
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>
+                          Для адреса <b>{signupEmail}</b> уже существует аккаунт, поэтому новое письмо подтверждения не отправлялось.
+                        </p>
+                        <p>
+                          Войдите в кабинет или используйте вкладку «Сброс», если нужно восстановить пароль.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <form onSubmit={handleSignup} className="space-y-4">
