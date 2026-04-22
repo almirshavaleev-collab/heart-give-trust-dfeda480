@@ -64,7 +64,7 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
           </Link>
         </Text>
 
-        <Text style={text}>Нажмите кнопку ниже:</Text>
+        <Text style={text}>Для подтверждения email воспользуйтесь кнопкой ниже.</Text>
 
         <Text style={footerMeta}>
           Благотворительный фонд «Лига»
