@@ -167,6 +167,33 @@ export type Database = {
         }
         Relationships: []
       }
+      donor_link_audit: {
+        Row: {
+          created_at: string
+          email: string | null
+          event: string
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          event: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          event?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       donor_subscriptions: {
         Row: {
           amount: number
@@ -357,8 +384,10 @@ export type Database = {
           full_name: string | null
           id: string
           is_public_donor: boolean
-          link_email_code: string | null
+          link_email_attempts: number
+          link_email_code_hash: string | null
           link_email_expires_at: string | null
+          link_email_last_requested_at: string | null
           phone: string | null
           public_display_name: string | null
           updated_at: string
@@ -372,8 +401,10 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_public_donor?: boolean
-          link_email_code?: string | null
+          link_email_attempts?: number
+          link_email_code_hash?: string | null
           link_email_expires_at?: string | null
+          link_email_last_requested_at?: string | null
           phone?: string | null
           public_display_name?: string | null
           updated_at?: string
@@ -387,8 +418,10 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_public_donor?: boolean
-          link_email_code?: string | null
+          link_email_attempts?: number
+          link_email_code_hash?: string | null
           link_email_expires_at?: string | null
+          link_email_last_requested_at?: string | null
           phone?: string | null
           public_display_name?: string | null
           updated_at?: string
@@ -583,6 +616,7 @@ export type Database = {
       }
     }
     Functions: {
+      _hash_link_code: { Args: { _code: string }; Returns: string }
       confirm_link_donations: {
         Args: { _code: string; _user_id: string }
         Returns: number
