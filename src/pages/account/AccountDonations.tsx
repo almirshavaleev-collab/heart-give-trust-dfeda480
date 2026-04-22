@@ -45,17 +45,60 @@ export default function AccountDonations() {
     if (!user) return;
     setLinkLoading(true);
     try {
-      // For now: generate code via RPC and show it (email infra not configured in this iteration)
-      const { data: code, error } = await supabase.rpc("request_link_donations_code", { _user_id: user.id });
-      if (error) throw error;
-      // In production: send via email. For now, surface for manual entry.
-      toast({
-        title: "Код подтверждения готов",
-        description: `Введите код: ${code}. Срок действия — 15 минут.`,
-      });
-      setLinkStep("code");
+      const { data, error } = await supabase.functions.invoke(
+        "request-donation-link-code",
+        { body: {} }
+      );
+      if (error) {
+        // Try to extract structured error from response
+        let code: string | undefined;
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            code = body?.error;
+          }
+        } catch { /* ignore */ }
+        if (code === "rate_limited") {
+          toast({
+            title: "Подождите немного",
+            description: "Новый код можно запросить не чаще одного раза в минуту.",
+            variant: "destructive",
+          });
+        } else if (code === "no_email") {
+          toast({
+            title: "Нет email",
+            description: "К вашему аккаунту не привязан email.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Не удалось отправить код",
+            description: "Попробуйте ещё раз через минуту.",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+      if ((data as any)?.success) {
+        toast({
+          title: "Код отправлен",
+          description: `Мы отправили 6-значный код на ${user.email}. Срок действия — 15 минут.`,
+        });
+        setLinkStep("code");
+      } else {
+        toast({
+          title: "Не удалось отправить код",
+          description: "Попробуйте ещё раз позже.",
+          variant: "destructive",
+        });
+      }
     } catch (e) {
-      toast({ title: "Ошибка", description: (e as Error).message, variant: "destructive" });
+      toast({
+        title: "Ошибка",
+        description: "Не удалось запросить код. Попробуйте ещё раз.",
+        variant: "destructive",
+      });
     } finally {
       setLinkLoading(false);
     }
@@ -74,7 +117,16 @@ export default function AccountDonations() {
       qc.invalidateQueries({ queryKey: ["donor-donations"] });
       qc.invalidateQueries({ queryKey: ["user-achievements"] });
     } catch (e) {
-      toast({ title: "Не удалось привязать", description: (e as Error).message, variant: "destructive" });
+      const msg = (e as Error).message || "";
+      let description = "Попробуйте ещё раз.";
+      if (msg.includes("invalid_code")) description = "Неверный код. Проверьте и попробуйте снова.";
+      else if (msg.includes("code_expired")) description = "Срок действия кода истёк. Запросите новый код.";
+      else if (msg.includes("too_many_attempts")) {
+        description = "Слишком много неверных попыток. Запросите новый код.";
+        setLinkStep("intro");
+        setCode("");
+      }
+      toast({ title: "Не удалось привязать", description, variant: "destructive" });
     } finally {
       setLinkLoading(false);
     }
