@@ -121,14 +121,17 @@ const logEmailDebug = ({ emailType, subject, siteName, html, text }: {
 }) => {
   if (!isRecoveryEmail(emailType)) return
 
-  console.log('Auth email debug', buildEmailDebugPayload({
-    emailType,
-    subject,
-    siteName,
-    brandName: BRAND_NAME,
-    html,
-    text,
-  }), { templateVersion: AUTH_TEMPLATE_VERSION }
+  console.log('Auth email debug', {
+    templateVersion: AUTH_TEMPLATE_VERSION,
+    ...buildEmailDebugPayload({
+      emailType,
+      subject,
+      siteName,
+      brandName: BRAND_NAME,
+      html,
+      text,
+    }),
+  })
 }
 
 async function handleDebugPreview(req: Request): Promise<Response> {
