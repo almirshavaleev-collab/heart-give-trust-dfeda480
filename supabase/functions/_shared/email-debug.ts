@@ -181,6 +181,65 @@ const inspectField = async (value: string) => ({
   replacementOffsets: replacementOffsets(value),
 })
 
+const SNIPPET_RADIUS = 120
+const SNIPPET_HEAD_LENGTH = 240
+
+const safeSlice = (value: string, start: number, end: number) => {
+  if (!value) return ''
+  const s = Math.max(0, Math.min(value.length, start))
+  const e = Math.max(s, Math.min(value.length, end))
+  return value.slice(s, e)
+}
+
+const buildSnippetAround = (value: string, index: number, radius = SNIPPET_RADIUS) => {
+  if (!value || index < 0) return null
+  const start = Math.max(0, index - radius)
+  const end = Math.min(value.length, index + radius)
+  return {
+    index,
+    radius,
+    start,
+    end,
+    snippet: safeSlice(value, start, end),
+    prefix: safeSlice(value, start, index),
+    marker: value[index] ?? '',
+    suffix: safeSlice(value, index + 1, end),
+  }
+}
+
+const buildHeadSnippet = (value: string, length = SNIPPET_HEAD_LENGTH) => {
+  if (!value) return ''
+  return safeSlice(value, 0, length)
+}
+
+const buildFieldSnippets = (
+  rendered: string,
+  outbound: string | null,
+  diffIndex: number,
+) => {
+  const renderedReplacementIdx = rendered.indexOf(REPLACEMENT_CHAR)
+  const outboundReplacementIdx = outbound ? outbound.indexOf(REPLACEMENT_CHAR) : -1
+
+  return {
+    renderedHead: buildHeadSnippet(rendered),
+    outboundHead: outbound ? buildHeadSnippet(outbound) : null,
+    snippetAroundFirstDifference: diffIndex >= 0
+      ? {
+          rendered: buildSnippetAround(rendered, diffIndex),
+          outbound: outbound ? buildSnippetAround(outbound, diffIndex) : null,
+        }
+      : null,
+    snippetAroundFirstReplacement: {
+      rendered: renderedReplacementIdx >= 0
+        ? buildSnippetAround(rendered, renderedReplacementIdx)
+        : null,
+      outbound: outbound && outboundReplacementIdx >= 0
+        ? buildSnippetAround(outbound, outboundReplacementIdx)
+        : null,
+    },
+  }
+}
+
 const firstDifferenceIndex = (a: string, b: string) => {
   const max = Math.min(a.length, b.length)
   for (let i = 0; i < max; i += 1) {
