@@ -11,17 +11,19 @@ export const ReauthenticationEmail = ({ token }: Props) => (
       <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
       <meta charSet="utf-8" />
     </Head>
-    <Preview>Код подтверждения личности</Preview>
+    <Preview>Код подтверждения личности для фонда «Лига»</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Подтверждение личности</Heading>
         <Text style={text}>Используйте код ниже, чтобы подтвердить, что это вы:</Text>
+        <Text style={footerMeta}>Вы получили это письмо, потому что выполняете защищённое действие в личном кабинете фонда «Лига».</Text>
         <Section style={codeBox}><Text style={codeStyle}>{token}</Text></Section>
         <Text style={footer}>
           Код действует ограниченное время. Если вы не запрашивали подтверждение, просто проигнорируйте письмо.
         </Text>
-        <Text style={signature}>С теплом,<br />{BRAND_SIGNATURE}</Text>
+        <Text style={signature}>С теплом,</Text>
+        <Text style={signature}>{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>
@@ -37,4 +39,5 @@ const text = { fontSize: '15px', color: '#0B1F3A', lineHeight: '1.6', margin: '0
 const codeBox = { backgroundColor: '#F5F7FA', borderRadius: '16px', padding: '24px', textAlign: 'center' as const, margin: '24px 0' }
 const codeStyle = { fontFamily: '"SF Mono", Menlo, Monaco, Consolas, monospace', fontSize: '32px', fontWeight: 'bold' as const, color: '#0B1F3A', letterSpacing: '8px', margin: 0 }
 const footer = { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid #e5e7eb' }
+const footerMeta = { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '0 0 24px' }
 const signature = { fontSize: '13px', color: '#0B1F3A', margin: '16px 0 0' }

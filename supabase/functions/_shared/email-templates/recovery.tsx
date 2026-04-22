@@ -26,7 +26,7 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
       <meta charSet="utf-8" />
     </Head>
 
-    <Preview>Восстановление пароля в личном кабинете Фонд «Лига»</Preview>
+    <Preview>RECOVERY TEMPLATE V2 · Восстановление пароля в личном кабинете фонда «Лига»</Preview>
 
     <Body style={main}>
       <Container style={container}>
@@ -34,9 +34,17 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
           <Text style={brand}>{BRAND_NAME}</Text>
         </Section>
 
-        <Heading style={h1}>Восстановление пароля</Heading>
+        <Heading style={h1}>RECOVERY TEMPLATE V2 · Восстановление пароля</Heading>
 
-        <Text style={text}>Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете Фонд «Лига».</Text>
+        <Text style={text}>Мы получили запрос на сброс пароля.</Text>
+
+        <Text style={text}>Этот запрос относится к вашему аккаунту в личном кабинете фонда «Лига».</Text>
+
+        <Text style={footerMeta}>
+          Благотворительный фонд «Лига»
+          <br />
+          Сайт: {siteName}
+        </Text>
 
         <Text style={text}>Нажмите кнопку ниже, чтобы задать новый пароль:</Text>
 
@@ -46,23 +54,21 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
           </Button>
         </Section>
 
+        <Text style={textSmall}>Если кнопка не работает, скопируйте ссылку в браузер:</Text>
+
         <Text style={textSmall}>
-          Если кнопка не работает, скопируйте ссылку в браузер:
-          <br />
           <Link href={confirmationUrl} style={linkPlain}>
             {confirmationUrl}
           </Link>
         </Text>
 
         <Text style={footer}>
-          Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо, пароль останется прежним.
+          Если вы не запрашивали сброс пароля, проигнорируйте это сообщение. Ваш пароль не изменится.
         </Text>
 
-        <Text style={signature}>
-          С теплом,
-          <br />
-          {BRAND_SIGNATURE}
-        </Text>
+        <Text style={signature}>С теплом,</Text>
+
+        <Text style={signature}>{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>
@@ -149,6 +155,13 @@ const footer = {
   margin: "32px 0 16px",
   paddingTop: "24px",
   borderTop: "1px solid #e5e7eb",
+};
+
+const footerMeta = {
+  fontSize: "13px",
+  color: "#6b7280",
+  lineHeight: "1.5",
+  margin: "0 0 24px",
 };
 
 const signature = {
