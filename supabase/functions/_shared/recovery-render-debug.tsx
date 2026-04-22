@@ -14,6 +14,20 @@ const recoveryDiagnosticStrings = {
   sentencePrefix: 'Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ',
 }
 
+const recoveryStyles = {
+  main: { backgroundColor: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', margin: 0, padding: 0 },
+  container: { maxWidth: '560px', margin: '0 auto', padding: '32px 24px' },
+  header: { borderBottom: '3px solid #F5C24A', paddingBottom: '16px', marginBottom: '32px' },
+  brand: { fontSize: '18px', fontWeight: 'bold' as const, color: '#0B1F3A', letterSpacing: '0.5px', margin: 0 },
+  h1: { fontSize: '24px', fontWeight: 'bold' as const, color: '#0B1F3A', margin: '0 0 24px', lineHeight: '1.3' },
+  text: { fontSize: '15px', color: '#0B1F3A', lineHeight: '1.6', margin: '0 0 16px' },
+  textSmall: { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '24px 0', wordBreak: 'break-all' as const },
+  linkPlain: { color: '#0B1F3A', textDecoration: 'underline', fontSize: '12px' },
+  button: { backgroundColor: '#0B1F3A', color: '#ffffff', fontSize: '15px', fontWeight: 'bold' as const, borderRadius: '16px', padding: '14px 32px', textDecoration: 'none', display: 'inline-block' },
+  footer: { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid #e5e7eb' },
+  signature: { fontSize: '13px', color: '#0B1F3A', margin: '16px 0 0' },
+}
+
 export const recoveryDiagnosticsScenarios = [
   {
     id: 'text-minimal',
@@ -135,6 +149,105 @@ export const recoveryDiagnosticsScenarios = [
             </Section>
             <Heading>Восстановление пароля</Heading>
             <Text>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text>
+          </Container>
+        </Body>
+      </Html>
+    ),
+  },
+  {
+    id: 'recovery-text-with-style-only',
+    label: 'Recovery text only + real text style',
+    jsx: '<Text style={text}>...{BRAND_NAME}.</Text>',
+    expected: `Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ${BRAND_NAME}.`,
+    node: () => (
+      <Html lang="ru" dir="ltr">
+        <Head />
+        <Body>
+          <Text style={recoveryStyles.text}>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text>
+        </Body>
+      </Html>
+    ),
+  },
+  {
+    id: 'recovery-main-container-text-styled',
+    label: 'Recovery main/container + styled text',
+    jsx: '<Body style={main}><Container style={container}><Text style={text}>...{BRAND_NAME}.</Text></Container></Body>',
+    expected: `Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ${BRAND_NAME}.`,
+    node: () => (
+      <Html lang="ru" dir="ltr">
+        <Head />
+        <Body style={recoveryStyles.main}>
+          <Container style={recoveryStyles.container}>
+            <Text style={recoveryStyles.text}>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text>
+          </Container>
+        </Body>
+      </Html>
+    ),
+  },
+  {
+    id: 'recovery-header-heading-text-styled',
+    label: 'Recovery header + heading + styled text',
+    jsx: '<Container><Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section><Heading style={h1}>...</Heading><Text style={text}>...{BRAND_NAME}.</Text></Container>',
+    expected: `Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ${BRAND_NAME}.`,
+    node: () => (
+      <Html lang="ru" dir="ltr">
+        <Head />
+        <Body style={recoveryStyles.main}>
+          <Container style={recoveryStyles.container}>
+            <Section style={recoveryStyles.header}><Text style={recoveryStyles.brand}>{BRAND_NAME}</Text></Section>
+            <Heading style={recoveryStyles.h1}>Восстановление пароля</Heading>
+            <Text style={recoveryStyles.text}>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text>
+          </Container>
+        </Body>
+      </Html>
+    ),
+  },
+  {
+    id: 'recovery-add-button-block',
+    label: 'Recovery + button block',
+    jsx: '<Container>header + heading + styled text + button section</Container>',
+    expected: `Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ${BRAND_NAME}.`,
+    node: () => (
+      <Html lang="ru" dir="ltr">
+        <Head />
+        <Body style={recoveryStyles.main}>
+          <Container style={recoveryStyles.container}>
+            <Section style={recoveryStyles.header}><Text style={recoveryStyles.brand}>{BRAND_NAME}</Text></Section>
+            <Heading style={recoveryStyles.h1}>Восстановление пароля</Heading>
+            <Text style={recoveryStyles.text}>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text>
+            <Text style={recoveryStyles.text}>Нажмите кнопку ниже, чтобы задать новый пароль:</Text>
+            <Section style={{ textAlign: 'center', margin: '32px 0' }}>
+              <a href="https://example.com/reset" style={recoveryStyles.button}>Сбросить пароль</a>
+            </Section>
+          </Container>
+        </Body>
+      </Html>
+    ),
+  },
+  {
+    id: 'recovery-add-link-footer-signature',
+    label: 'Recovery full structure without imported component',
+    jsx: '<Container>full recovery content with real styles</Container>',
+    expected: `Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ${BRAND_NAME}.`,
+    node: () => (
+      <Html lang="ru" dir="ltr">
+        <Head>
+          <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+          <meta charSet="utf-8" />
+        </Head>
+        <Preview>{`Восстановление пароля в личном кабинете ${BRAND_NAME}`}</Preview>
+        <Body style={recoveryStyles.main}>
+          <Container style={recoveryStyles.container}>
+            <Section style={recoveryStyles.header}><Text style={recoveryStyles.brand}>{BRAND_NAME}</Text></Section>
+            <Heading style={recoveryStyles.h1}>Восстановление пароля</Heading>
+            <Text style={recoveryStyles.text}>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text>
+            <Text style={recoveryStyles.text}>Нажмите кнопку ниже, чтобы задать новый пароль:</Text>
+            <Section style={{ textAlign: 'center', margin: '32px 0' }}>
+              <a href="https://example.com/reset" style={recoveryStyles.button}>Сбросить пароль</a>
+            </Section>
+            <Text style={recoveryStyles.textSmall}>Если кнопка не работает, скопируйте ссылку в браузер: https://example.com/reset</Text>
+            <Text style={recoveryStyles.footer}>Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо — пароль останется прежним.</Text>
+            <Text style={recoveryStyles.signature}>С теплом, команда фонда «Лига»</Text>
           </Container>
         </Body>
       </Html>
