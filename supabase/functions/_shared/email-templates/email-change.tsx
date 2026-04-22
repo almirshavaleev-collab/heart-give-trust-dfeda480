@@ -8,13 +8,13 @@ interface Props { siteName: string; email: string; newEmail: string; confirmatio
 export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }: Props) => (
   <Html lang="ru" dir="ltr">
     <Head />
-    <Preview>Подтверждение смены email на {siteName}</Preview>
+    <Preview>Подтверждение смены email — {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Подтвердите смену email</Heading>
         <Text style={text}>
-          Вы запросили изменение адреса электронной почты для аккаунта {siteName}: с{' '}
+          Вы запросили изменение адреса электронной почты для вашего аккаунта в {siteName}: с{' '}
           <Link href={`mailto:${email}`} style={link}>{email}</Link> на{' '}
           <Link href={`mailto:${newEmail}`} style={link}>{newEmail}</Link>.
         </Text>
