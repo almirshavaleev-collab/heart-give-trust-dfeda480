@@ -10,7 +10,7 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
     <Preview>Подтвердите email для входа в личный кабинет {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>Фонд Лига</Text></Section>
         <Heading style={h1}>Подтвердите ваш email</Heading>
         <Text style={text}>
           Здравствуйте! Спасибо за регистрацию в личном кабинете жертвователя{' '}
@@ -29,7 +29,7 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
         <Text style={footer}>
           Если вы не регистрировались на сайте {siteName}, просто проигнорируйте это письмо.
         </Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />команда «Фонд Лига»</Text>
       </Container>
     </Body>
   </Html>

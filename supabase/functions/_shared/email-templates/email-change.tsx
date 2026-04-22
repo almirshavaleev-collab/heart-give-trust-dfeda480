@@ -10,7 +10,7 @@ export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }:
     <Preview>Подтверждение смены email на {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>Фонд Лига</Text></Section>
         <Heading style={h1}>Подтвердите смену email</Heading>
         <Text style={text}>
           Вы запросили изменение адреса электронной почты для аккаунта {siteName}: с{' '}
@@ -28,7 +28,7 @@ export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }:
         <Text style={footer}>
           Если вы не запрашивали изменение, срочно защитите свой аккаунт — смените пароль.
         </Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />команда «Фонд Лига»</Text>
       </Container>
     </Body>
   </Html>

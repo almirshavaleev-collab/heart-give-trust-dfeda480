@@ -10,7 +10,7 @@ export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: Props) => (
     <Preview>Приглашение присоединиться к {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>Фонд Лига</Text></Section>
         <Heading style={h1}>Вас пригласили</Heading>
         <Text style={text}>
           Вас приглашают присоединиться к{' '}
@@ -24,7 +24,7 @@ export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: Props) => (
           <Link href={confirmationUrl} style={linkPlain}>{confirmationUrl}</Link>
         </Text>
         <Text style={footer}>Если вы не ожидали этого приглашения, просто проигнорируйте письмо.</Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />команда «Фонд Лига»</Text>
       </Container>
     </Body>
   </Html>

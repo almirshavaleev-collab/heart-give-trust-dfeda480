@@ -10,14 +10,14 @@ export const ReauthenticationEmail = ({ token }: Props) => (
     <Preview>Код подтверждения личности</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>Фонд Лига</Text></Section>
         <Heading style={h1}>Подтверждение личности</Heading>
         <Text style={text}>Используйте код ниже, чтобы подтвердить, что это вы:</Text>
         <Section style={codeBox}><Text style={codeStyle}>{token}</Text></Section>
         <Text style={footer}>
           Код действует ограниченное время. Если вы не запрашивали подтверждение, просто проигнорируйте письмо.
         </Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />команда «Фонд Лига»</Text>
       </Container>
     </Body>
   </Html>

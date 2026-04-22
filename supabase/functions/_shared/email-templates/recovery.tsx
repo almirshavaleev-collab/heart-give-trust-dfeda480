@@ -10,7 +10,7 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
     <Preview>Восстановление пароля в личном кабинете {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>Фонд Лига</Text></Section>
         <Heading style={h1}>Восстановление пароля</Heading>
         <Text style={text}>
           Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете {siteName}.
@@ -26,7 +26,7 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
         <Text style={footer}>
           Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо — пароль останется прежним.
         </Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />команда «Фонд Лига»</Text>
       </Container>
     </Body>
   </Html>

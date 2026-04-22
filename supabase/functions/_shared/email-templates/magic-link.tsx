@@ -10,7 +10,7 @@ export const MagicLinkEmail = ({ siteName, confirmationUrl }: Props) => (
     <Preview>Ссылка для входа в {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Section style={header}><Text style={brand}>Лига Добра</Text></Section>
+        <Section style={header}><Text style={brand}>Фонд Лига</Text></Section>
         <Heading style={h1}>Ссылка для входа</Heading>
         <Text style={text}>
           Нажмите кнопку ниже, чтобы войти в личный кабинет {siteName}. Ссылка действует ограниченное время.
@@ -23,7 +23,7 @@ export const MagicLinkEmail = ({ siteName, confirmationUrl }: Props) => (
           <Link href={confirmationUrl} style={linkPlain}>{confirmationUrl}</Link>
         </Text>
         <Text style={footer}>Если вы не запрашивали вход, просто проигнорируйте это письмо.</Text>
-        <Text style={signature}>С теплом,<br />команда фонда «Лига Добра»</Text>
+        <Text style={signature}>С теплом,<br />команда «Фонд Лига»</Text>
       </Container>
     </Body>
   </Html>
