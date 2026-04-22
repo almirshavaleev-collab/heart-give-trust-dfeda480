@@ -54,9 +54,9 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
           </Button>
         </Section>
 
+        <Text style={textSmall}>Если кнопка не работает, скопируйте ссылку в браузер:</Text>
+
         <Text style={textSmall}>
-          Если кнопка не работает, скопируйте ссылку в браузер:
-          <br />
           <Link href={confirmationUrl} style={linkPlain}>
             {confirmationUrl}
           </Link>
@@ -66,11 +66,9 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
           Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо, пароль останется прежним.
         </Text>
 
-        <Text style={signature}>
-          С теплом,
-          <br />
-          {BRAND_SIGNATURE}
-        </Text>
+        <Text style={signature}>С теплом,</Text>
+
+        <Text style={signature}>{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>

@@ -24,12 +24,11 @@ export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: Props) => (
         <Section style={{ textAlign: 'center', margin: '32px 0' }}>
           <Button style={button} href={confirmationUrl}>Принять приглашение</Button>
         </Section>
-        <Text style={textSmall}>
-          Если кнопка не работает, скопируйте ссылку в браузер:<br />
-          <Link href={confirmationUrl} style={linkPlain}>{confirmationUrl}</Link>
-        </Text>
+        <Text style={textSmall}>Если кнопка не работает, скопируйте ссылку в браузер:</Text>
+        <Text style={textSmall}><Link href={confirmationUrl} style={linkPlain}>{confirmationUrl}</Link></Text>
         <Text style={footer}>Если вы не ожидали этого приглашения, просто проигнорируйте письмо.</Text>
-        <Text style={signature}>С теплом,<br />{BRAND_SIGNATURE}</Text>
+        <Text style={signature}>С теплом,</Text>
+        <Text style={signature}>{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>

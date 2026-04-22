@@ -78,9 +78,9 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
           </Button>
         </Section>
 
+        <Text style={textSmall}>Если кнопка не работает, скопируйте ссылку в браузер:</Text>
+
         <Text style={textSmall}>
-          Если кнопка не работает, скопируйте ссылку в браузер:
-          <br />
           <Link href={confirmationUrl} style={linkPlain}>
             {confirmationUrl}
           </Link>
@@ -88,11 +88,9 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
 
         <Text style={footer}>Если вы не регистрировались на сайте фонда «Лига», просто проигнорируйте это письмо.</Text>
 
-        <Text style={signature}>
-          С теплом,
-          <br />
-          {BRAND_SIGNATURE}
-        </Text>
+        <Text style={signature}>С теплом,</Text>
+
+        <Text style={signature}>{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>
