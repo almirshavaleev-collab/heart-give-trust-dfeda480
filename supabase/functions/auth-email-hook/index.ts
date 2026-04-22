@@ -9,7 +9,8 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
-import { buildEmailDebugPayload } from '../_shared/email-debug.ts'
+import { buildEmailDebugPayload, buildRenderDiagnostics, inspectString } from '../_shared/email-debug.ts'
+import { recoveryDiagnosticsScenarios } from '../_shared/recovery-render-debug.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -194,6 +195,52 @@ async function handleDebugPreview(req: Request): Promise<Response> {
       headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
     })
   }
+}
+
+async function handleRecoveryRenderDebug(req: Request): Promise<Response> {
+  const debugCorsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+  }
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: debugCorsHeaders })
+  }
+
+  const results = []
+
+  for (const scenario of recoveryDiagnosticsScenarios) {
+    const html = await renderAsync(scenario.node())
+    const text = await renderAsync(scenario.node(), { plainText: true })
+
+    results.push({
+      id: scenario.id,
+      ...buildRenderDiagnostics({
+        label: scenario.label,
+        jsx: scenario.jsx,
+        expected: scenario.expected,
+        html,
+        text,
+      }),
+    })
+  }
+
+  const firstBrokenScenario = results.find((scenario) => scenario.hasReplacementCharacter.html || scenario.hasReplacementCharacter.text)
+
+  console.log('Recovery render diagnostics', {
+    brandName: inspectString(BRAND_NAME),
+    firstBrokenScenario,
+    results,
+  })
+
+  return new Response(JSON.stringify({
+    brandName: inspectString(BRAND_NAME),
+    firstBrokenScenario,
+    results,
+  }), {
+    status: 200,
+    headers: { ...debugCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+  })
 }
 
 // Preview endpoint handler - returns rendered HTML without sending email
@@ -415,6 +462,10 @@ Deno.serve(async (req) => {
 
   if (url.pathname.endsWith('/debug-preview')) {
     return handleDebugPreview(req)
+  }
+
+  if (url.pathname.endsWith('/debug-recovery-render')) {
+    return handleRecoveryRenderDebug(req)
   }
 
   // Main webhook handler
