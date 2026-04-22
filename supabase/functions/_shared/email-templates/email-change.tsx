@@ -7,7 +7,10 @@ interface Props { siteName: string; email: string; newEmail: string; confirmatio
 
 export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }: Props) => (
   <Html lang="ru" dir="ltr">
-    <Head />
+    <Head>
+      <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+      <meta charSet="utf-8" />
+    </Head>
     <Preview>Подтверждение смены email — {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
