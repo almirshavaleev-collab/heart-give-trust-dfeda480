@@ -9,7 +9,13 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
-import { buildEmailDebugPayload, buildRenderDiagnostics, inspectString } from '../_shared/email-debug.ts'
+import {
+  buildEmailDebugPayload,
+  buildOutboundDiff,
+  buildRenderDiagnostics,
+  inspectString,
+  type OutboundEmailSnapshot,
+} from '../_shared/email-debug.ts'
 import { recoveryDiagnosticsScenarios } from '../_shared/recovery-render-debug.tsx'
 
 const corsHeaders = {
@@ -19,6 +25,27 @@ const corsHeaders = {
 }
 
 const AUTH_TEMPLATE_VERSION = 'AUTH_EMAIL_PIPELINE_V2_2026_04_22'
+
+// In-memory ring buffer for the most recent outbound payloads enqueued by this
+// edge function instance. Used by /diff-outbound to compare what was actually
+// sent to the email provider against a freshly rendered template.
+const OUTBOUND_SNAPSHOTS_LIMIT = 8
+const outboundSnapshots: OutboundEmailSnapshot[] = []
+
+const recordOutboundSnapshot = (snapshot: OutboundEmailSnapshot) => {
+  outboundSnapshots.unshift(snapshot)
+  if (outboundSnapshots.length > OUTBOUND_SNAPSHOTS_LIMIT) {
+    outboundSnapshots.length = OUTBOUND_SNAPSHOTS_LIMIT
+  }
+}
+
+const findOutboundSnapshot = (emailType: string, runId?: string) => {
+  if (runId) {
+    const exact = outboundSnapshots.find((snap) => snap.runId === runId)
+    if (exact) return exact
+  }
+  return outboundSnapshots.find((snap) => snap.emailType === emailType) ?? null
+}
 
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'SIGNUP TEMPLATE V2 · Подтвердите email — Фонд «Лига»',
