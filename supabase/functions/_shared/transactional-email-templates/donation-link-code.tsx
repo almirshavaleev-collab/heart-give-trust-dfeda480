@@ -12,7 +12,10 @@ interface DonationLinkCodeProps {
 
 const DonationLinkCodeEmail = ({ code, name }: DonationLinkCodeProps) => (
   <Html lang="ru" dir="ltr">
-    <Head />
+    <Head>
+      <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+      <meta charSet="utf-8" />
+    </Head>
     <Preview>Код подтверждения для привязки пожертвований — {BRAND_NAME}</Preview>
     <Body style={main}>
       <Container style={container}>
