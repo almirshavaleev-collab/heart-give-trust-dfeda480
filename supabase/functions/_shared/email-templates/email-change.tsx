@@ -11,16 +11,17 @@ export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }:
       <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
       <meta charSet="utf-8" />
     </Head>
-    <Preview>Подтверждение смены email — {siteName}</Preview>
+    <Preview>Подтверждение смены email для фонда «Лига»</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Подтвердите смену email</Heading>
-        <Text style={text}>
-          Вы запросили изменение адреса электронной почты для вашего аккаунта в {siteName}: с{' '}
-          <Link href={`mailto:${email}`} style={link}>{email}</Link> на{' '}
-          <Link href={`mailto:${newEmail}`} style={link}>{newEmail}</Link>.
-        </Text>
+        <Text style={text}>Вы запросили изменение адреса электронной почты для вашего аккаунта.</Text>
+        <Text style={footerMeta}>Система фонда: {siteName}</Text>
+        <Text style={text}>Текущий адрес:</Text>
+        <Text style={text}><Link href={`mailto:${email}`} style={link}>{email}</Link></Text>
+        <Text style={text}>Новый адрес:</Text>
+        <Text style={text}><Link href={`mailto:${newEmail}`} style={link}>{newEmail}</Link></Text>
         <Text style={text}>Нажмите кнопку ниже, чтобы подтвердить изменение:</Text>
         <Section style={{ textAlign: 'center', margin: '32px 0' }}>
           <Button style={button} href={confirmationUrl}>Подтвердить смену email</Button>
@@ -50,4 +51,5 @@ const link = { color: '#0B1F3A', textDecoration: 'underline' }
 const linkPlain = { color: '#0B1F3A', textDecoration: 'underline', fontSize: '12px' }
 const button = { backgroundColor: '#0B1F3A', color: '#ffffff', fontSize: '15px', fontWeight: 'bold' as const, borderRadius: '16px', padding: '14px 32px', textDecoration: 'none', display: 'inline-block' }
 const footer = { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid #e5e7eb' }
+const footerMeta = { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '0 0 16px' }
 const signature = { fontSize: '13px', color: '#0B1F3A', margin: '16px 0 0' }
