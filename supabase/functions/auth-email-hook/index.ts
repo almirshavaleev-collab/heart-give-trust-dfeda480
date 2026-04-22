@@ -9,6 +9,7 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
+import { buildEmailDebugPayload } from '../_shared/email-debug.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -80,6 +81,121 @@ const SAMPLE_DATA: Record<string, object> = {
   },
 }
 
+const buildTemplateProps = (data: Record<string, any>) => ({
+  siteName: SITE_NAME,
+  siteUrl: `https://${ROOT_DOMAIN}`,
+  recipient: data.email,
+  confirmationUrl: data.url,
+  token: data.token,
+  email: data.email,
+  newEmail: data.new_email,
+})
+
+async function renderEmailContent(emailType: string, templateProps: Record<string, any>) {
+  const EmailTemplate = EMAIL_TEMPLATES[emailType]
+
+  if (!EmailTemplate) {
+    throw new Error(`Unknown email type: ${emailType}`)
+  }
+
+  const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
+  const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
+    plainText: true,
+  })
+  const subject = EMAIL_SUBJECTS[emailType] || 'Notification'
+
+  return { EmailTemplate, html, text, subject }
+}
+
+const isRecoveryEmail = (emailType: string) => emailType === 'recovery'
+
+const logEmailDebug = ({ emailType, subject, siteName, html, text }: {
+  emailType: string
+  subject: string
+  siteName?: string
+  html: string
+  text: string
+}) => {
+  if (!isRecoveryEmail(emailType)) return
+
+  console.log('Auth email debug', buildEmailDebugPayload({
+    emailType,
+    subject,
+    siteName,
+    brandName: BRAND_NAME,
+    html,
+    text,
+  }))
+}
+
+async function handleDebugPreview(req: Request): Promise<Response> {
+  const previewCorsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
+  }
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: previewCorsHeaders })
+  }
+
+  const apiKey = Deno.env.get('LOVABLE_API_KEY')
+  const authHeader = req.headers.get('Authorization')
+
+  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  let type: string
+  let templateData: Record<string, any> | undefined
+  try {
+    const body = await req.json()
+    type = body.type
+    templateData = body.templateData
+  } catch (_error) {
+    return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+      status: 400,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
+    const sampleData = SAMPLE_DATA[type] || {}
+    const data = { ...sampleData, ...templateData }
+    const templateProps = type === 'recovery'
+      ? {
+          siteName: SITE_NAME,
+          confirmationUrl: data.confirmationUrl ?? SAMPLE_PROJECT_URL,
+        }
+      : buildTemplateProps(data)
+    const { html, text, subject } = await renderEmailContent(type, templateProps)
+
+    return new Response(JSON.stringify({
+      sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      ...buildEmailDebugPayload({
+        emailType: type,
+        subject,
+        siteName: SITE_NAME,
+        brandName: BRAND_NAME,
+        html,
+        text,
+      }),
+    }), {
+      status: 200,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+    })
+  }
+}
+
 // Preview endpoint handler - returns rendered HTML without sending email
 async function handlePreview(req: Request): Promise<Response> {
   const previewCorsHeaders = {
@@ -112,9 +228,7 @@ async function handlePreview(req: Request): Promise<Response> {
     })
   }
 
-  const EmailTemplate = EMAIL_TEMPLATES[type]
-
-  if (!EmailTemplate) {
+  if (!EMAIL_TEMPLATES[type]) {
     return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
       status: 400,
       headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
@@ -122,7 +236,13 @@ async function handlePreview(req: Request): Promise<Response> {
   }
 
   const sampleData = SAMPLE_DATA[type] || {}
-  const html = await renderAsync(React.createElement(EmailTemplate, sampleData))
+  const templateProps = type === 'recovery'
+    ? {
+        siteName: SITE_NAME,
+        confirmationUrl: (sampleData as Record<string, any>).confirmationUrl ?? SAMPLE_PROJECT_URL,
+      }
+    : buildTemplateProps(sampleData as Record<string, any>)
+  const { html } = await renderEmailContent(type, templateProps)
 
   return new Response(html, {
     status: 200,
@@ -209,8 +329,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   const emailType = payload.data.action_type
   console.log('Received auth event', { emailType, email: payload.data.email, run_id })
 
-  const EmailTemplate = EMAIL_TEMPLATES[emailType]
-  if (!EmailTemplate) {
+  if (!EMAIL_TEMPLATES[emailType]) {
     console.error('Unknown email type', { emailType, run_id })
     return new Response(
       JSON.stringify({ error: `Unknown email type: ${emailType}` }),
@@ -219,21 +338,11 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   // Build template props from payload.data (HookData structure)
-  const templateProps = {
-    siteName: SITE_NAME,
-    siteUrl: `https://${ROOT_DOMAIN}`,
-    recipient: payload.data.email,
-    confirmationUrl: payload.data.url,
-    token: payload.data.token,
-    email: payload.data.email,
-    newEmail: payload.data.new_email,
-  }
+  const templateProps = buildTemplateProps(payload.data)
 
   // Render React Email to HTML and plain text
-  const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
-  const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
-    plainText: true,
-  })
+  const { html, text, subject } = await renderEmailContent(emailType, templateProps)
+  logEmailDebug({ emailType, subject, siteName: SITE_NAME, html, text })
 
   // Enqueue email for async processing by the dispatcher (process-email-queue).
   const supabase = createClient(
@@ -259,7 +368,7 @@ async function handleWebhook(req: Request): Promise<Response> {
       to: payload.data.email,
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
-      subject: EMAIL_SUBJECTS[emailType] || 'Notification',
+      subject,
       html,
       text,
       purpose: 'transactional',
@@ -302,6 +411,10 @@ Deno.serve(async (req) => {
   // Route to preview handler for /preview path
   if (url.pathname.endsWith('/preview')) {
     return handlePreview(req)
+  }
+
+  if (url.pathname.endsWith('/debug-preview')) {
+    return handleDebugPreview(req)
   }
 
   // Main webhook handler
