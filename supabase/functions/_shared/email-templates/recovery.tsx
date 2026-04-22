@@ -63,7 +63,7 @@ export const RecoveryEmail = ({ siteName, confirmationUrl }: Props) => (
         </Text>
 
         <Text style={footer}>
-          Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо, пароль останется прежним.
+          Если вы не запрашивали сброс пароля, проигнорируйте это сообщение. Ваш пароль не изменится.
         </Text>
 
         <Text style={signature}>С теплом,</Text>
