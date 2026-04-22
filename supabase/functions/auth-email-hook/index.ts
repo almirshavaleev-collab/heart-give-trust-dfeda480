@@ -128,7 +128,7 @@ const logEmailDebug = ({ emailType, subject, siteName, html, text }: {
     brandName: BRAND_NAME,
     html,
     text,
-  }))
+  }), { templateVersion: AUTH_TEMPLATE_VERSION }
 }
 
 async function handleDebugPreview(req: Request): Promise<Response> {
@@ -176,6 +176,7 @@ async function handleDebugPreview(req: Request): Promise<Response> {
     const { html, text, subject } = await renderEmailContent(type, templateProps)
 
     return new Response(JSON.stringify({
+      templateVersion: AUTH_TEMPLATE_VERSION,
       sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       ...buildEmailDebugPayload({
@@ -295,7 +296,11 @@ async function handlePreview(req: Request): Promise<Response> {
 
   return new Response(html, {
     status: 200,
-    headers: { ...previewCorsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
+    headers: {
+      ...previewCorsHeaders,
+      'Content-Type': 'text/html; charset=utf-8',
+      'X-Auth-Template-Version': AUTH_TEMPLATE_VERSION,
+    },
   })
 }
 
@@ -441,7 +446,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     })
   }
 
-  console.log('Auth email enqueued', { emailType, email: payload.data.email, run_id })
+  console.log('Auth email enqueued', { emailType, email: payload.data.email, run_id, templateVersion: AUTH_TEMPLATE_VERSION })
 
   return new Response(
     JSON.stringify({ success: true, queued: true }),
