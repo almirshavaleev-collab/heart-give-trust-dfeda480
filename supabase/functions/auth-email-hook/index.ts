@@ -228,9 +228,7 @@ async function handlePreview(req: Request): Promise<Response> {
     })
   }
 
-  const EmailTemplate = EMAIL_TEMPLATES[type]
-
-  if (!EmailTemplate) {
+  if (!EMAIL_TEMPLATES[type]) {
     return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
       status: 400,
       headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
@@ -238,7 +236,13 @@ async function handlePreview(req: Request): Promise<Response> {
   }
 
   const sampleData = SAMPLE_DATA[type] || {}
-  const html = await renderAsync(React.createElement(EmailTemplate, sampleData))
+  const templateProps = type === 'recovery'
+    ? {
+        siteName: SITE_NAME,
+        confirmationUrl: (sampleData as Record<string, any>).confirmationUrl ?? SAMPLE_PROJECT_URL,
+      }
+    : buildTemplateProps(sampleData as Record<string, any>)
+  const { html } = await renderEmailContent(type, templateProps)
 
   return new Response(html, {
     status: 200,
@@ -325,8 +329,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   const emailType = payload.data.action_type
   console.log('Received auth event', { emailType, email: payload.data.email, run_id })
 
-  const EmailTemplate = EMAIL_TEMPLATES[emailType]
-  if (!EmailTemplate) {
+  if (!EMAIL_TEMPLATES[emailType]) {
     console.error('Unknown email type', { emailType, run_id })
     return new Response(
       JSON.stringify({ error: `Unknown email type: ${emailType}` }),
@@ -335,21 +338,11 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   // Build template props from payload.data (HookData structure)
-  const templateProps = {
-    siteName: SITE_NAME,
-    siteUrl: `https://${ROOT_DOMAIN}`,
-    recipient: payload.data.email,
-    confirmationUrl: payload.data.url,
-    token: payload.data.token,
-    email: payload.data.email,
-    newEmail: payload.data.new_email,
-  }
+  const templateProps = buildTemplateProps(payload.data)
 
   // Render React Email to HTML and plain text
-  const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
-  const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
-    plainText: true,
-  })
+  const { html, text, subject } = await renderEmailContent(emailType, templateProps)
+  logEmailDebug({ emailType, subject, siteName: SITE_NAME, html, text })
 
   // Enqueue email for async processing by the dispatcher (process-email-queue).
   const supabase = createClient(
@@ -375,7 +368,7 @@ async function handleWebhook(req: Request): Promise<Response> {
       to: payload.data.email,
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
-      subject: EMAIL_SUBJECTS[emailType] || 'Notification',
+      subject,
       html,
       text,
       purpose: 'transactional',
