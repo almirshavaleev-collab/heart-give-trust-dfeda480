@@ -18,13 +18,15 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
+const AUTH_TEMPLATE_VERSION = 'AUTH_EMAIL_PIPELINE_V2_2026_04_22'
+
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'SIGNUP TEMPLATE V2 · Подтвердите email — Фонд «Лига»',
+  invite: 'Приглашение в личный кабинет — Фонд «Лига»',
+  magiclink: 'Ссылка для входа — Фонд «Лига»',
+  recovery: 'RECOVERY TEMPLATE V2 · Восстановление пароля — Фонд «Лига»',
+  email_change: 'Подтверждение смены email — Фонд «Лига»',
+  reauthentication: 'Код подтверждения — Фонд «Лига»',
 }
 
 // Template mapping
