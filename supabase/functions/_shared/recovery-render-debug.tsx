@@ -1,6 +1,7 @@
 import * as React from 'npm:react@18.3.1'
 import { Body, Container, Head, Heading, Html, Preview, Section, Text } from 'npm:@react-email/components@0.0.22'
 import { BRAND_NAME } from './brand.ts'
+import { RecoveryEmail } from './email-templates/recovery.tsx'
 
 const recoveryDiagnosticStrings = {
   minimal: 'Восстановление пароля',
@@ -114,5 +115,36 @@ export const recoveryDiagnosticsScenarios = [
     jsx: '<Preview>Восстановление пароля в личном кабинете {BRAND_NAME}</Preview>',
     expected: `Восстановление пароля в личном кабинете ${BRAND_NAME}`,
     node: () => <Html lang="ru" dir="ltr"><Head /><Preview>{`Восстановление пароля в личном кабинете ${BRAND_NAME}`}</Preview><Body><Text>ok</Text></Body></Html>,
+  },
+  {
+    id: 'recovery-body-exact-structure',
+    label: 'Recovery structure → Preview + Container + Section + Heading + Text',
+    jsx: '<Html><Head/><Preview>...{BRAND_NAME}</Preview><Body><Container><Section><Text>{BRAND_NAME}</Text></Section><Heading>...</Heading><Text>...{BRAND_NAME}.</Text></Container></Body></Html>',
+    expected: `Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ${BRAND_NAME}.`,
+    node: () => (
+      <Html lang="ru" dir="ltr">
+        <Head>
+          <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
+          <meta charSet="utf-8" />
+        </Head>
+        <Preview>{`Восстановление пароля в личном кабинете ${BRAND_NAME}`}</Preview>
+        <Body>
+          <Container>
+            <Section>
+              <Text>{BRAND_NAME}</Text>
+            </Section>
+            <Heading>Восстановление пароля</Heading>
+            <Text>{recoveryDiagnosticStrings.sentencePrefix}{BRAND_NAME}.</Text>
+          </Container>
+        </Body>
+      </Html>
+    ),
+  },
+  {
+    id: 'recovery-component-full',
+    label: 'RecoveryEmail full component',
+    jsx: '<RecoveryEmail siteName={BRAND_NAME} confirmationUrl="https://example.com/reset" />',
+    expected: `Мы получили запрос на сброс пароля для вашего аккаунта в личном кабинете ${BRAND_NAME}.`,
+    node: () => <RecoveryEmail siteName={BRAND_NAME} confirmationUrl="https://example.com/reset" />,
   },
 ] as const
