@@ -413,6 +413,10 @@ Deno.serve(async (req) => {
     return handlePreview(req)
   }
 
+  if (url.pathname.endsWith('/debug-preview')) {
+    return handleDebugPreview(req)
+  }
+
   // Main webhook handler
   try {
     return await handleWebhook(req)
