@@ -28,7 +28,7 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
       <meta charSet="utf-8" />
     </Head>
 
-    <Preview>Подтвердите email для входа в личный кабинет Фонд «Лига»</Preview>
+    <Preview>SIGNUP TEMPLATE V2 · Подтвердите email для входа в личный кабинет фонда «Лига»</Preview>
 
     <Body style={main}>
       <Container style={container}>
@@ -36,23 +36,40 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
           <Text style={brand}>{BRAND_NAME}</Text>
         </Section>
 
-        <Heading style={h1}>Подтвердите ваш email</Heading>
+        <Heading style={h1}>SIGNUP TEMPLATE V2 · Подтвердите ваш email</Heading>
 
-        <Text style={text}>Здравствуйте! Спасибо за регистрацию в личном кабинете жертвователя.</Text>
+        <Text style={text}>Здравствуйте!</Text>
+
+        <Text style={text}>Спасибо за регистрацию в личном кабинете жертвователя.</Text>
+
+        <Text style={text}>Вы создаёте аккаунт для работы с пожертвованиями фонда «Лига».</Text>
 
         <Text style={text}>
-          Сайт:{" "}
+          Сайт фонда:
+        </Text>
+
+        <Text style={text}>
           <Link href={siteUrl} style={link}>
             <strong>{siteName}</strong>
           </Link>
         </Text>
 
         <Text style={text}>
-          Чтобы активировать аккаунт{" "}
+          Чтобы активировать аккаунт для адреса:
+        </Text>
+
+        <Text style={text}>
           <Link href={`mailto:${recipient}`} style={link}>
             {recipient}
           </Link>
-          , нажмите кнопку ниже:
+        </Text>
+
+        <Text style={text}>Нажмите кнопку ниже:</Text>
+
+        <Text style={footerMeta}>
+          Благотворительный фонд «Лига»
+          <br />
+          {siteUrl}
         </Text>
 
         <Section style={buttonSection}>
@@ -69,7 +86,7 @@ export const SignupEmail = ({ siteName, siteUrl, recipient, confirmationUrl }: P
           </Link>
         </Text>
 
-        <Text style={footer}>Если вы не регистрировались на сайте Фонд «Лига», просто проигнорируйте это письмо.</Text>
+        <Text style={footer}>Если вы не регистрировались на сайте фонда «Лига», просто проигнорируйте это письмо.</Text>
 
         <Text style={signature}>
           С теплом,
@@ -167,6 +184,13 @@ const footer = {
   margin: "32px 0 16px",
   paddingTop: "24px",
   borderTop: "1px solid #e5e7eb",
+};
+
+const footerMeta = {
+  fontSize: "13px",
+  color: "#6b7280",
+  lineHeight: "1.5",
+  margin: "0 0 24px",
 };
 
 const signature = {
