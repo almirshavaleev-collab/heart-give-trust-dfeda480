@@ -26,14 +26,13 @@ export const EmailChangeEmail = ({ siteName, email, newEmail, confirmationUrl }:
         <Section style={{ textAlign: 'center', margin: '32px 0' }}>
           <Button style={button} href={confirmationUrl}>Подтвердить смену email</Button>
         </Section>
-        <Text style={textSmall}>
-          Если кнопка не работает, скопируйте ссылку в браузер:<br />
-          <Link href={confirmationUrl} style={linkPlain}>{confirmationUrl}</Link>
-        </Text>
+        <Text style={textSmall}>Если кнопка не работает, скопируйте ссылку в браузер:</Text>
+        <Text style={textSmall}><Link href={confirmationUrl} style={linkPlain}>{confirmationUrl}</Link></Text>
         <Text style={footer}>
           Если вы не запрашивали изменение, срочно защитите свой аккаунт — смените пароль.
         </Text>
-        <Text style={signature}>С теплом,<br />{BRAND_SIGNATURE}</Text>
+        <Text style={signature}>С теплом,</Text>
+        <Text style={signature}>{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>

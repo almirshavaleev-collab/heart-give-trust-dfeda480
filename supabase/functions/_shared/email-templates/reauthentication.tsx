@@ -22,7 +22,8 @@ export const ReauthenticationEmail = ({ token }: Props) => (
         <Text style={footer}>
           Код действует ограниченное время. Если вы не запрашивали подтверждение, просто проигнорируйте письмо.
         </Text>
-        <Text style={signature}>С теплом,<br />{BRAND_SIGNATURE}</Text>
+        <Text style={signature}>С теплом,</Text>
+        <Text style={signature}>{BRAND_SIGNATURE}</Text>
       </Container>
     </Body>
   </Html>
