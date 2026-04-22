@@ -11,14 +11,14 @@ export const MagicLinkEmail = ({ siteName, confirmationUrl }: Props) => (
       <meta httpEquiv="Content-Type" content="text/html; charset=utf-8" />
       <meta charSet="utf-8" />
     </Head>
-    <Preview>Ссылка для входа в личный кабинет {siteName}</Preview>
+    <Preview>Ссылка для входа в личный кабинет фонда «Лига»</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}><Text style={brand}>{BRAND_NAME}</Text></Section>
         <Heading style={h1}>Ссылка для входа</Heading>
-        <Text style={text}>
-          Нажмите кнопку ниже, чтобы войти в личный кабинет {siteName}. Ссылка действует ограниченное время.
-        </Text>
+        <Text style={text}>Нажмите кнопку ниже, чтобы войти в личный кабинет фонда «Лига».</Text>
+        <Text style={text}>Ссылка действует ограниченное время.</Text>
+        <Text style={footerMeta}>Сайт фонда: {siteName}</Text>
         <Section style={{ textAlign: 'center', margin: '32px 0' }}>
           <Button style={button} href={confirmationUrl}>Войти</Button>
         </Section>
@@ -44,4 +44,5 @@ const textSmall = { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margi
 const linkPlain = { color: '#0B1F3A', textDecoration: 'underline', fontSize: '12px' }
 const button = { backgroundColor: '#0B1F3A', color: '#ffffff', fontSize: '15px', fontWeight: 'bold' as const, borderRadius: '16px', padding: '14px 32px', textDecoration: 'none', display: 'inline-block' }
 const footer = { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '32px 0 16px', paddingTop: '24px', borderTop: '1px solid #e5e7eb' }
+const footerMeta = { fontSize: '13px', color: '#6b7280', lineHeight: '1.5', margin: '0 0 24px' }
 const signature = { fontSize: '13px', color: '#0B1F3A', margin: '16px 0 0' }
