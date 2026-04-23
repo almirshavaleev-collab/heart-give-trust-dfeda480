@@ -128,6 +128,49 @@ export const sha256Hex = async (value: string): Promise<string> => {
     .join('')
 }
 
+// Lightweight per-stage encoding diagnostic. Safe to log: never includes
+// the full string, only short snippets (~60 chars) around each replacement
+// character. Use to track where U+FFFD first appears across pipeline stages.
+export const encodingDiagnostic = async (
+  stage: string,
+  field: string,
+  value: string | null | undefined,
+) => {
+  if (value == null) {
+    return { stage, field, present: false }
+  }
+  const replacementCount = (() => {
+    if (!value) return 0
+    let count = 0
+    let idx = 0
+    while ((idx = value.indexOf(REPLACEMENT_CHAR, idx)) !== -1) {
+      count += 1
+      idx += 1
+    }
+    return count
+  })()
+  const offsets: Array<{ index: number; snippet: string }> = []
+  if (replacementCount > 0) {
+    let idx = 0
+    while (offsets.length < 5 && (idx = value.indexOf(REPLACEMENT_CHAR, idx)) !== -1) {
+      const start = Math.max(0, idx - 30)
+      const end = Math.min(value.length, idx + 30)
+      offsets.push({ index: idx, snippet: value.slice(start, end) })
+      idx += 1
+    }
+  }
+  return {
+    stage,
+    field,
+    present: true,
+    length: value.length,
+    byteLength: new TextEncoder().encode(value).length,
+    sha256: await sha256Hex(value),
+    replacementCount,
+    ...(replacementCount > 0 ? { replacementOffsets: offsets } : {}),
+  }
+}
+
 const countOccurrences = (value: string, needle: string) => {
   if (!needle) return 0
   let count = 0

@@ -13,6 +13,7 @@ import {
   buildEmailDebugPayload,
   buildOutboundDiff,
   buildRenderDiagnostics,
+  encodingDiagnostic,
   inspectString,
   type OutboundEmailSnapshot,
 } from '../_shared/email-debug.ts'
