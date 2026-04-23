@@ -351,18 +351,93 @@ async function handleDiffOutbound(req: Request): Promise<Response> {
 
     const diff = await buildOutboundDiff(renderedSnapshot, outboundSnapshot)
 
+    const matchedBy = outboundSnapshot
+      ? messageId && outboundSnapshot.messageId === messageId
+        ? 'messageId'
+        : runId && outboundSnapshot.runId === runId
+          ? 'runId'
+          : 'emailType'
+      : null
+
+    const snippets = (diff as any).snippets ?? null
+    const diffBlock = (diff as any).diff ?? null
+
+    // Compact human-readable summary surfaced at the top of the response so a
+    // human can quickly answer: which email, which version, did we match a
+    // snapshot, by what key, and where does the text first diverge / break.
+    const summary = {
+      emailType: type,
+      templateVersion: AUTH_TEMPLATE_VERSION,
+      hasOutboundSnapshot: Boolean(outboundSnapshot),
+      matchedBy,
+      requestedMessageId: messageId ?? null,
+      requestedRunId: runId ?? null,
+      matchedSnapshot: outboundSnapshot
+        ? {
+            emailType: outboundSnapshot.emailType,
+            templateVersion: outboundSnapshot.templateVersion,
+            runId: outboundSnapshot.runId ?? null,
+            messageId: outboundSnapshot.messageId ?? null,
+            capturedAt: outboundSnapshot.capturedAt,
+            to: outboundSnapshot.to ?? null,
+            from: outboundSnapshot.from ?? null,
+            senderDomain: outboundSnapshot.senderDomain ?? null,
+            subject: outboundSnapshot.subject,
+          }
+        : null,
+      sameTemplateVersion: diffBlock?.sameTemplateVersion ?? null,
+      identical: diffBlock
+        ? {
+            subject: diffBlock.subject?.identical ?? null,
+            html: diffBlock.html?.identical ?? null,
+            text: diffBlock.text?.identical ?? null,
+          }
+        : null,
+      replacementCharacterCounts: {
+        rendered: {
+          subject: (diff as any).rendered?.fields?.subject?.replacementCount ?? 0,
+          html: (diff as any).rendered?.fields?.html?.replacementCount ?? 0,
+          text: (diff as any).rendered?.fields?.text?.replacementCount ?? 0,
+        },
+        outbound: outboundSnapshot
+          ? {
+              subject: (diff as any).outbound?.fields?.subject?.replacementCount ?? 0,
+              html: (diff as any).outbound?.fields?.html?.replacementCount ?? 0,
+              text: (diff as any).outbound?.fields?.text?.replacementCount ?? 0,
+            }
+          : null,
+      },
+      readableSnippets: snippets
+        ? {
+            subject: {
+              rendered: snippets.subject?.renderedHead ?? null,
+              outbound: snippets.subject?.outboundHead ?? null,
+              firstDifference: snippets.subject?.snippetAroundFirstDifference ?? null,
+              firstReplacement: snippets.subject?.snippetAroundFirstReplacement ?? null,
+            },
+            html: {
+              rendered: snippets.html?.renderedHead ?? null,
+              outbound: snippets.html?.outboundHead ?? null,
+              firstDifference: snippets.html?.snippetAroundFirstDifference ?? null,
+              firstReplacement: snippets.html?.snippetAroundFirstReplacement ?? null,
+            },
+            text: {
+              rendered: snippets.text?.renderedHead ?? null,
+              outbound: snippets.text?.outboundHead ?? null,
+              firstDifference: snippets.text?.snippetAroundFirstDifference ?? null,
+              firstReplacement: snippets.text?.snippetAroundFirstReplacement ?? null,
+            },
+          }
+        : null,
+    }
+
     return new Response(JSON.stringify({
+      summary,
       templateVersion: AUTH_TEMPLATE_VERSION,
       requestedType: type,
       requestedRunId: runId ?? null,
       requestedMessageId: messageId ?? null,
-      matchedBy: outboundSnapshot
-        ? messageId && outboundSnapshot.messageId === messageId
-          ? 'messageId'
-          : runId && outboundSnapshot.runId === runId
-            ? 'runId'
-            : 'emailType'
-        : null,
+      matchedBy,
       sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       availableSnapshots: outboundSnapshots.map((snap) => ({
