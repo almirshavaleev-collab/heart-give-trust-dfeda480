@@ -261,6 +261,12 @@ Deno.serve(async (req) => {
       }
 
       try {
+        if (isAuthRecovery) {
+          const ctx = { messageId: payload?.message_id, runId: payload?.run_id }
+          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'subject', payload?.subject), ctx)
+          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'html', payload?.html), ctx)
+          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'text', payload?.text), ctx)
+        }
         await sendLovableEmail(
           {
             run_id: payload.run_id,
