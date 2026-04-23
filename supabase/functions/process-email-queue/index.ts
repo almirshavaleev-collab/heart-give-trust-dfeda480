@@ -1,5 +1,6 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { encodingDiagnostic } from '../_shared/email-debug.ts'
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -197,6 +198,17 @@ Deno.serve(async (req) => {
           ? (failedAttemptsByMessageId.get(payload.message_id) ?? 0)
           : msg.read_ct ?? 0
 
+      // Stage 5: payload as read from queue (auth_emails only — recovery focus).
+      // Stage 6: payload right before sendLovableEmail. Compare sha256 across
+      // stages 4→5→6 to pinpoint where U+FFFD first appears.
+      const isAuthRecovery = queue === 'auth_emails' && payload?.label === 'recovery'
+      if (isAuthRecovery) {
+        const ctx = { messageId: payload?.message_id, runId: payload?.run_id }
+        console.log('[encoding-stage]', await encodingDiagnostic('5_after_queue_read', 'subject', payload?.subject), ctx)
+        console.log('[encoding-stage]', await encodingDiagnostic('5_after_queue_read', 'html', payload?.html), ctx)
+        console.log('[encoding-stage]', await encodingDiagnostic('5_after_queue_read', 'text', payload?.text), ctx)
+      }
+
       // Drop expired messages (TTL exceeded).
       // Prefer payload.queued_at when present; fall back to PGMQ's enqueued_at
       // which is always set by the queue.
@@ -249,6 +261,12 @@ Deno.serve(async (req) => {
       }
 
       try {
+        if (isAuthRecovery) {
+          const ctx = { messageId: payload?.message_id, runId: payload?.run_id }
+          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'subject', payload?.subject), ctx)
+          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'html', payload?.html), ctx)
+          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'text', payload?.text), ctx)
+        }
         await sendLovableEmail(
           {
             run_id: payload.run_id,
