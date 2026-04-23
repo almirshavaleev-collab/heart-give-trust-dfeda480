@@ -39,10 +39,10 @@ const AnimatedCounter = ({ target, suffix, label }: { target: number; suffix: st
 
   return (
     <div ref={ref} className="text-center">
-      <div className="text-5xl md:text-6xl font-bold tracking-tight text-white counter-animate" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.3)" }}>
+      <div className="text-5xl md:text-6xl font-bold tracking-tight text-foreground counter-animate">
         {count}{suffix}
       </div>
-      <div className="text-sm text-white/70 mt-3 font-medium" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.3)" }}>{label}</div>
+      <div className="text-sm text-muted-foreground/80 mt-3 font-medium">{label}</div>
     </div>
   );
 };
@@ -50,54 +50,46 @@ const AnimatedCounter = ({ target, suffix, label }: { target: number; suffix: st
 const HeroSection = () => {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-      {/* Background image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroBg})` }}
-        aria-hidden="true"
-      />
-      {/* Darkening overlay for readability */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(to bottom, rgba(11, 31, 58, 0.6), rgba(11, 31, 58, 0.85))",
-        }}
-        aria-hidden="true"
-      />
+      {/* Soft background image + subtle gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-white via-[hsl(216_25%_98%)] to-[hsl(216_25%_96%)]">
+        <img
+          src={heroBg}
+          alt="Встреча выпускников лицея"
+          className="w-full h-full object-cover opacity-[0.06]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-secondary/70" />
+      </div>
+
+      {/* Subtle accent glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-accent/[0.05] blur-[140px]" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] rounded-[50%] bg-primary/[0.025] blur-[100px]" />
 
       <div className="container relative z-10 text-center py-32 md:py-40">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-xs text-white/85 font-medium mb-10 fade-in-up">
-          <Heart className="w-3.5 h-3.5 text-white/90" />
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/60 bg-background/70 backdrop-blur-sm text-xs text-muted-foreground/90 font-medium mb-10 fade-in-up">
+          <Heart className="w-3.5 h-3.5 text-accent/80" />
           Благотворительный фонд
         </div>
 
-        <h1
-          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-[800px] mx-auto leading-[1.05] text-white fade-in-up fade-in-up-delay-1"
-          style={{ textShadow: "0 2px 10px rgba(0,0,0,0.3)" }}
-        >
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-[800px] mx-auto leading-[1.05] text-foreground fade-in-up fade-in-up-delay-1">
           «Лига» Фонд Выпускников
         </h1>
 
-        <p
-          className="mt-7 md:mt-8 text-lg md:text-xl text-white/85 max-w-[600px] mx-auto leading-relaxed fade-in-up fade-in-up-delay-2"
-          style={{ textShadow: "0 2px 10px rgba(0,0,0,0.3)" }}
-        >
-          Тот самый лицей, который растит сильных и осознанных людей
+        <p className="mt-7 md:mt-8 text-lg md:text-xl text-muted-foreground max-w-[600px] mx-auto leading-relaxed fade-in-up fade-in-up-delay-2">
+          Сообщество благодарных выпускников лицея
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-12 md:mt-14 fade-in-up fade-in-up-delay-3">
           <Button
             size="xl"
             asChild
-            className="h-14 px-12 text-base bg-white text-foreground hover:bg-white/90 shadow-lg hover:shadow-2xl hover:scale-[1.03] transition-all duration-300"
+            className="h-14 px-12 text-base shadow-md hover:shadow-xl hover:scale-[1.03] transition-all duration-300"
           >
             <a href="#donate">
               <Heart className="w-5 h-5" />
               Стать частью фонда
             </a>
           </Button>
-          <Button variant="ghost" size="lg" asChild className="text-white/90 hover:text-white hover:bg-white/10">
+          <Button variant="ghost" size="lg" asChild className="text-muted-foreground hover:text-foreground">
             <a href="#community">
               О фонде
               <ArrowRight className="w-4 h-4" />
