@@ -610,9 +610,26 @@ async function handleWebhook(req: Request): Promise<Response> {
   // Build template props from payload.data (HookData structure)
   const templateProps = buildTemplateProps(payload.data)
 
+  // Stage 1: subject pulled from EMAIL_SUBJECTS (source-of-truth string literal).
+  // Stage 2: props passed into renderAsync (siteName / brandName from brand.ts).
+  // Logged only for recovery to keep noise low while we hunt the U+FFFD source.
+  if (isRecoveryEmail(emailType)) {
+    const subjectFromMap = EMAIL_SUBJECTS[emailType] ?? ''
+    console.log('[encoding-stage]', await encodingDiagnostic('1_subject_from_EMAIL_SUBJECTS', 'subject', subjectFromMap))
+    console.log('[encoding-stage]', await encodingDiagnostic('2_props_before_renderAsync', 'siteName', (templateProps as any).siteName))
+    console.log('[encoding-stage]', await encodingDiagnostic('2_props_before_renderAsync', 'brandName', BRAND_NAME))
+  }
+
   // Render React Email to HTML and plain text
   const { html, text, subject } = await renderEmailContent(emailType, templateProps)
   logEmailDebug({ emailType, subject, siteName: SITE_NAME, html, text })
+
+  // Stage 3: html/text/subject right after renderAsync.
+  if (isRecoveryEmail(emailType)) {
+    console.log('[encoding-stage]', await encodingDiagnostic('3_html_text_after_renderAsync', 'subject', subject))
+    console.log('[encoding-stage]', await encodingDiagnostic('3_html_text_after_renderAsync', 'html', html))
+    console.log('[encoding-stage]', await encodingDiagnostic('3_html_text_after_renderAsync', 'text', text))
+  }
 
   // Enqueue email for async processing by the dispatcher (process-email-queue).
   const supabase = createClient(
@@ -646,6 +663,13 @@ async function handleWebhook(req: Request): Promise<Response> {
       queued_at: new Date().toISOString(),
     },
   })
+
+  // Stage 4: payload right before enqueue_email.
+  if (isRecoveryEmail(emailType)) {
+    console.log('[encoding-stage]', await encodingDiagnostic('4_payload_before_enqueue_email', 'subject', subject), { messageId, run_id })
+    console.log('[encoding-stage]', await encodingDiagnostic('4_payload_before_enqueue_email', 'html', html), { messageId })
+    console.log('[encoding-stage]', await encodingDiagnostic('4_payload_before_enqueue_email', 'text', text), { messageId })
+  }
 
   if (enqueueError) {
     console.error('Failed to enqueue auth email', { error: enqueueError, run_id, emailType })
