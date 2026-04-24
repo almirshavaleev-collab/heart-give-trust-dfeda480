@@ -70,21 +70,29 @@ Deno.serve(async (req) => {
   const firstName =
     (profile?.full_name || profile?.display_name || '').split(' ')[0] || null
 
-  // Send the email via the shared transactional sender (uses service role)
-  const { error: sendError } = await admin.functions.invoke(
-    'send-transactional-email',
+  // Send via direct fetch with explicit service-role Authorization header
+  // to avoid any JWT propagation issues from supabase-js functions.invoke.
+  const sendRes = await fetch(
+    `${supabaseUrl}/functions/v1/send-transactional-email`,
     {
-      body: {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+      },
+      body: JSON.stringify({
         templateName: 'donation-link-code',
         recipientEmail: user.email,
         idempotencyKey: `donation-link-${user.id}-${Date.now()}`,
         templateData: { code, name: firstName },
-      },
-    }
+      }),
+    },
   )
 
-  if (sendError) {
-    console.error('send error', sendError)
+  if (!sendRes.ok) {
+    const txt = await sendRes.text().catch(() => '')
+    console.error('send error', sendRes.status, txt)
     return json({ error: 'email_send_failed' }, 502)
   }
 
