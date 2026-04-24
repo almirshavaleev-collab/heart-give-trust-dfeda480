@@ -27,6 +27,7 @@ export default function AccountDonations() {
   const [linkStep, setLinkStep] = useState<"intro" | "code">("intro");
   const [code, setCode] = useState("");
   const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState<null | { kind: "no_email" | "rate_limited" | "send_failed" | "generic"; message: string }>(null);
 
   const filtered = useMemo(() => {
     let rows = (data ?? []).filter((r) => r.status === "succeeded");
@@ -41,6 +42,7 @@ export default function AccountDonations() {
   const requestCode = async () => {
     if (!user) return;
     setLinkLoading(true);
+    setLinkError(null);
     try {
       const { data, error } = await supabase.functions.invoke(
         "request-donation-link-code",
@@ -57,18 +59,31 @@ export default function AccountDonations() {
           }
         } catch { /* ignore */ }
         if (code === "rate_limited") {
+          setLinkError({ kind: "rate_limited", message: "Новый код можно запросить не чаще одного раза в минуту. Подождите и попробуйте снова." });
           toast({
             title: "Подождите немного",
             description: "Новый код можно запросить не чаще одного раза в минуту.",
             variant: "destructive",
           });
         } else if (code === "no_email") {
+          setLinkError({
+            kind: "no_email",
+            message: "К вашему аккаунту не привязан email — мы не можем отправить код. Добавьте email в настройках профиля и повторите попытку.",
+          });
           toast({
-            title: "Нет email",
-            description: "К вашему аккаунту не привязан email.",
+            title: "Нет email в профиле",
+            description: "Добавьте email в настройках профиля, чтобы получить код.",
+            variant: "destructive",
+          });
+        } else if (code === "email_send_failed") {
+          setLinkError({ kind: "send_failed", message: "Не удалось отправить письмо с кодом. Попробуйте ещё раз через минуту." });
+          toast({
+            title: "Письмо не отправлено",
+            description: "Попробуйте ещё раз через минуту.",
             variant: "destructive",
           });
         } else {
+          setLinkError({ kind: "generic", message: "Не удалось отправить код. Попробуйте ещё раз." });
           toast({
             title: "Не удалось отправить код",
             description: "Попробуйте ещё раз через минуту.",
@@ -84,6 +99,7 @@ export default function AccountDonations() {
         });
         setLinkStep("code");
       } else {
+        setLinkError({ kind: "generic", message: "Не удалось отправить код. Попробуйте ещё раз позже." });
         toast({
           title: "Не удалось отправить код",
           description: "Попробуйте ещё раз позже.",
@@ -91,6 +107,7 @@ export default function AccountDonations() {
         });
       }
     } catch (e) {
+      setLinkError({ kind: "generic", message: "Не удалось запросить код. Проверьте соединение и попробуйте снова." });
       toast({
         title: "Ошибка",
         description: "Не удалось запросить код. Попробуйте ещё раз.",
@@ -209,7 +226,7 @@ export default function AccountDonations() {
         </CardContent>
       </Card>
 
-      <Dialog open={linkOpen} onOpenChange={(v) => { setLinkOpen(v); if (!v) { setLinkStep("intro"); setCode(""); } }}>
+      <Dialog open={linkOpen} onOpenChange={(v) => { setLinkOpen(v); if (!v) { setLinkStep("intro"); setCode(""); setLinkError(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Привязать прошлые пожертвования</DialogTitle>
@@ -222,6 +239,20 @@ export default function AccountDonations() {
               <p className="text-sm text-muted-foreground">
                 Для подтверждения мы сгенерируем одноразовый код. Срок действия — 15 минут.
               </p>
+              {linkError && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+                  <p className="text-sm text-destructive font-medium">{linkError.message}</p>
+                  {linkError.kind === "no_email" ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link to="/account/settings">Перейти в настройки профиля</Link>
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={requestCode} disabled={linkLoading}>
+                      Повторить запрос кода
+                    </Button>
+                  )}
+                </div>
+              )}
               <Button onClick={requestCode} disabled={linkLoading} className="w-full">
                 <Mail className="w-4 h-4 mr-2" /> Получить код подтверждения
               </Button>
@@ -231,6 +262,9 @@ export default function AccountDonations() {
               <Input placeholder="Введите 6-значный код" value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, "").slice(0, 6))} />
               <Button onClick={confirmLink} disabled={linkLoading || code.length !== 6} className="w-full">
                 Подтвердить и привязать
+              </Button>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => { setLinkStep("intro"); setCode(""); requestCode(); }} disabled={linkLoading}>
+                <Mail className="w-4 h-4 mr-2" /> Повторить запрос кода
               </Button>
             </div>
           )}
