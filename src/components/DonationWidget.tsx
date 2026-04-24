@@ -226,6 +226,18 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
   const Card = (
     <div className={cn("card-light w-full", embedded ? "p-5 sm:p-6" : "p-8 md:p-10")}>
+      {authUser && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-border bg-secondary/50 px-4 py-3">
+          <UserCheck className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            Вы вошли как{" "}
+            <span className="text-foreground font-medium">
+              {profileName || authUser.email || "пользователь"}
+            </span>
+            . Пожертвование будет привязано к вашему личному кабинету.
+          </p>
+        </div>
+      )}
       {/* Тип платежа */}
       <div className="flex gap-2 rounded-xl bg-secondary p-1 mb-6">
         <button
