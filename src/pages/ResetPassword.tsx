@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,51 +23,13 @@ export default function ResetPassword() {
 
   useEffect(() => {
     let cancelled = false;
-
-    // Признаки recovery-ссылки в URL (hash для implicit flow, query для PKCE/code flow)
-    const hash = typeof window !== "undefined" ? window.location.hash : "";
-    const search = typeof window !== "undefined" ? window.location.search : "";
-    const hasRecoveryHash = hash.includes("type=recovery") || hash.includes("access_token");
-    const hasRecoveryQuery = search.includes("type=recovery") || search.includes("code=");
-    const looksLikeRecoveryLink = hasRecoveryHash || hasRecoveryQuery;
-
-    // Сначала подписываемся, чтобы не пропустить PASSWORD_RECOVERY/SIGNED_IN из URL
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        if (session) setValid(true);
-        setReady(true);
-      } else if (event === "INITIAL_SESSION") {
-        if (session) setValid(true);
-        // Если нет признаков recovery в URL — можно считать инициализацию завершённой
-        if (!looksLikeRecoveryLink) setReady(true);
-      } else if (event === "SIGNED_OUT") {
-        setValid(false);
-      }
-    });
-
-    // Параллельно — проверяем уже существующую сессию
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
-      if (data.session) {
-        setValid(true);
-        setReady(true);
-      } else if (!looksLikeRecoveryLink) {
-        // Нет сессии и нет recovery-параметров — ссылка невалидна
-        setReady(true);
-      }
-      // Иначе ждём PASSWORD_RECOVERY из onAuthStateChange
+      setValid(!!data.session);
+      setReady(true);
     });
-
-    // Защитный таймаут, чтобы не показывать спиннер бесконечно
-    const timeout = window.setTimeout(() => {
-      if (!cancelled) setReady(true);
-    }, 5000);
-
     return () => {
       cancelled = true;
-      window.clearTimeout(timeout);
-      sub.subscription.unsubscribe();
     };
   }, []);
 
@@ -84,13 +46,15 @@ export default function ResetPassword() {
     }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password: res.data });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast({ title: "Ошибка", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Пароль обновлён" });
-    navigate("/account/overview", { replace: true });
+    await supabase.auth.signOut();
+    setLoading(false);
+    toast({ title: "Пароль обновлён", description: "Войдите с новым паролем" });
+    navigate("/auth", { replace: true });
   };
 
   return (
@@ -106,12 +70,17 @@ export default function ResetPassword() {
             {!ready ? (
               <div className="flex flex-col items-center justify-center py-6 gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Проверяем ссылку восстановления...</p>
+                <p className="text-sm text-muted-foreground">Загружаем сессию...</p>
               </div>
             ) : !valid ? (
-              <p className="text-sm text-muted-foreground">
-                Ссылка недействительна или истекла. Запросите восстановление пароля заново.
-              </p>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Сессия восстановления не найдена. Запросите новую ссылку.
+                </p>
+                <Button asChild className="w-full">
+                  <Link to="/auth?mode=reset">Запросить новую ссылку</Link>
+                </Button>
+              </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
