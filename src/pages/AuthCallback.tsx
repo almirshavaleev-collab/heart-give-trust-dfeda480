@@ -7,6 +7,27 @@ import { Loader2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
+const ALLOWED_NEXT_PATHS = new Set<string>([
+  "/reset-password",
+  "/account/overview",
+  "/account/donations",
+  "/account/subscriptions",
+  "/account/achievements",
+  "/account/settings",
+]);
+const DEFAULT_NEXT = "/reset-password";
+
+function safeNext(raw: string | null): string {
+  if (!raw) return DEFAULT_NEXT;
+  // Только относительные пути, без protocol-relative и без обратных слэшей
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) {
+    return DEFAULT_NEXT;
+  }
+  // Отрезаем query/hash для проверки по whitelist
+  const pathOnly = raw.split("?")[0].split("#")[0];
+  return ALLOWED_NEXT_PATHS.has(pathOnly) ? raw : DEFAULT_NEXT;
+}
+
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +43,7 @@ export default function AuthCallback() {
         );
 
         const code = search.get("code");
-        const next = search.get("next") || "/reset-password";
+        const next = safeNext(search.get("next"));
         const errDesc = search.get("error_description") || hash.get("error_description");
 
         if (errDesc) {
