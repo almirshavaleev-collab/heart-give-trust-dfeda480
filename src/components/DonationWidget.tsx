@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Heart, Check, Loader2, Sparkles, Target } from "lucide-react";
+import { Heart, Check, Loader2, Sparkles, Target, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -45,6 +45,36 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Авторизованный пользователь: автозаполнение из профиля
+  const [authUser, setAuthUser] = useState<{ id: string; email: string | null } | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+      setAuthUser({ id: user.id, email: user.email ?? null });
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+
+      const fullName = profile?.full_name?.trim() || null;
+      const profilePhone = profile?.phone?.trim() || null;
+
+      setProfileName(fullName);
+      // Заполняем только пустые поля, чтобы не затирать ввод пользователя
+      setName((prev) => (prev ? prev : fullName ?? ""));
+      setPhone((prev) => (prev ? prev : profilePhone ?? ""));
+      setEmail((prev) => (prev ? prev : user.email ?? ""));
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const rawAmount = amount ?? (customAmount ? Math.floor(Number(customAmount)) : 0);
   const activeAmount = Number.isFinite(rawAmount) && rawAmount > 0 ? rawAmount : 0;
   const amountTooHigh = activeAmount > MAX_AMOUNT;
@@ -55,7 +85,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       setName("Аноним");
       setPhone("");
     } else if (name === "Аноним") {
-      setName("");
+      // При выключении анонимного режима возвращаем имя из профиля, если оно есть
+      setName(profileName ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anonymous]);
@@ -195,6 +226,18 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
   const Card = (
     <div className={cn("card-light w-full", embedded ? "p-5 sm:p-6" : "p-8 md:p-10")}>
+      {authUser && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-border bg-secondary/50 px-4 py-3">
+          <UserCheck className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            Вы вошли как{" "}
+            <span className="text-foreground font-medium">
+              {profileName || authUser.email || "пользователь"}
+            </span>
+            . Пожертвование будет привязано к вашему личному кабинету.
+          </p>
+        </div>
+      )}
       {/* Тип платежа */}
       <div className="flex gap-2 rounded-xl bg-secondary p-1 mb-6">
         <button
