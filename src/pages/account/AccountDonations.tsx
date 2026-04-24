@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDonorDonations } from "@/hooks/useDonorData";
-import { formatRub, formatDate, statusLabel, paymentMethodLabel } from "@/lib/donor-format";
+import { formatRub, formatDate } from "@/lib/donor-format";
 import { Heart, Search, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,7 +22,6 @@ export default function AccountDonations() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data, isLoading, error } = useDonorDonations();
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -31,12 +30,11 @@ export default function AccountDonations() {
   const [linkLoading, setLinkLoading] = useState(false);
 
   const filtered = useMemo(() => {
-    let rows = data ?? [];
-    if (statusFilter !== "all") rows = rows.filter((r) => r.status === statusFilter);
+    let rows = (data ?? []).filter((r) => r.status === "succeeded");
     if (typeFilter === "recurring") rows = rows.filter((r) => r.is_recurring);
     if (typeFilter === "one_time") rows = rows.filter((r) => !r.is_recurring);
     return rows;
-  }, [data, statusFilter, typeFilter]);
+  }, [data, typeFilter]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
   const visible = filtered.slice((page - 1) * PAGE, page * PAGE);
@@ -148,16 +146,6 @@ export default function AccountDonations() {
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
           <CardTitle className="text-lg">История</CardTitle>
           <div className="flex flex-wrap gap-2">
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                <SelectItem value="succeeded">Успешно</SelectItem>
-                <SelectItem value="pending">В обработке</SelectItem>
-                <SelectItem value="canceled">Отменён</SelectItem>
-                <SelectItem value="failed">Ошибка</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
               <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -179,7 +167,7 @@ export default function AccountDonations() {
                 <Heart className="w-5 h-5 text-muted-foreground" />
               </div>
               <p className="font-medium">Пока пусто</p>
-              <p className="text-sm text-muted-foreground">У вас пока нет пожертвований по выбранным фильтрам.</p>
+              <p className="text-sm text-muted-foreground">У вас пока нет успешных пожертвований.</p>
               <Button asChild><Link to="/#donate">Сделать первое пожертвование</Link></Button>
             </div>
           ) : (
@@ -191,10 +179,8 @@ export default function AccountDonations() {
                       <TableHead>Дата</TableHead>
                       <TableHead>Сбор</TableHead>
                       <TableHead>Сумма</TableHead>
-                      <TableHead>Статус</TableHead>
-                      <TableHead className="hidden md:table-cell">Способ</TableHead>
                       <TableHead className="hidden md:table-cell">Тип</TableHead>
-                      <TableHead className="hidden md:table-cell">Видимость</TableHead>
+                      <TableHead className="hidden md:table-cell">Публичность</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -203,10 +189,8 @@ export default function AccountDonations() {
                         <TableCell className="whitespace-nowrap text-sm">{formatDate(d.paid_at ?? d.created_at)}</TableCell>
                         <TableCell className="text-sm">{d.campaign?.title ?? "Общий вклад"}</TableCell>
                         <TableCell className="font-semibold">{formatRub(d.amount)}</TableCell>
-                        <TableCell><Badge variant={d.status === "succeeded" ? "default" : "secondary"}>{statusLabel(d.status)}</Badge></TableCell>
-                        <TableCell className="hidden md:table-cell text-sm">{paymentMethodLabel(d.payment_method_type)}</TableCell>
                         <TableCell className="hidden md:table-cell text-sm">{d.is_recurring ? "Регулярный" : "Разовый"}</TableCell>
-                        <TableCell className="hidden md:table-cell text-sm">{d.is_anonymous ? "Анонимно" : "Открыто"}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{d.is_anonymous ? "Анонимно" : "Публично"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
