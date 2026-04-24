@@ -14,6 +14,7 @@ import Legal from "./pages/Legal.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
+import AuthCallback from "./pages/AuthCallback.tsx";
 import AccountLayout from "./pages/account/AccountLayout.tsx";
 import AccountOverview from "./pages/account/AccountOverview.tsx";
 import AccountDonations from "./pages/account/AccountDonations.tsx";
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/requisites" element={<Requisites />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/account" element={<AccountLayout />}>
             <Route index element={<Navigate to="/account/overview" replace />} />
