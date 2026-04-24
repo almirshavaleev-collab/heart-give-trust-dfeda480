@@ -22,19 +22,53 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Supabase ставит сессию из hash при наличии type=recovery
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setValid(true);
+    let cancelled = false;
+
+    // Признаки recovery-ссылки в URL (hash для implicit flow, query для PKCE/code flow)
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const hasRecoveryHash = hash.includes("type=recovery") || hash.includes("access_token");
+    const hasRecoveryQuery = search.includes("type=recovery") || search.includes("code=");
+    const looksLikeRecoveryLink = hasRecoveryHash || hasRecoveryQuery;
+
+    // Сначала подписываемся, чтобы не пропустить PASSWORD_RECOVERY/SIGNED_IN из URL
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        if (session) setValid(true);
         setReady(true);
+      } else if (event === "INITIAL_SESSION") {
+        if (session) setValid(true);
+        // Если нет признаков recovery в URL — можно считать инициализацию завершённой
+        if (!looksLikeRecoveryLink) setReady(true);
+      } else if (event === "SIGNED_OUT") {
+        setValid(false);
       }
     });
-    // если уже есть сессия — тоже разрешаем
+
+    // Параллельно — проверяем уже существующую сессию
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setValid(true);
-      setReady(true);
+      if (cancelled) return;
+      if (data.session) {
+        setValid(true);
+        setReady(true);
+      } else if (!looksLikeRecoveryLink) {
+        // Нет сессии и нет recovery-параметров — ссылка невалидна
+        setReady(true);
+      }
+      // Иначе ждём PASSWORD_RECOVERY из onAuthStateChange
     });
-    return () => sub.subscription.unsubscribe();
+
+    // Защитный таймаут, чтобы не показывать спиннер бесконечно
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) setReady(true);
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,7 +104,10 @@ export default function ResetPassword() {
           </CardHeader>
           <CardContent>
             {!ready ? (
-              <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+              <div className="flex flex-col items-center justify-center py-6 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Проверяем ссылку восстановления...</p>
+              </div>
             ) : !valid ? (
               <p className="text-sm text-muted-foreground">
                 Ссылка недействительна или истекла. Запросите восстановление пароля заново.
