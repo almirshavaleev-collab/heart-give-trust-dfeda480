@@ -359,37 +359,46 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         />
       </div>
 
-      <label className="flex items-start gap-3 mb-6 cursor-pointer">
-        <div
+      <div className="flex items-start gap-3 mb-6">
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={consent}
+          aria-label="Согласие с условиями"
           onClick={() => setConsent(!consent)}
           className={cn(
-            "mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+            "mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer",
             consent ? "bg-primary border-primary" : "border-border"
           )}
         >
           {consent && <Check className="w-3 h-3 text-primary-foreground" />}
-        </div>
-        <span className="text-xs text-muted-foreground leading-[1.55] flex-1 min-w-0">
+        </button>
+        <span
+          className="text-xs text-muted-foreground leading-[1.55] flex-1 min-w-0 cursor-pointer select-none"
+          onClick={() => setConsent(!consent)}
+        >
           Я принимаю условия{" "}
           <a
             href="/offer"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
           >
             публичной оферты
           </a>{" "}
           и согласен(а) на{" "}
           <a
-            href="/privacy-consent"
+            href="/privacy"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
           >
             обработку персональных данных
           </a>
         </span>
-      </label>
+      </div>
 
       <Button
         size="xl"
