@@ -52,6 +52,7 @@ const App = () => (
           <Route path="/thank-you" element={<ThankYou />} />
           <Route path="/offer" element={<Offer />} />
           <Route path="/privacy-consent" element={<PrivacyConsent />} />
+          <Route path="/privacy" element={<PrivacyConsent />} />
           <Route path="/requisites" element={<Requisites />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/auth" element={<Auth />} />
