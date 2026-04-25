@@ -38,6 +38,7 @@ export default function AccountSettings() {
   const [pwd, setPwd] = useState("");
   const [pwd2, setPwd2] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
+  const pwdEval = evaluatePassword(pwd);
 
   useEffect(() => {
     if (profile) {
