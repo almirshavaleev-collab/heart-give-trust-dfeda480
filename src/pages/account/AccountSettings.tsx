@@ -12,8 +12,17 @@ import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Loader2, LogOut } from "lucide-react";
 import { z } from "zod";
+import { evaluatePassword, STRENGTH_LABEL, type PasswordStrength } from "@/lib/password-strength";
+import { cn } from "@/lib/utils";
 
 const passwordSchema = z.string().min(8, "Минимум 8 символов").max(72);
+
+const STRENGTH_BAR: Record<PasswordStrength, { width: string; color: string }> = {
+  empty:  { width: "w-0",     color: "bg-transparent" },
+  weak:   { width: "w-1/3",   color: "bg-destructive" },
+  medium: { width: "w-2/3",   color: "bg-amber-500" },
+  strong: { width: "w-full",  color: "bg-emerald-500" },
+};
 
 export default function AccountSettings() {
   const { user, signOut } = useAuth();
@@ -61,6 +70,15 @@ export default function AccountSettings() {
       toast({ title: "Слабый пароль", description: r.error.issues[0].message, variant: "destructive" });
       return;
     }
+    const { strength, hint } = evaluatePassword(pwd);
+    if (strength === "weak") {
+      toast({
+        title: "Слабый пароль",
+        description: hint ?? "Пароль слишком простой и легко угадывается. Используйте более сложный.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (pwd !== pwd2) {
       toast({ title: "Пароли не совпадают", description: "Повторите пароль точно так же.", variant: "destructive" });
       return;
@@ -76,7 +94,7 @@ export default function AccountSettings() {
       toast({
         title: isWeak ? "Слабый пароль" : "Ошибка",
         description: isWeak
-          ? "Этот пароль слишком простой. Придумайте другой пароль."
+          ? "Пароль слишком простой и легко угадывается. Используйте более сложный."
           : msg,
         variant: "destructive",
       });
@@ -141,9 +159,39 @@ export default function AccountSettings() {
           <div className="space-y-2">
             <Label htmlFor="new-pwd">Новый пароль</Label>
             <Input id="new-pwd" type="password" autoComplete="new-password" value={pwd} onChange={(e) => setPwd(e.target.value)} minLength={8} />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Пароль должен быть не короче 8 символов. Не используйте простые пароли вроде 12345678, qwerty123, password.
-            </p>
+            {pwd && (
+              <div className="space-y-1.5">
+                <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-300",
+                      STRENGTH_BAR[pwdEval.strength].width,
+                      STRENGTH_BAR[pwdEval.strength].color,
+                    )}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    className={cn(
+                      "text-xs font-medium",
+                      pwdEval.strength === "weak" && "text-destructive",
+                      pwdEval.strength === "medium" && "text-amber-600",
+                      pwdEval.strength === "strong" && "text-emerald-600",
+                    )}
+                  >
+                    {STRENGTH_LABEL[pwdEval.strength]}
+                  </span>
+                  {pwdEval.hint && (
+                    <span className="text-xs text-muted-foreground">{pwdEval.hint}</span>
+                  )}
+                </div>
+              </div>
+            )}
+            <ul className="text-xs text-muted-foreground leading-relaxed list-disc pl-4 space-y-0.5">
+              <li>минимум 8 символов</li>
+              <li>лучше добавить буквы и цифры</li>
+              <li>не используйте популярные пароли (12345678, qwerty, password)</li>
+            </ul>
           </div>
           <div className="space-y-2">
             <Label htmlFor="new-pwd-2">Повторите пароль</Label>
