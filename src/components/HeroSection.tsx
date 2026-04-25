@@ -64,12 +64,7 @@ const HeroSection = () => {
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-accent/[0.05] blur-[140px]" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] rounded-[50%] bg-primary/[0.025] blur-[100px]" />
 
-      <div className="container relative z-10 text-center py-32 md:py-40">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/60 bg-background/70 backdrop-blur-sm text-xs text-muted-foreground/90 font-medium mb-10 fade-in-up">
-          <Heart className="w-3.5 h-3.5 text-accent/80" />
-          Благотворительный фонд
-        </div>
-
+      <div className="container relative z-10 text-center py-36 md:py-44">
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-[800px] mx-auto leading-[1.05] text-foreground fade-in-up fade-in-up-delay-1">
           «Лига» Фонд Выпускников
         </h1>
