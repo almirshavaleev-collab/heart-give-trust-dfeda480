@@ -27,6 +27,7 @@ export default function AccountSettings() {
   const [isPublic, setIsPublic] = useState(false);
   const [wantsNotif, setWantsNotif] = useState(true);
   const [pwd, setPwd] = useState("");
+  const [pwd2, setPwd2] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
 
   useEffect(() => {
@@ -56,12 +57,33 @@ export default function AccountSettings() {
 
   const handlePassword = async () => {
     const r = passwordSchema.safeParse(pwd);
-    if (!r.success) { toast({ title: "Слабый пароль", description: r.error.issues[0].message, variant: "destructive" }); return; }
+    if (!r.success) {
+      toast({ title: "Слабый пароль", description: r.error.issues[0].message, variant: "destructive" });
+      return;
+    }
+    if (pwd !== pwd2) {
+      toast({ title: "Пароли не совпадают", description: "Повторите пароль точно так же.", variant: "destructive" });
+      return;
+    }
     setPwdLoading(true);
     const { error } = await supabase.auth.updateUser({ password: r.data });
     setPwdLoading(false);
-    if (error) { toast({ title: "Ошибка", description: error.message, variant: "destructive" }); return; }
+    if (error) {
+      const msg = error.message || "";
+      const isWeak =
+        /weak|easy to guess|pwned|leaked|compromised/i.test(msg) ||
+        (error as { code?: string }).code === "weak_password";
+      toast({
+        title: isWeak ? "Слабый пароль" : "Ошибка",
+        description: isWeak
+          ? "Этот пароль слишком простой. Придумайте другой пароль."
+          : msg,
+        variant: "destructive",
+      });
+      return;
+    }
     setPwd("");
+    setPwd2("");
     toast({ title: "Пароль обновлён" });
   };
 
@@ -119,8 +141,18 @@ export default function AccountSettings() {
           <div className="space-y-2">
             <Label htmlFor="new-pwd">Новый пароль</Label>
             <Input id="new-pwd" type="password" autoComplete="new-password" value={pwd} onChange={(e) => setPwd(e.target.value)} minLength={8} />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Пароль должен быть не короче 8 символов. Не используйте простые пароли вроде 12345678, qwerty123, password.
+            </p>
           </div>
-          <Button onClick={handlePassword} disabled={pwdLoading || !pwd}>
+          <div className="space-y-2">
+            <Label htmlFor="new-pwd-2">Повторите пароль</Label>
+            <Input id="new-pwd-2" type="password" autoComplete="new-password" value={pwd2} onChange={(e) => setPwd2(e.target.value)} minLength={8} />
+            {pwd2 && pwd !== pwd2 && (
+              <p className="text-xs text-destructive">Пароли не совпадают</p>
+            )}
+          </div>
+          <Button onClick={handlePassword} disabled={pwdLoading || !pwd || !pwd2}>
             {pwdLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Сменить пароль"}
           </Button>
         </CardContent>
