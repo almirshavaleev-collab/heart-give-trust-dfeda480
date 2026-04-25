@@ -41,7 +41,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [consent, setConsent] = useState(false);
+  const [consentOffer, setConsentOffer] = useState(false);
+  const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -103,6 +104,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   };
 
   const nameValid = anonymous ? true : name.trim().length > 0;
+  const consent = consentOffer && consentPrivacy;
   const canSubmit = amountValid && nameValid && consent && !loading;
 
   const handleSubmit = async () => {
@@ -126,7 +128,15 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       });
       return;
     }
-    if (!consent) {
+    if (!consentOffer) {
+      toast({
+        title: "Требуется согласие",
+        description: "Подтвердите согласие с условиями публичной оферты",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!consentPrivacy) {
       toast({
         title: "Требуется согласие",
         description: "Подтвердите согласие на обработку персональных данных",
@@ -359,45 +369,67 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         />
       </div>
 
-      <div className="flex items-start gap-3 mb-6">
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={consent}
-          aria-label="Согласие с условиями"
-          onClick={() => setConsent(!consent)}
-          className={cn(
-            "mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer",
-            consent ? "bg-primary border-primary" : "border-border"
-          )}
-        >
-          {consent && <Check className="w-3 h-3 text-primary-foreground" />}
-        </button>
-        <span
-          className="text-xs text-muted-foreground leading-[1.55] flex-1 min-w-0 cursor-pointer select-none"
-          onClick={() => setConsent(!consent)}
-        >
-          Я принимаю условия{" "}
-          <a
-            href="/offer"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
+      <div className="space-y-3 mb-6">
+        <div className="flex items-start gap-3">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={consentOffer}
+            aria-label="Согласие с публичной офертой"
+            onClick={() => setConsentOffer(!consentOffer)}
+            className={cn(
+              "mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer",
+              consentOffer ? "bg-primary border-primary" : "border-border"
+            )}
           >
-            публичной оферты
-          </a>{" "}
-          и согласен(а) на{" "}
-          <a
-            href="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
+            {consentOffer && <Check className="w-3 h-3 text-primary-foreground" />}
+          </button>
+          <span
+            className="text-xs text-muted-foreground leading-[1.55] flex-1 min-w-0 cursor-pointer select-none"
+            onClick={() => setConsentOffer(!consentOffer)}
           >
-            обработку персональных данных
-          </a>
-        </span>
+            Я принимаю условия{" "}
+            <a
+              href="/offer"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
+            >
+              публичной оферты
+            </a>
+          </span>
+        </div>
+        <div className="flex items-start gap-3">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={consentPrivacy}
+            aria-label="Согласие на обработку персональных данных"
+            onClick={() => setConsentPrivacy(!consentPrivacy)}
+            className={cn(
+              "mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer",
+              consentPrivacy ? "bg-primary border-primary" : "border-border"
+            )}
+          >
+            {consentPrivacy && <Check className="w-3 h-3 text-primary-foreground" />}
+          </button>
+          <span
+            className="text-xs text-muted-foreground leading-[1.55] flex-1 min-w-0 cursor-pointer select-none"
+            onClick={() => setConsentPrivacy(!consentPrivacy)}
+          >
+            Я согласен(а) на{" "}
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-foreground underline underline-offset-2 hover:text-primary transition-colors"
+            >
+              обработку персональных данных
+            </a>
+          </span>
+        </div>
       </div>
 
       <Button
