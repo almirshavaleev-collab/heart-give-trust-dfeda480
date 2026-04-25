@@ -33,7 +33,7 @@ const ContactsSection = () => (
       <div className="rounded-xl overflow-hidden border border-border shadow-sm">
         <iframe
           title="Карта: г. Альметьевск, ул. Ризы Фахретдина, 67"
-          src="https://yandex.ru/map-widget/v1/?ll=52.297000%2C54.901300&z=17&pt=52.297000%2C54.901300%2Cpm2rdm&l=map"
+          src="https://yandex.ru/map-widget/v1/?ll=52.318583%2C54.886325&z=17&pt=52.318583%2C54.886325%2Cpm2rdm&l=map"
           className="w-full h-[300px] md:h-[400px] block border-0"
           loading="lazy"
           allowFullScreen
