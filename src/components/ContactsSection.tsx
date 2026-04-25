@@ -30,8 +30,15 @@ const ContactsSection = () => (
         </div>
       </div>
 
-      <div className="card-light h-64 flex items-center justify-center">
-        <p className="text-muted-foreground text-sm">Карта будет добавлена позже</p>
+      <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+        <iframe
+          title="Карта: г. Альметьевск, ул. Ризы Фахретдина, 67"
+          src="https://yandex.ru/map-widget/v1/?text=%D0%B3.%20%D0%90%D0%BB%D1%8C%D0%BC%D0%B5%D1%82%D1%8C%D0%B5%D0%B2%D1%81%D0%BA%2C%20%D1%83%D0%BB.%20%D0%A0%D0%B8%D0%B7%D1%8B%20%D0%A4%D0%B0%D1%85%D1%80%D0%B5%D1%82%D0%B4%D0%B8%D0%BD%D0%B0%2C%2067&z=17"
+          className="w-full h-[300px] md:h-[400px] block border-0"
+          loading="lazy"
+          allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
+        />
       </div>
     </div>
   </section>
