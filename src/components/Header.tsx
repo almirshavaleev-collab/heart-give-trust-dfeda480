@@ -4,6 +4,7 @@ import { Menu, X, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logoH from "@/assets/logo_h.svg";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const navLinks = [
   { label: "Сообщество", href: "#community" },
@@ -17,6 +18,37 @@ const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user } = useAuth();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setDisplayName(null);
+      return;
+    }
+    const metaName =
+      (user.user_metadata?.full_name as string | undefined) ||
+      (user.user_metadata?.name as string | undefined) ||
+      null;
+    const firstFromMeta = metaName ? metaName.trim().split(/\s+/)[0] : null;
+    if (firstFromMeta) setDisplayName(firstFromMeta);
+
+    supabase
+      .from("profiles")
+      .select("full_name, display_name")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const name = (data.display_name || data.full_name || "").trim();
+        if (name) setDisplayName(name.split(/\s+/)[0]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const accountLabel = user ? (displayName || "Личный кабинет") : "Войти";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -57,7 +89,7 @@ const Header = () => {
           <Button size="sm" variant="ghost" className="ml-2" asChild>
             <Link to={user ? "/account/overview" : "/auth"}>
               <User className="w-4 h-4 mr-1.5" />
-              {user ? "Кабинет" : "Войти"}
+              {accountLabel}
             </Link>
           </Button>
           <Button size="sm" className="ml-3" asChild>
@@ -93,7 +125,7 @@ const Header = () => {
               className="px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg inline-flex items-center gap-2"
             >
               <User className="w-4 h-4" />
-              {user ? "Личный кабинет" : "Войти"}
+              {user ? (displayName || "Личный кабинет") : "Войти"}
             </Link>
             <Button size="sm" className="mt-2" asChild>
               <a href="#donate" onClick={() => setMobileOpen(false)}>Помочь</a>
