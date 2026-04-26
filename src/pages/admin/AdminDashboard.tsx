@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Wallet,
   Calendar,
@@ -37,13 +36,6 @@ type DonationRow = {
 const formatRub = (n: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n)) + " ₽";
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("ru-RU");
-
-const statusVariant = (s: string): "default" | "secondary" | "destructive" | "outline" => {
-  if (s === "succeeded") return "default";
-  if (s === "canceled" || s === "failed") return "destructive";
-  if (s === "pending") return "secondary";
-  return "outline";
-};
 
 export default function AdminDashboard() {
   const [donations, setDonations] = useState<DonationRow[]>([]);
@@ -148,8 +140,6 @@ export default function AdminDashboard() {
     };
   }, [donations]);
 
-  const recentSucceeded = useMemo(() => stats.succeeded.slice(0, 10), [stats.succeeded]);
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -190,9 +180,9 @@ export default function AdminDashboard() {
         />
         <KpiCard
           icon={<Repeat className="h-5 w-5" />}
-          label="Регулярных платежей"
-          value={stats.recurringCount.toLocaleString("ru-RU")}
-          hint={`${stats.activeSubscribers} уникальных подписчиков`}
+          label="Оформлено регулярных платежей"
+          value={stats.activeSubscribers.toLocaleString("ru-RU")}
+          hint="доноров с хотя бы одним регулярным платежом"
         />
         <KpiCard
           icon={<HeartHandshake className="h-5 w-5" />}
@@ -257,51 +247,6 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* Топ-10 успешных */}
-      <Card className="p-6">
-        <div className="mb-4">
-          <h2 className="font-semibold text-lg">Последние успешные пожертвования</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Топ-10 оплаченных платежей</p>
-        </div>
-        {recentSucceeded.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Пока нет успешных пожертвований</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="py-2 pr-4 font-medium">Дата</th>
-                  <th className="py-2 pr-4 font-medium">Сумма</th>
-                  <th className="py-2 pr-4 font-medium">Статус</th>
-                  <th className="py-2 pr-4 font-medium">Донор</th>
-                  <th className="py-2 font-medium">Оплачено</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentSucceeded.map((d) => (
-                  <tr key={d.id} className="border-b last:border-0 hover:bg-secondary/30 transition-colors">
-                    <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">{fmtDateTime(d.created_at)}</td>
-                    <td className="py-3 pr-4 font-semibold">{formatRub(d.amount)}</td>
-                    <td className="py-3 pr-4">
-                      <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
-                    </td>
-                    <td className="py-3 pr-4">
-                      {d.is_anonymous ? (
-                        <span className="text-muted-foreground italic">Аноним</span>
-                      ) : (
-                        d.donor_name || d.donor_email || "—"
-                      )}
-                    </td>
-                    <td className="py-3 whitespace-nowrap text-muted-foreground">
-                      {d.paid_at ? fmtDateTime(d.paid_at) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
     </div>
   );
 }
