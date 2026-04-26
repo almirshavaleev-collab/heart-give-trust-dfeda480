@@ -27,6 +27,8 @@ import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
 import AdminNews from "./pages/admin/AdminNews.tsx";
 import AdminReports from "./pages/admin/AdminReports.tsx";
 import AdminDonations from "./pages/admin/AdminDonations.tsx";
+import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
+import AdminDonors from "./pages/admin/AdminDonors.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { useCampaignsRealtime } from "./hooks/useCampaigns";
 
@@ -68,11 +70,13 @@ const App = () => (
           </Route>
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/campaigns" replace />} />
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="campaigns" element={<AdminCampaigns />} />
             <Route path="news" element={<AdminNews />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="donations" element={<AdminDonations />} />
+            <Route path="donors" element={<AdminDonors />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

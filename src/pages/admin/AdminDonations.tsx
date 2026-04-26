@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,15 +16,15 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Wallet,
-  Calendar,
-  CalendarDays,
-  CheckCircle2,
-  Activity,
-  Percent,
-  Trophy,
-  Clock,
-  XCircle,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import {
   ChevronDown,
   ArrowUpDown,
   Target,
@@ -32,10 +32,11 @@ import {
   Search,
   Download,
   Repeat,
+  Mail,
+  Phone,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const DonationsCharts = lazy(() => import("./DonationsCharts"));
 
 type DonationRow = {
   id: string;
@@ -45,6 +46,7 @@ type DonationRow = {
   donor_name: string | null;
   donor_email: string | null;
   donor_phone: string | null;
+  user_id: string | null;
   campaign_id: string | null;
   is_anonymous: boolean;
   payment_type: string;
@@ -85,7 +87,22 @@ const formatRub = (n: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n)) + " ₽";
 
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("ru-RU");
-const fmtDate = (s: string) => new Date(s).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+const fmtDate = (s: string) =>
+  new Date(s).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+function donorKey(d: DonationRow): string {
+  if (d.user_id) return `u:${d.user_id}`;
+  if (d.donor_email) return `e:${d.donor_email.toLowerCase()}`;
+  if (d.donor_phone) return `p:${d.donor_phone}`;
+  return `x:${d.id}`;
+}
+
+type DonorNote = {
+  id: string;
+  donor_key: string;
+  note: string;
+  created_at: string;
+};
 
 export default function AdminDonations() {
   const [allDonations, setAllDonations] = useState<DonationRow[]>([]);
@@ -108,7 +125,7 @@ export default function AdminDonations() {
       (supabase as any)
         .from("donations")
         .select(
-          "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, campaign_id, is_anonymous, payment_type, created_at, paid_at",
+          "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, user_id, campaign_id, is_anonymous, payment_type, created_at, paid_at",
         )
         .order("created_at", { ascending: false })
         .limit(1000),
@@ -157,68 +174,6 @@ export default function AdminDonations() {
     };
   }, []);
 
-  const stats = useMemo(() => {
-    const succeeded = allDonations.filter((d) => d.status === "succeeded");
-    const pending = allDonations.filter((d) => d.status === "pending");
-    const canceled = allDonations.filter((d) => d.status === "canceled" || d.status === "failed");
-
-    const total = succeeded.reduce((s, d) => s + d.amount, 0);
-
-    const now = new Date();
-    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const referenceDate = (d: DonationRow) => new Date(d.paid_at ?? d.created_at);
-
-    const monthSum = succeeded
-      .filter((d) => referenceDate(d) >= startMonth)
-      .reduce((s, d) => s + d.amount, 0);
-    const todaySum = succeeded
-      .filter((d) => referenceDate(d) >= startDay)
-      .reduce((s, d) => s + d.amount, 0);
-
-    const avg = succeeded.length ? total / succeeded.length : 0;
-    const conversion = allDonations.length ? (succeeded.length / allDonations.length) * 100 : 0;
-
-    const largest = succeeded.reduce<DonationRow | null>(
-      (best, d) => (!best || d.amount > best.amount ? d : best),
-      null,
-    );
-    const lastSucceeded = succeeded[0] ?? null; // already sorted desc by created_at
-
-    const generalSum = succeeded.filter((d) => !d.campaign_id).reduce((s, d) => s + d.amount, 0);
-    const campaignSum = succeeded.filter((d) => !!d.campaign_id).reduce((s, d) => s + d.amount, 0);
-
-    const isRecurring = (d: DonationRow) =>
-      d.payment_type === "recurring" || d.payment_type === "monthly";
-    const recurringSucceeded = succeeded.filter(isRecurring);
-    const recurringMonthlySum = recurringSucceeded.reduce((s, d) => s + d.amount, 0);
-    const subscriberKeys = new Set<string>();
-    for (const d of recurringSucceeded) {
-      const key = d.donor_email || d.donor_phone || d.id;
-      if (key) subscriberKeys.add(key.toLowerCase());
-    }
-    const activeSubscribers = subscriberKeys.size;
-
-    return {
-      total,
-      monthSum,
-      todaySum,
-      successCount: succeeded.length,
-      avg,
-      conversion,
-      pendingCount: pending.length,
-      canceledCount: canceled.length,
-      largest,
-      lastSucceeded,
-      succeeded,
-      generalSum,
-      campaignSum,
-      recurringMonthlySum,
-      activeSubscribers,
-    };
-  }, [allDonations]);
-
   const campaignTitleById = useMemo(() => {
     const m = new Map<string, string>();
     for (const c of campaigns) m.set(c.id, c.title);
@@ -262,74 +217,85 @@ export default function AdminDonations() {
     return list;
   }, [allDonations, statusFilter, typeFilter, campaignFilter, anonFilter, paymentTypeFilter, search, sortBy, sortDir, campaignTitleById]);
 
-  // Daily aggregation — last 30 days
-  const dailyData = useMemo(() => {
-    const days: { date: string; label: string; amount: number }[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      days.push({
-        date: d.toISOString().slice(0, 10),
-        label: fmtDate(d.toISOString()),
-        amount: 0,
-      });
-    }
-    const map = new Map(days.map((x) => [x.date, x]));
-    for (const don of stats.succeeded) {
-      const ref = new Date(don.paid_at ?? don.created_at);
-      const key = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate())
-        .toISOString()
-        .slice(0, 10);
-      const slot = map.get(key);
-      if (slot) slot.amount += don.amount;
-    }
-    return days;
-  }, [stats.succeeded]);
+  // ---- Карточка донора (Sheet) ----
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [donorNotes, setDonorNotes] = useState<DonorNote[]>([]);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const { toast } = useToast();
 
-  // Monthly aggregation — last 12 months
-  const monthlyData = useMemo(() => {
-    const months: { key: string; label: string; amount: number }[] = [];
-    const now = new Date();
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: d.toLocaleDateString("ru-RU", { month: "short", year: "2-digit" }),
-        amount: 0,
-      });
-    }
-    const map = new Map(months.map((x) => [x.key, x]));
-    for (const don of stats.succeeded) {
-      const ref = new Date(don.paid_at ?? don.created_at);
-      const key = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`;
-      const slot = map.get(key);
-      if (slot) slot.amount += don.amount;
-    }
-    return months;
-  }, [stats.succeeded]);
+  const openDonor = useMemo(() => {
+    if (!openKey) return null;
+    const rows = allDonations.filter((d) => donorKey(d) === openKey);
+    if (rows.length === 0) return null;
+    const first = rows[0];
+    const total = rows
+      .filter((r) => r.status === "succeeded")
+      .reduce((s, r) => s + r.amount, 0);
+    return {
+      key: openKey,
+      user_id: first.user_id,
+      name: first.is_anonymous ? "Аноним" : (first.donor_name || rows.find((r) => r.donor_name)?.donor_name || "—"),
+      email: first.donor_email || rows.find((r) => r.donor_email)?.donor_email || null,
+      phone: first.donor_phone || rows.find((r) => r.donor_phone)?.donor_phone || null,
+      total,
+      donations: rows,
+    };
+  }, [openKey, allDonations]);
 
-  // Status breakdown
-  const statusData = useMemo(() => {
-    const buckets: Record<string, number> = { succeeded: 0, pending: 0, canceled: 0, failed: 0 };
-    for (const d of allDonations) {
-      if (buckets[d.status] !== undefined) buckets[d.status] += 1;
-      else buckets[d.status] = 1;
-    }
-    return Object.entries(buckets).map(([status, count]) => ({ status, count }));
-  }, [allDonations]);
+  const loadNotes = async (key: string) => {
+    const { data, error } = await (supabase as any)
+      .from("donor_notes")
+      .select("id, donor_key, note, created_at")
+      .eq("donor_key", key)
+      .order("created_at", { ascending: false });
+    if (error) console.error(error);
+    setDonorNotes(data ?? []);
+  };
 
-  const recentSucceeded = useMemo(
-    () => stats.succeeded.slice(0, 10),
-    [stats.succeeded],
-  );
+  const handleOpenRow = async (d: DonationRow) => {
+    const key = donorKey(d);
+    setOpenKey(key);
+    setNoteDraft("");
+    setDonorNotes([]);
+    await loadNotes(key);
+  };
+
+  const handleSaveNote = async () => {
+    if (!openDonor || !noteDraft.trim()) return;
+    setSavingNote(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("donor_notes").insert({
+      donor_key: openDonor.key,
+      donor_user_id: openDonor.user_id,
+      donor_email: openDonor.email,
+      donor_phone: openDonor.phone,
+      note: noteDraft.trim(),
+      created_by: userData.user?.id ?? null,
+    });
+    setSavingNote(false);
+    if (error) {
+      toast({ title: "Не удалось сохранить заметку", description: error.message, variant: "destructive" });
+      return;
+    }
+    setNoteDraft("");
+    await loadNotes(openDonor.key);
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    const { error } = await (supabase as any).from("donor_notes").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Ошибка удаления", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (openDonor) await loadNotes(openDonor.key);
+  };
 
   if (loading) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Дашборд пожертвований</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Донаты</h1>
           <p className="text-sm text-muted-foreground mt-1">Загрузка данных...</p>
         </div>
       </div>
@@ -339,165 +305,14 @@ export default function AdminDonations() {
   return (
     <div className="space-y-8 max-w-7xl">
       <div>
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Дашборд пожертвований</h1>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Донаты</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Сводка по сборам, динамика поступлений и активность за период
+          Операционный список платежей. Аналитика — на странице «Дашборд».
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <KpiCard
-          icon={<Wallet className="h-5 w-5" />}
-          label="Собрано всего"
-          value={formatRub(stats.total)}
-          accent
-        />
-        <KpiCard
-          icon={<Calendar className="h-5 w-5" />}
-          label="Собрано за месяц"
-          value={formatRub(stats.monthSum)}
-        />
-        <KpiCard
-          icon={<CalendarDays className="h-5 w-5" />}
-          label="Собрано сегодня"
-          value={formatRub(stats.todaySum)}
-        />
-        <KpiCard
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          label="Успешных пожертвований"
-          value={stats.successCount.toLocaleString("ru-RU")}
-        />
-        <KpiCard
-          icon={<Activity className="h-5 w-5" />}
-          label="Средний размер"
-          value={formatRub(stats.avg)}
-        />
-        <KpiCard
-          icon={<Percent className="h-5 w-5" />}
-          label="Конверсия оплат"
-          value={`${stats.conversion.toFixed(1)}%`}
-          hint={`${stats.successCount} из ${allDonations.length}`}
-        />
-        <KpiCard
-          icon={<HeartHandshake className="h-5 w-5" />}
-          label="Общие донаты"
-          value={formatRub(stats.generalSum)}
-          hint="без привязки к сбору"
-        />
-        <KpiCard
-          icon={<Target className="h-5 w-5" />}
-          label="Донаты в сборы"
-          value={formatRub(stats.campaignSum)}
-          hint="целевые пожертвования"
-        />
-      </div>
-
-      {/* Charts (lazy + error boundary so any failure doesn't blank the page) */}
-      <Suspense
-        fallback={
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground">Загрузка графиков...</p>
-          </Card>
-        }
-      >
-        <DonationsCharts donations={allDonations} />
-      </Suspense>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard
-          icon={<Trophy className="h-5 w-5 text-primary" />}
-          label="Крупнейшее пожертвование"
-          value={stats.largest ? formatRub(stats.largest.amount) : "—"}
-          sub={stats.largest ? (stats.largest.donor_name || stats.largest.donor_email || "Аноним") : undefined}
-        />
-        <SummaryCard
-          icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
-          label="Последнее успешное"
-          value={stats.lastSucceeded ? formatRub(stats.lastSucceeded.amount) : "—"}
-          sub={stats.lastSucceeded ? fmtDateTime(stats.lastSucceeded.paid_at ?? stats.lastSucceeded.created_at) : undefined}
-        />
-        <SummaryCard
-          icon={<Clock className="h-5 w-5 text-muted-foreground" />}
-          label="В ожидании оплаты"
-          value={stats.pendingCount.toLocaleString("ru-RU")}
-          sub="платежей в статусе pending"
-        />
-        <SummaryCard
-          icon={<XCircle className="h-5 w-5 text-destructive" />}
-          label="Отменено / не прошло"
-          value={stats.canceledCount.toLocaleString("ru-RU")}
-          sub="canceled + failed"
-        />
-      </div>
-
-      {/* Recent successful donations */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="font-semibold text-lg">Последние успешные пожертвования</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Топ-10 оплаченных платежей</p>
-          </div>
-        </div>
-        {recentSucceeded.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Пока нет успешных пожертвований</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="py-2 pr-4 font-medium">Дата</th>
-                  <th className="py-2 pr-4 font-medium">Сумма</th>
-                  <th className="py-2 pr-4 font-medium">Статус</th>
-                  <th className="py-2 pr-4 font-medium">Донор</th>
-                  <th className="py-2 font-medium">Оплачено</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentSucceeded.map((d) => (
-                  <tr key={d.id} className="border-b last:border-0 hover:bg-secondary/30 transition-colors">
-                    <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">{fmtDateTime(d.created_at)}</td>
-                    <td className="py-3 pr-4 font-semibold">{formatRub(d.amount)}</td>
-                    <td className="py-3 pr-4">
-                      <Badge variant={statusVariant(d.status)}>{d.status}</Badge>
-                    </td>
-                    <td className="py-3 pr-4">{d.donor_name || d.donor_email || "—"}</td>
-                    <td className="py-3 whitespace-nowrap text-muted-foreground">
-                      {d.paid_at ? fmtDateTime(d.paid_at) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
       {/* All donations — full table with filters */}
       <Card className="p-6">
-        {/* Subscription metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-          <SummaryCard
-            icon={<Wallet className="h-5 w-5 text-primary" />}
-            label="Всего собрано"
-            value={formatRub(stats.total)}
-            sub="успешные пожертвования"
-          />
-          <SummaryCard
-            icon={<Repeat className="h-5 w-5 text-primary" />}
-            label="Подписки в месяц"
-            value={formatRub(stats.recurringMonthlySum)}
-            sub="сумма ежемесячных платежей"
-          />
-          <SummaryCard
-            icon={<HeartHandshake className="h-5 w-5 text-primary" />}
-            label="Активные подписчики"
-            value={stats.activeSubscribers.toLocaleString("ru-RU")}
-            sub="уникальные доноры с подпиской"
-          />
-        </div>
-
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
           <div className="flex flex-col gap-1">
             <h2 className="font-semibold text-lg">Все пожертвования</h2>
@@ -619,7 +434,8 @@ export default function AdminDonations() {
                   return (
                     <tr
                       key={d.id}
-                      className={`border-b last:border-0 transition-colors align-top ${
+                      onClick={() => handleOpenRow(d)}
+                      className={`border-b last:border-0 transition-colors align-top cursor-pointer ${
                         isRecurring ? "bg-primary/[0.04] hover:bg-primary/[0.08]" : "hover:bg-secondary/30"
                       }`}
                     >
@@ -766,63 +582,115 @@ LIMIT 20;`}</code>
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* Карточка донора */}
+      <Sheet open={!!openDonor} onOpenChange={(o) => !o && setOpenKey(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+          {openDonor && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{openDonor.name}</SheetTitle>
+                <SheetDescription>
+                  {openDonor.donations.length} платеж(ей) · сумма успешных {formatRub(openDonor.total)}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-2 text-sm">
+                {openDonor.email && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-4 w-4" /> {openDonor.email}
+                  </div>
+                )}
+                {openDonor.phone && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-4 w-4" /> {openDonor.phone}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-semibold text-sm mb-2">Заметки</h3>
+                <Textarea
+                  placeholder="Добавить заметку о доноре..."
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  rows={3}
+                />
+                <div className="flex justify-end mt-2">
+                  <Button size="sm" onClick={handleSaveNote} disabled={!noteDraft.trim() || savingNote}>
+                    {savingNote ? "Сохранение..." : "Сохранить заметку"}
+                  </Button>
+                </div>
+
+                {donorNotes.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {donorNotes.map((n) => (
+                      <div key={n.id} className="rounded-md border p-3 text-sm bg-secondary/30">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="whitespace-pre-wrap">{n.note}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteNote(n.id)}
+                            aria-label="Удалить заметку"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {fmtDateTime(n.created_at)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-semibold text-sm mb-2">Все платежи</h3>
+                <div className="space-y-2">
+                  {openDonor.donations.map((d) => {
+                    const isRecurring = d.payment_type === "recurring" || d.payment_type === "monthly";
+                    const campaignTitle = d.campaign_id ? campaignTitleById.get(d.campaign_id) : null;
+                    return (
+                      <div
+                        key={d.id}
+                        className={`rounded-md border p-3 text-sm flex items-center justify-between gap-3 ${
+                          isRecurring ? "bg-primary/[0.04]" : ""
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{formatRub(d.amount)}</span>
+                            <Badge variant={statusVariant(d.status)} className="text-[10px]">
+                              {d.status}
+                            </Badge>
+                            {isRecurring ? (
+                              <Badge variant="outline" className="text-[10px] border-primary/40 bg-primary/10 text-primary gap-1">
+                                <Repeat className="h-3 w-3" /> Подписка
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px]">Разовый</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {campaignTitle ? campaignTitle : "Общий донат"}
+                          </p>
+                        </div>
+                        <div className="text-xs text-muted-foreground whitespace-nowrap">
+                          {fmtDate(d.paid_at ?? d.created_at)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
-  );
-}
-
-function KpiCard({
-  icon,
-  label,
-  value,
-  hint,
-  accent,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-  accent?: boolean;
-}) {
-  return (
-    <Card className={`p-6 ${accent ? "bg-primary text-primary-foreground border-primary" : ""}`}>
-      <div className="flex items-center justify-between">
-        <span className={`text-xs uppercase tracking-wide font-medium ${accent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-          {label}
-        </span>
-        <span className={accent ? "text-primary-foreground/80" : "text-muted-foreground"}>{icon}</span>
-      </div>
-      <div className="mt-3 text-3xl font-bold tracking-tight">{value}</div>
-      {hint && (
-        <div className={`mt-1 text-xs ${accent ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-          {hint}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function SummaryCard({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <Card className="p-5">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5">{icon}</div>
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</div>
-          <div className="mt-1 text-xl font-bold truncate">{value}</div>
-          {sub && <div className="mt-0.5 text-xs text-muted-foreground truncate">{sub}</div>}
-        </div>
-      </div>
-    </Card>
   );
 }
 

@@ -1,14 +1,16 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Target, Newspaper, FileText, Heart, LogOut } from 'lucide-react';
+import { LayoutDashboard, Target, Newspaper, FileText, Heart, Users, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
+  { to: '/admin/dashboard', label: 'Дашборд', icon: LayoutDashboard },
   { to: '/admin/campaigns', label: 'Сборы', icon: Target },
   { to: '/admin/news', label: 'Новости', icon: Newspaper },
   { to: '/admin/reports', label: 'Отчёты', icon: FileText },
   { to: '/admin/donations', label: 'Донаты', icon: Heart },
+  { to: '/admin/donors', label: 'Доноры', icon: Users },
 ];
 
 export default function AdminLayout() {
