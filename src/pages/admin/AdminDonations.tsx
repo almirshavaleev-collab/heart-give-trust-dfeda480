@@ -472,6 +472,28 @@ export default function AdminDonations() {
 
       {/* All donations — full table with filters */}
       <Card className="p-6">
+        {/* Subscription metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <SummaryCard
+            icon={<Wallet className="h-5 w-5 text-primary" />}
+            label="Всего собрано"
+            value={formatRub(stats.total)}
+            sub="успешные пожертвования"
+          />
+          <SummaryCard
+            icon={<Repeat className="h-5 w-5 text-primary" />}
+            label="Подписки в месяц"
+            value={formatRub(stats.recurringMonthlySum)}
+            sub="сумма ежемесячных платежей"
+          />
+          <SummaryCard
+            icon={<HeartHandshake className="h-5 w-5 text-primary" />}
+            label="Активные подписчики"
+            value={stats.activeSubscribers.toLocaleString("ru-RU")}
+            sub="уникальные доноры с подпиской"
+          />
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
           <div className="flex flex-col gap-1">
             <h2 className="font-semibold text-lg">Все пожертвования</h2>
