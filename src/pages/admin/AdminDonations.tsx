@@ -563,8 +563,8 @@ export default function AdminDonations() {
             <SelectTrigger><SelectValue placeholder="Тип платежа" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все платежи</SelectItem>
-              <SelectItem value="one_time">Разовый</SelectItem>
-              <SelectItem value="recurring">Ежемесячный</SelectItem>
+              <SelectItem value="one_time">Разовые</SelectItem>
+              <SelectItem value="recurring">Подписки</SelectItem>
             </SelectContent>
           </Select>
         </div>
