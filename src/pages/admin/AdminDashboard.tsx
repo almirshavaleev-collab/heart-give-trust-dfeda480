@@ -140,8 +140,6 @@ export default function AdminDashboard() {
     };
   }, [donations]);
 
-  const recentSucceeded = useMemo(() => stats.succeeded.slice(0, 10), [stats.succeeded]);
-
   if (loading) {
     return (
       <div className="space-y-6">
