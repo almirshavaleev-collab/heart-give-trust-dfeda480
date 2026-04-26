@@ -582,63 +582,115 @@ LIMIT 20;`}</code>
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* Карточка донора */}
+      <Sheet open={!!openDonor} onOpenChange={(o) => !o && setOpenKey(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+          {openDonor && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{openDonor.name}</SheetTitle>
+                <SheetDescription>
+                  {openDonor.donations.length} платеж(ей) · сумма успешных {formatRub(openDonor.total)}
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-2 text-sm">
+                {openDonor.email && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-4 w-4" /> {openDonor.email}
+                  </div>
+                )}
+                {openDonor.phone && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-4 w-4" /> {openDonor.phone}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-semibold text-sm mb-2">Заметки</h3>
+                <Textarea
+                  placeholder="Добавить заметку о доноре..."
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  rows={3}
+                />
+                <div className="flex justify-end mt-2">
+                  <Button size="sm" onClick={handleSaveNote} disabled={!noteDraft.trim() || savingNote}>
+                    {savingNote ? "Сохранение..." : "Сохранить заметку"}
+                  </Button>
+                </div>
+
+                {donorNotes.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {donorNotes.map((n) => (
+                      <div key={n.id} className="rounded-md border p-3 text-sm bg-secondary/30">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="whitespace-pre-wrap">{n.note}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteNote(n.id)}
+                            aria-label="Удалить заметку"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {fmtDateTime(n.created_at)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-semibold text-sm mb-2">Все платежи</h3>
+                <div className="space-y-2">
+                  {openDonor.donations.map((d) => {
+                    const isRecurring = d.payment_type === "recurring" || d.payment_type === "monthly";
+                    const campaignTitle = d.campaign_id ? campaignTitleById.get(d.campaign_id) : null;
+                    return (
+                      <div
+                        key={d.id}
+                        className={`rounded-md border p-3 text-sm flex items-center justify-between gap-3 ${
+                          isRecurring ? "bg-primary/[0.04]" : ""
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{formatRub(d.amount)}</span>
+                            <Badge variant={statusVariant(d.status)} className="text-[10px]">
+                              {d.status}
+                            </Badge>
+                            {isRecurring ? (
+                              <Badge variant="outline" className="text-[10px] border-primary/40 bg-primary/10 text-primary gap-1">
+                                <Repeat className="h-3 w-3" /> Подписка
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px]">Разовый</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            {campaignTitle ? campaignTitle : "Общий донат"}
+                          </p>
+                        </div>
+                        <div className="text-xs text-muted-foreground whitespace-nowrap">
+                          {fmtDate(d.paid_at ?? d.created_at)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
-  );
-}
-
-function KpiCard({
-  icon,
-  label,
-  value,
-  hint,
-  accent,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-  accent?: boolean;
-}) {
-  return (
-    <Card className={`p-6 ${accent ? "bg-primary text-primary-foreground border-primary" : ""}`}>
-      <div className="flex items-center justify-between">
-        <span className={`text-xs uppercase tracking-wide font-medium ${accent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-          {label}
-        </span>
-        <span className={accent ? "text-primary-foreground/80" : "text-muted-foreground"}>{icon}</span>
-      </div>
-      <div className="mt-3 text-3xl font-bold tracking-tight">{value}</div>
-      {hint && (
-        <div className={`mt-1 text-xs ${accent ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-          {hint}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function SummaryCard({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <Card className="p-5">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5">{icon}</div>
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</div>
-          <div className="mt-1 text-xl font-bold truncate">{value}</div>
-          {sub && <div className="mt-0.5 text-xs text-muted-foreground truncate">{sub}</div>}
-        </div>
-      </div>
-    </Card>
   );
 }
 
