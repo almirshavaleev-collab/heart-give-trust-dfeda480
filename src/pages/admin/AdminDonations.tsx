@@ -233,7 +233,11 @@ export default function AdminDonations() {
       if (campaignFilter !== "all" && d.campaign_id !== campaignFilter) return false;
       if (anonFilter === "anon" && !d.is_anonymous) return false;
       if (anonFilter === "named" && d.is_anonymous) return false;
-      if (paymentTypeFilter !== "all" && d.payment_type !== paymentTypeFilter) return false;
+      if (paymentTypeFilter === "recurring") {
+        if (d.payment_type !== "recurring" && d.payment_type !== "monthly") return false;
+      } else if (paymentTypeFilter !== "all" && d.payment_type !== paymentTypeFilter) {
+        return false;
+      }
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const hay = [
