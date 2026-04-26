@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,15 +16,15 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Wallet,
-  Calendar,
-  CalendarDays,
-  CheckCircle2,
-  Activity,
-  Percent,
-  Trophy,
-  Clock,
-  XCircle,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import {
   ChevronDown,
   ArrowUpDown,
   Target,
@@ -32,10 +32,11 @@ import {
   Search,
   Download,
   Repeat,
+  Mail,
+  Phone,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const DonationsCharts = lazy(() => import("./DonationsCharts"));
 
 type DonationRow = {
   id: string;
@@ -45,6 +46,7 @@ type DonationRow = {
   donor_name: string | null;
   donor_email: string | null;
   donor_phone: string | null;
+  user_id: string | null;
   campaign_id: string | null;
   is_anonymous: boolean;
   payment_type: string;
@@ -85,7 +87,22 @@ const formatRub = (n: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n)) + " ₽";
 
 const fmtDateTime = (s: string) => new Date(s).toLocaleString("ru-RU");
-const fmtDate = (s: string) => new Date(s).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+const fmtDate = (s: string) =>
+  new Date(s).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+function donorKey(d: DonationRow): string {
+  if (d.user_id) return `u:${d.user_id}`;
+  if (d.donor_email) return `e:${d.donor_email.toLowerCase()}`;
+  if (d.donor_phone) return `p:${d.donor_phone}`;
+  return `x:${d.id}`;
+}
+
+type DonorNote = {
+  id: string;
+  donor_key: string;
+  note: string;
+  created_at: string;
+};
 
 export default function AdminDonations() {
   const [allDonations, setAllDonations] = useState<DonationRow[]>([]);
@@ -108,7 +125,7 @@ export default function AdminDonations() {
       (supabase as any)
         .from("donations")
         .select(
-          "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, campaign_id, is_anonymous, payment_type, created_at, paid_at",
+          "id, amount, status, yookassa_payment_id, donor_name, donor_email, donor_phone, user_id, campaign_id, is_anonymous, payment_type, created_at, paid_at",
         )
         .order("created_at", { ascending: false })
         .limit(1000),
@@ -156,68 +173,6 @@ export default function AdminDonations() {
       supabase.removeChannel(channel);
     };
   }, []);
-
-  const stats = useMemo(() => {
-    const succeeded = allDonations.filter((d) => d.status === "succeeded");
-    const pending = allDonations.filter((d) => d.status === "pending");
-    const canceled = allDonations.filter((d) => d.status === "canceled" || d.status === "failed");
-
-    const total = succeeded.reduce((s, d) => s + d.amount, 0);
-
-    const now = new Date();
-    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const referenceDate = (d: DonationRow) => new Date(d.paid_at ?? d.created_at);
-
-    const monthSum = succeeded
-      .filter((d) => referenceDate(d) >= startMonth)
-      .reduce((s, d) => s + d.amount, 0);
-    const todaySum = succeeded
-      .filter((d) => referenceDate(d) >= startDay)
-      .reduce((s, d) => s + d.amount, 0);
-
-    const avg = succeeded.length ? total / succeeded.length : 0;
-    const conversion = allDonations.length ? (succeeded.length / allDonations.length) * 100 : 0;
-
-    const largest = succeeded.reduce<DonationRow | null>(
-      (best, d) => (!best || d.amount > best.amount ? d : best),
-      null,
-    );
-    const lastSucceeded = succeeded[0] ?? null; // already sorted desc by created_at
-
-    const generalSum = succeeded.filter((d) => !d.campaign_id).reduce((s, d) => s + d.amount, 0);
-    const campaignSum = succeeded.filter((d) => !!d.campaign_id).reduce((s, d) => s + d.amount, 0);
-
-    const isRecurring = (d: DonationRow) =>
-      d.payment_type === "recurring" || d.payment_type === "monthly";
-    const recurringSucceeded = succeeded.filter(isRecurring);
-    const recurringMonthlySum = recurringSucceeded.reduce((s, d) => s + d.amount, 0);
-    const subscriberKeys = new Set<string>();
-    for (const d of recurringSucceeded) {
-      const key = d.donor_email || d.donor_phone || d.id;
-      if (key) subscriberKeys.add(key.toLowerCase());
-    }
-    const activeSubscribers = subscriberKeys.size;
-
-    return {
-      total,
-      monthSum,
-      todaySum,
-      successCount: succeeded.length,
-      avg,
-      conversion,
-      pendingCount: pending.length,
-      canceledCount: canceled.length,
-      largest,
-      lastSucceeded,
-      succeeded,
-      generalSum,
-      campaignSum,
-      recurringMonthlySum,
-      activeSubscribers,
-    };
-  }, [allDonations]);
 
   const campaignTitleById = useMemo(() => {
     const m = new Map<string, string>();
