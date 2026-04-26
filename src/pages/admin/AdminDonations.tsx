@@ -611,8 +611,14 @@ export default function AdminDonations() {
               <tbody>
                 {filteredDonations.slice(0, 200).map((d) => {
                   const campaignTitle = d.campaign_id ? campaignTitleById.get(d.campaign_id) : null;
+                  const isRecurring = d.payment_type === "recurring" || d.payment_type === "monthly";
                   return (
-                    <tr key={d.id} className="border-b last:border-0 hover:bg-secondary/30 transition-colors align-top">
+                    <tr
+                      key={d.id}
+                      className={`border-b last:border-0 transition-colors align-top ${
+                        isRecurring ? "bg-primary/[0.04] hover:bg-primary/[0.08]" : "hover:bg-secondary/30"
+                      }`}
+                    >
                       <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
                         {fmtDateTime(d.created_at)}
                       </td>
@@ -657,9 +663,18 @@ export default function AdminDonations() {
                         )}
                       </td>
                       <td className="py-3">
-                        <Badge variant="outline" className="text-xs">
-                          {d.payment_type === "recurring" ? "Ежемесячный" : "Разовый"}
-                        </Badge>
+                        {isRecurring ? (
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-primary/40 bg-primary/10 text-primary"
+                          >
+                            <Repeat className="h-3 w-3 mr-1" /> Подписка
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Разовый
+                          </Badge>
+                        )}
                       </td>
                     </tr>
                   );
