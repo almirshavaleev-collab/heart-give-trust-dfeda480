@@ -434,7 +434,8 @@ export default function AdminDonations() {
                   return (
                     <tr
                       key={d.id}
-                      className={`border-b last:border-0 transition-colors align-top ${
+                      onClick={() => handleOpenRow(d)}
+                      className={`border-b last:border-0 transition-colors align-top cursor-pointer ${
                         isRecurring ? "bg-primary/[0.04] hover:bg-primary/[0.08]" : "hover:bg-secondary/30"
                       }`}
                     >
