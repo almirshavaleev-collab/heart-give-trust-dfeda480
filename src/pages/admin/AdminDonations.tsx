@@ -31,6 +31,7 @@ import {
   HeartHandshake,
   Search,
   Download,
+  Repeat,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -188,6 +189,17 @@ export default function AdminDonations() {
     const generalSum = succeeded.filter((d) => !d.campaign_id).reduce((s, d) => s + d.amount, 0);
     const campaignSum = succeeded.filter((d) => !!d.campaign_id).reduce((s, d) => s + d.amount, 0);
 
+    const isRecurring = (d: DonationRow) =>
+      d.payment_type === "recurring" || d.payment_type === "monthly";
+    const recurringSucceeded = succeeded.filter(isRecurring);
+    const recurringMonthlySum = recurringSucceeded.reduce((s, d) => s + d.amount, 0);
+    const subscriberKeys = new Set<string>();
+    for (const d of recurringSucceeded) {
+      const key = d.donor_email || d.donor_phone || d.id;
+      if (key) subscriberKeys.add(key.toLowerCase());
+    }
+    const activeSubscribers = subscriberKeys.size;
+
     return {
       total,
       monthSum,
@@ -202,6 +214,8 @@ export default function AdminDonations() {
       succeeded,
       generalSum,
       campaignSum,
+      recurringMonthlySum,
+      activeSubscribers,
     };
   }, [allDonations]);
 
@@ -219,7 +233,11 @@ export default function AdminDonations() {
       if (campaignFilter !== "all" && d.campaign_id !== campaignFilter) return false;
       if (anonFilter === "anon" && !d.is_anonymous) return false;
       if (anonFilter === "named" && d.is_anonymous) return false;
-      if (paymentTypeFilter !== "all" && d.payment_type !== paymentTypeFilter) return false;
+      if (paymentTypeFilter === "recurring") {
+        if (d.payment_type !== "recurring" && d.payment_type !== "monthly") return false;
+      } else if (paymentTypeFilter !== "all" && d.payment_type !== paymentTypeFilter) {
+        return false;
+      }
       if (search.trim()) {
         const q = search.trim().toLowerCase();
         const hay = [
@@ -458,6 +476,28 @@ export default function AdminDonations() {
 
       {/* All donations — full table with filters */}
       <Card className="p-6">
+        {/* Subscription metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <SummaryCard
+            icon={<Wallet className="h-5 w-5 text-primary" />}
+            label="Всего собрано"
+            value={formatRub(stats.total)}
+            sub="успешные пожертвования"
+          />
+          <SummaryCard
+            icon={<Repeat className="h-5 w-5 text-primary" />}
+            label="Подписки в месяц"
+            value={formatRub(stats.recurringMonthlySum)}
+            sub="сумма ежемесячных платежей"
+          />
+          <SummaryCard
+            icon={<HeartHandshake className="h-5 w-5 text-primary" />}
+            label="Активные подписчики"
+            value={stats.activeSubscribers.toLocaleString("ru-RU")}
+            sub="уникальные доноры с подпиской"
+          />
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
           <div className="flex flex-col gap-1">
             <h2 className="font-semibold text-lg">Все пожертвования</h2>
@@ -527,8 +567,8 @@ export default function AdminDonations() {
             <SelectTrigger><SelectValue placeholder="Тип платежа" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все платежи</SelectItem>
-              <SelectItem value="one_time">Разовый</SelectItem>
-              <SelectItem value="recurring">Ежемесячный</SelectItem>
+              <SelectItem value="one_time">Разовые</SelectItem>
+              <SelectItem value="recurring">Подписки</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -575,8 +615,14 @@ export default function AdminDonations() {
               <tbody>
                 {filteredDonations.slice(0, 200).map((d) => {
                   const campaignTitle = d.campaign_id ? campaignTitleById.get(d.campaign_id) : null;
+                  const isRecurring = d.payment_type === "recurring" || d.payment_type === "monthly";
                   return (
-                    <tr key={d.id} className="border-b last:border-0 hover:bg-secondary/30 transition-colors align-top">
+                    <tr
+                      key={d.id}
+                      className={`border-b last:border-0 transition-colors align-top ${
+                        isRecurring ? "bg-primary/[0.04] hover:bg-primary/[0.08]" : "hover:bg-secondary/30"
+                      }`}
+                    >
                       <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">
                         {fmtDateTime(d.created_at)}
                       </td>
@@ -621,9 +667,18 @@ export default function AdminDonations() {
                         )}
                       </td>
                       <td className="py-3">
-                        <Badge variant="outline" className="text-xs">
-                          {d.payment_type === "recurring" ? "Ежемесячный" : "Разовый"}
-                        </Badge>
+                        {isRecurring ? (
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-primary/40 bg-primary/10 text-primary"
+                          >
+                            <Repeat className="h-3 w-3 mr-1" /> Подписка
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Разовый
+                          </Badge>
+                        )}
                       </td>
                     </tr>
                   );
