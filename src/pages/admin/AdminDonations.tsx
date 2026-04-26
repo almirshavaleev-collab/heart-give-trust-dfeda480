@@ -189,6 +189,17 @@ export default function AdminDonations() {
     const generalSum = succeeded.filter((d) => !d.campaign_id).reduce((s, d) => s + d.amount, 0);
     const campaignSum = succeeded.filter((d) => !!d.campaign_id).reduce((s, d) => s + d.amount, 0);
 
+    const isRecurring = (d: DonationRow) =>
+      d.payment_type === "recurring" || d.payment_type === "monthly";
+    const recurringSucceeded = succeeded.filter(isRecurring);
+    const recurringMonthlySum = recurringSucceeded.reduce((s, d) => s + d.amount, 0);
+    const subscriberKeys = new Set<string>();
+    for (const d of recurringSucceeded) {
+      const key = d.donor_email || d.donor_phone || d.id;
+      if (key) subscriberKeys.add(key.toLowerCase());
+    }
+    const activeSubscribers = subscriberKeys.size;
+
     return {
       total,
       monthSum,
@@ -203,6 +214,8 @@ export default function AdminDonations() {
       succeeded,
       generalSum,
       campaignSum,
+      recurringMonthlySum,
+      activeSubscribers,
     };
   }, [allDonations]);
 
