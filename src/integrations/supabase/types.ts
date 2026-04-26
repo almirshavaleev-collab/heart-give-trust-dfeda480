@@ -194,6 +194,42 @@ export type Database = {
         }
         Relationships: []
       }
+      donor_notes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          donor_email: string | null
+          donor_key: string
+          donor_phone: string | null
+          donor_user_id: string | null
+          id: string
+          note: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          donor_email?: string | null
+          donor_key: string
+          donor_phone?: string | null
+          donor_user_id?: string | null
+          id?: string
+          note: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          donor_email?: string | null
+          donor_key?: string
+          donor_phone?: string | null
+          donor_user_id?: string | null
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       donor_subscriptions: {
         Row: {
           amount: number
