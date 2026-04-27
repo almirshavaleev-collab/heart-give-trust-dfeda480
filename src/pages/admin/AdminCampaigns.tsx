@@ -162,6 +162,7 @@ export default function AdminCampaigns() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries();
       toast.success('Сбор удалён');
     },
     onError: (err: Error) => {
@@ -174,11 +175,13 @@ export default function AdminCampaigns() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from('campaigns').update({ status }).eq('id', id);
+      const { data, error } = await supabase.from('campaigns').update({ status }).eq('id', id).select('*').single();
       if (error) throw error;
+      return data as Campaign;
     },
-    onSuccess: () => {
+    onSuccess: (campaign) => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries(campaign);
       toast.success('Статус обновлён');
     },
     onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
