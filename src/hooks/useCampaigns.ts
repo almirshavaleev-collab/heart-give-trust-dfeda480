@@ -28,6 +28,7 @@ export function usePublishedCampaigns(limit?: number) {
         .from("campaigns")
         .select("*")
         .in("status", ["active", "completed"])
+        .eq("visible", true)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false });
 
@@ -48,6 +49,7 @@ export function useActiveCampaigns(limit?: number) {
         .from("campaigns")
         .select("*")
         .eq("status", "active")
+        .eq("visible", true)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false });
       if (limit) q = q.limit(limit);
@@ -66,6 +68,7 @@ export function useCompletedCampaigns(limit?: number) {
         .from("campaigns")
         .select("*")
         .eq("status", "completed")
+        .eq("visible", true)
         .order("completed_at", { ascending: false, nullsFirst: false });
       if (limit) q = q.limit(limit);
       const { data, error } = await q;
@@ -85,6 +88,7 @@ export function useCampaignBySlug(slug: string) {
         .select("*")
         .eq("slug", slug)
         .in("status", ["active", "completed"])
+        .eq("visible", true)
         .maybeSingle();
       if (error) throw error;
       return data as PublicCampaign | null;
@@ -101,6 +105,7 @@ export function useOtherCampaigns(currentSlug: string, limit = 3) {
         .from("campaigns")
         .select("*")
         .in("status", ["active", "completed"])
+        .eq("visible", true)
         .neq("slug", currentSlug)
         .order("sort_order", { ascending: true })
         .limit(limit);
