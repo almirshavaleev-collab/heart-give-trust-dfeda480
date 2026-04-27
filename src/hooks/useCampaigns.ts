@@ -14,11 +14,21 @@ export interface PublicCampaign {
   beneficiary: string | null;
   purpose: string | null;
   status: string;
+  visible: boolean;
   sort_order: number;
   created_at: string;
   completed_at?: string | null;
   crop_settings?: unknown;
 }
+
+const logPublicCampaigns = (source: string, campaigns: PublicCampaign[] | PublicCampaign | null) => {
+  const rows = Array.isArray(campaigns) ? campaigns : campaigns ? [campaigns] : [];
+  console.log(`[public-campaigns:${source}]`, rows.map(({ title, visible, status }) => ({
+    title,
+    visible,
+    status,
+  })));
+};
 
 export function usePublishedCampaigns(limit?: number) {
   return useQuery<PublicCampaign[]>({
@@ -36,6 +46,7 @@ export function usePublishedCampaigns(limit?: number) {
 
       const { data, error } = await q;
       if (error) throw error;
+      logPublicCampaigns("published", data as PublicCampaign[]);
       return data as PublicCampaign[];
     },
   });
@@ -55,6 +66,7 @@ export function useActiveCampaigns(limit?: number) {
       if (limit) q = q.limit(limit);
       const { data, error } = await q;
       if (error) throw error;
+      logPublicCampaigns("active", data as PublicCampaign[]);
       return data as PublicCampaign[];
     },
   });
@@ -73,6 +85,7 @@ export function useCompletedCampaigns(limit?: number) {
       if (limit) q = q.limit(limit);
       const { data, error } = await q;
       if (error) throw error;
+      logPublicCampaigns("completed", data as PublicCampaign[]);
       return data as PublicCampaign[];
     },
   });
@@ -91,6 +104,7 @@ export function useCampaignBySlug(slug: string) {
         .eq("visible", true)
         .maybeSingle();
       if (error) throw error;
+      logPublicCampaigns("by-slug", data as PublicCampaign | null);
       return data as PublicCampaign | null;
     },
   });
@@ -110,6 +124,7 @@ export function useOtherCampaigns(currentSlug: string, limit = 3) {
         .order("sort_order", { ascending: true })
         .limit(limit);
       if (error) throw error;
+      logPublicCampaigns("other", data as PublicCampaign[]);
       return data as PublicCampaign[];
     },
   });

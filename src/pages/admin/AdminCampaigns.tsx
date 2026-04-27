@@ -28,6 +28,13 @@ import type { CropSettings } from '@/lib/cropImage';
 type Campaign = Database['public']['Tables']['campaigns']['Row'];
 type CampaignInsert = Database['public']['Tables']['campaigns']['Insert'];
 
+const publicCampaignQueryKeys = [
+  ['active-campaigns'],
+  ['completed-campaigns'],
+  ['published-campaigns'],
+  ['other-campaigns'],
+] as const;
+
 const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
@@ -44,6 +51,23 @@ export default function AdminCampaigns() {
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'archived' | 'draft'>('all');
   const qc = useQueryClient();
+
+  const invalidatePublicCampaignQueries = (campaign?: Pick<Campaign, 'id' | 'slug' | 'visible'> | null) => {
+    publicCampaignQueryKeys.forEach((queryKey) => {
+      if (campaign && campaign.visible === false) {
+        qc.setQueriesData<Array<{ id: string }>>({ queryKey }, (old) => (
+          Array.isArray(old) ? old.filter((item) => item.id !== campaign.id) : old
+        ));
+      }
+      qc.invalidateQueries({ queryKey });
+    });
+
+    if (campaign?.slug) {
+      if (campaign.visible === false) qc.setQueryData(['campaign', campaign.slug], null);
+      qc.invalidateQueries({ queryKey: ['campaign', campaign.slug] });
+    }
+    qc.invalidateQueries({ queryKey: ['campaign'] });
+  };
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['admin-campaigns'],
@@ -109,15 +133,18 @@ export default function AdminCampaigns() {
       } as CampaignInsert;
 
       if (editing) {
-        const { error } = await supabase.from('campaigns').update(payload).eq('id', editing.id);
+        const { data, error } = await supabase.from('campaigns').update(payload).eq('id', editing.id).select('*').single();
         if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+        return data as Campaign;
       } else {
-        const { error } = await supabase.from('campaigns').insert(payload);
+        const { data, error } = await supabase.from('campaigns').insert(payload).select('*').single();
         if (error) throw new Error(`Ошибка создания: ${error.message}`);
+        return data as Campaign;
       }
     },
-    onSuccess: () => {
+    onSuccess: (campaign) => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries(campaign);
       setOpen(false);
       setEditing(null);
       setForm(emptyCampaign);
@@ -135,6 +162,7 @@ export default function AdminCampaigns() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries();
       toast.success('Сбор удалён');
     },
     onError: (err: Error) => {
@@ -147,11 +175,13 @@ export default function AdminCampaigns() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from('campaigns').update({ status }).eq('id', id);
+      const { data, error } = await supabase.from('campaigns').update({ status }).eq('id', id).select('*').single();
       if (error) throw error;
+      return data as Campaign;
     },
-    onSuccess: () => {
+    onSuccess: (campaign) => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries(campaign);
       toast.success('Статус обновлён');
     },
     onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
@@ -159,11 +189,28 @@ export default function AdminCampaigns() {
 
   const visibilityMutation = useMutation({
     mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
-      const { error } = await supabase.from('campaigns').update({ visible }).eq('id', id);
-      if (error) throw error;
+      const { error: updateError } = await supabase.from('campaigns').update({ visible }).eq('id', id);
+      if (updateError) throw updateError;
+
+      const { data, error: readError } = await supabase
+        .from('campaigns')
+        .select('id, slug, title, status, visible')
+        .eq('id', id)
+        .single();
+      if (readError) throw readError;
+      if (data.visible !== visible) throw new Error('Видимость не изменилась в базе');
+
+      console.log('[admin:campaign-visibility]', {
+        title: data.title,
+        status: data.status,
+        visible: data.visible,
+      });
+
+      return data;
     },
-    onSuccess: (_d, vars) => {
+    onSuccess: (campaign, vars) => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries(campaign);
       toast.success(vars.visible ? 'Сбор показан на сайте' : 'Сбор скрыт с сайта');
     },
     onError: (err: Error) => toast.error(err.message || 'Не удалось изменить видимость'),
