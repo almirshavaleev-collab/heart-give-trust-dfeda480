@@ -186,11 +186,28 @@ export default function AdminCampaigns() {
 
   const visibilityMutation = useMutation({
     mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
-      const { error } = await supabase.from('campaigns').update({ visible }).eq('id', id);
-      if (error) throw error;
+      const { error: updateError } = await supabase.from('campaigns').update({ visible }).eq('id', id);
+      if (updateError) throw updateError;
+
+      const { data, error: readError } = await supabase
+        .from('campaigns')
+        .select('id, slug, title, status, visible')
+        .eq('id', id)
+        .single();
+      if (readError) throw readError;
+      if (data.visible !== visible) throw new Error('Видимость не изменилась в базе');
+
+      console.log('[admin:campaign-visibility]', {
+        title: data.title,
+        status: data.status,
+        visible: data.visible,
+      });
+
+      return data;
     },
-    onSuccess: (_d, vars) => {
+    onSuccess: (campaign, vars) => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries(campaign);
       toast.success(vars.visible ? 'Сбор показан на сайте' : 'Сбор скрыт с сайта');
     },
     onError: (err: Error) => toast.error(err.message || 'Не удалось изменить видимость'),
