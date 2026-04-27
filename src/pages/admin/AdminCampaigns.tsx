@@ -28,6 +28,13 @@ import type { CropSettings } from '@/lib/cropImage';
 type Campaign = Database['public']['Tables']['campaigns']['Row'];
 type CampaignInsert = Database['public']['Tables']['campaigns']['Insert'];
 
+const publicCampaignQueryKeys = [
+  ['active-campaigns'],
+  ['completed-campaigns'],
+  ['published-campaigns'],
+  ['other-campaigns'],
+] as const;
+
 const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
@@ -44,6 +51,23 @@ export default function AdminCampaigns() {
   const [deletingCampaign, setDeletingCampaign] = useState<Campaign | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'archived' | 'draft'>('all');
   const qc = useQueryClient();
+
+  const invalidatePublicCampaignQueries = (campaign?: Pick<Campaign, 'id' | 'slug' | 'visible'> | null) => {
+    publicCampaignQueryKeys.forEach((queryKey) => {
+      if (campaign && campaign.visible === false) {
+        qc.setQueriesData<Array<{ id: string }>>({ queryKey }, (old) => (
+          Array.isArray(old) ? old.filter((item) => item.id !== campaign.id) : old
+        ));
+      }
+      qc.invalidateQueries({ queryKey });
+    });
+
+    if (campaign?.slug) {
+      if (campaign.visible === false) qc.setQueryData(['campaign', campaign.slug], null);
+      qc.invalidateQueries({ queryKey: ['campaign', campaign.slug] });
+    }
+    qc.invalidateQueries({ queryKey: ['campaign'] });
+  };
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['admin-campaigns'],
@@ -109,15 +133,18 @@ export default function AdminCampaigns() {
       } as CampaignInsert;
 
       if (editing) {
-        const { error } = await supabase.from('campaigns').update(payload).eq('id', editing.id);
+        const { data, error } = await supabase.from('campaigns').update(payload).eq('id', editing.id).select('*').single();
         if (error) throw new Error(`Ошибка обновления: ${error.message}`);
+        return data as Campaign;
       } else {
-        const { error } = await supabase.from('campaigns').insert(payload);
+        const { data, error } = await supabase.from('campaigns').insert(payload).select('*').single();
         if (error) throw new Error(`Ошибка создания: ${error.message}`);
+        return data as Campaign;
       }
     },
-    onSuccess: () => {
+    onSuccess: (campaign) => {
       qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
+      invalidatePublicCampaignQueries(campaign);
       setOpen(false);
       setEditing(null);
       setForm(emptyCampaign);
