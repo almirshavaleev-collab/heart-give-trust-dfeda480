@@ -71,7 +71,11 @@ export default function AdminCampaigns() {
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['admin-campaigns'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -155,8 +159,15 @@ export default function AdminCampaigns() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('campaigns').delete().eq('id', id);
+    mutationFn: async (campaign: Campaign) => {
+      if (campaign.status !== 'archived') {
+        throw new Error('Удалить можно только архивный сбор');
+      }
+      // Soft-delete: keep donations, hide from all lists
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .eq('id', campaign.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -164,12 +175,7 @@ export default function AdminCampaigns() {
       invalidatePublicCampaignQueries();
       toast.success('Сбор удалён');
     },
-    onError: (err: Error) => {
-      const msg = err.message?.includes('пожертвования')
-        ? 'Нельзя удалить сбор: по нему уже есть пожертвования. Переведите его в статус «Завершён».'
-        : err.message || 'Не удалось удалить сбор';
-      toast.error(msg);
-    },
+    onError: (err: Error) => toast.error(err.message || 'Не удалось удалить сбор'),
   });
 
   const statusMutation = useMutation({
