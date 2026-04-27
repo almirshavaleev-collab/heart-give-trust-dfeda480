@@ -17,9 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, CheckCircle2, Eye, EyeOff, Archive, RotateCcw } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, Archive, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import CoverImageEditor from '@/components/admin/CoverImageEditor';
@@ -39,7 +37,7 @@ const emptyCampaign: Partial<CampaignInsert> & { crop_settings?: unknown } = {
   title: '', slug: '', short_description: '', full_description: '',
   cover_image: '', target_amount: 0, collected_amount: 0,
   status: 'draft', beneficiary: '', purpose: '', sort_order: 0,
-  crop_settings: null, visible: true,
+  crop_settings: null,
 };
 
 export default function AdminCampaigns() {
@@ -52,9 +50,10 @@ export default function AdminCampaigns() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed' | 'archived' | 'draft'>('all');
   const qc = useQueryClient();
 
-  const invalidatePublicCampaignQueries = (campaign?: Pick<Campaign, 'id' | 'slug' | 'visible'> | null) => {
+  const invalidatePublicCampaignQueries = (campaign?: Pick<Campaign, 'id' | 'slug' | 'status'> | null) => {
+    const isPublic = campaign ? ['active', 'completed'].includes(campaign.status) : true;
     publicCampaignQueryKeys.forEach((queryKey) => {
-      if (campaign && campaign.visible === false) {
+      if (campaign && !isPublic) {
         qc.setQueriesData<Array<{ id: string }>>({ queryKey }, (old) => (
           Array.isArray(old) ? old.filter((item) => item.id !== campaign.id) : old
         ));
@@ -63,7 +62,7 @@ export default function AdminCampaigns() {
     });
 
     if (campaign?.slug) {
-      if (campaign.visible === false) qc.setQueryData(['campaign', campaign.slug], null);
+      if (!isPublic) qc.setQueryData(['campaign', campaign.slug], null);
       qc.invalidateQueries({ queryKey: ['campaign', campaign.slug] });
     }
     qc.invalidateQueries({ queryKey: ['campaign'] });
@@ -187,35 +186,6 @@ export default function AdminCampaigns() {
     onError: (err: Error) => toast.error(err.message || 'Не удалось обновить статус'),
   });
 
-  const visibilityMutation = useMutation({
-    mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
-      const { error: updateError } = await supabase.from('campaigns').update({ visible }).eq('id', id);
-      if (updateError) throw updateError;
-
-      const { data, error: readError } = await supabase
-        .from('campaigns')
-        .select('id, slug, title, status, visible')
-        .eq('id', id)
-        .single();
-      if (readError) throw readError;
-      if (data.visible !== visible) throw new Error('Видимость не изменилась в базе');
-
-      console.log('[admin:campaign-visibility]', {
-        title: data.title,
-        status: data.status,
-        visible: data.visible,
-      });
-
-      return data;
-    },
-    onSuccess: (campaign, vars) => {
-      qc.invalidateQueries({ queryKey: ['admin-campaigns'] });
-      invalidatePublicCampaignQueries(campaign);
-      toast.success(vars.visible ? 'Сбор показан на сайте' : 'Сбор скрыт с сайта');
-    },
-    onError: (err: Error) => toast.error(err.message || 'Не удалось изменить видимость'),
-  });
-
   const openNew = () => { setEditing(null); setForm(emptyCampaign); setImageFile(null); setEditorCrop(null); setOpen(true); };
   const openEdit = (c: Campaign) => { setEditing(c); setForm(c as any); setImageFile(null); setEditorCrop(null); setOpen(true); };
 
@@ -261,7 +231,6 @@ export default function AdminCampaigns() {
               <TableRow>
                 <TableHead>Название</TableHead>
                 <TableHead>Статус</TableHead>
-                <TableHead>Видимость</TableHead>
                 <TableHead className="text-right">Цель</TableHead>
                 <TableHead className="text-right">Собрано</TableHead>
                 <TableHead className="w-24"></TableHead>
@@ -271,15 +240,7 @@ export default function AdminCampaigns() {
               {filteredCampaigns.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span>{c.title}</span>
-                      {!c.visible && (
-                        <Badge variant="outline" className="text-[10px] gap-1 border-amber-300 bg-amber-50 text-amber-700">
-                          <EyeOff className="h-3 w-3" />
-                          Скрыт
-                        </Badge>
-                      )}
-                    </div>
+                    <span>{c.title}</span>
                   </TableCell>
                   <TableCell>
                     <Select
@@ -296,18 +257,6 @@ export default function AdminCampaigns() {
                         <SelectItem value="archived">Архив</SelectItem>
                       </SelectContent>
                     </Select>
-                  </TableCell>
-                  <TableCell>
-                    <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                      <Switch
-                        checked={!!c.visible}
-                        onCheckedChange={(v) => visibilityMutation.mutate({ id: c.id, visible: v })}
-                      />
-                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${c.visible ? 'text-green-700' : 'text-muted-foreground'}`}>
-                        {c.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                        {c.visible ? 'Видим' : 'Скрыт'}
-                      </span>
-                    </label>
                   </TableCell>
                   <TableCell className="text-right">{Number(c.target_amount).toLocaleString('ru-RU')} ₽</TableCell>
                   <TableCell className="text-right">{Number(c.collected_amount).toLocaleString('ru-RU')} ₽</TableCell>
@@ -356,7 +305,7 @@ export default function AdminCampaigns() {
                 </TableRow>
               ))}
               {campaigns.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Нет сборов</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Нет сборов</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -422,16 +371,6 @@ export default function AdminCampaigns() {
                 <label className="text-sm font-medium">Порядок</label>
                 <Input type="number" value={(form as any).sort_order ?? 0} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) } as any)} />
               </div>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">Показывать на сайте</p>
-                <p className="text-xs text-muted-foreground">Выключите, чтобы скрыть сбор из публичных списков</p>
-              </div>
-              <Switch
-                checked={form.visible !== false}
-                onCheckedChange={(v) => setForm({ ...form, visible: v })}
-              />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Обложка</label>
