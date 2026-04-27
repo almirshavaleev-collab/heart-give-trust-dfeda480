@@ -305,7 +305,15 @@ export default function AdminCampaigns() {
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeletingCampaign(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={c.status !== 'archived'}
+                        onClick={() => setDeletingCampaign(c)}
+                        title={c.status === 'archived' ? 'Удалить архивный сбор' : 'Удалить можно только архивный сбор'}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
