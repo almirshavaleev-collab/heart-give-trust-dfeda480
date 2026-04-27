@@ -52,6 +52,7 @@ export type Database = {
           cover_image: string | null
           created_at: string
           crop_settings: Json | null
+          deleted_at: string | null
           full_description: string | null
           id: string
           purpose: string | null
@@ -71,6 +72,7 @@ export type Database = {
           cover_image?: string | null
           created_at?: string
           crop_settings?: Json | null
+          deleted_at?: string | null
           full_description?: string | null
           id?: string
           purpose?: string | null
@@ -90,6 +92,7 @@ export type Database = {
           cover_image?: string | null
           created_at?: string
           crop_settings?: Json | null
+          deleted_at?: string | null
           full_description?: string | null
           id?: string
           purpose?: string | null
