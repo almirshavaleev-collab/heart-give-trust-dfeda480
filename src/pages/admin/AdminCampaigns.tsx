@@ -71,7 +71,11 @@ export default function AdminCampaigns() {
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['admin-campaigns'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -155,8 +159,15 @@ export default function AdminCampaigns() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('campaigns').delete().eq('id', id);
+    mutationFn: async (campaign: Campaign) => {
+      if (campaign.status !== 'archived') {
+        throw new Error('Удалить можно только архивный сбор');
+      }
+      // Soft-delete: keep donations, hide from all lists
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .eq('id', campaign.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -164,12 +175,7 @@ export default function AdminCampaigns() {
       invalidatePublicCampaignQueries();
       toast.success('Сбор удалён');
     },
-    onError: (err: Error) => {
-      const msg = err.message?.includes('пожертвования')
-        ? 'Нельзя удалить сбор: по нему уже есть пожертвования. Переведите его в статус «Завершён».'
-        : err.message || 'Не удалось удалить сбор';
-      toast.error(msg);
-    },
+    onError: (err: Error) => toast.error(err.message || 'Не удалось удалить сбор'),
   });
 
   const statusMutation = useMutation({
@@ -299,7 +305,15 @@ export default function AdminCampaigns() {
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeletingCampaign(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={c.status !== 'archived'}
+                        onClick={() => setDeletingCampaign(c)}
+                        title={c.status === 'archived' ? 'Удалить архивный сбор' : 'Удалить можно только архивный сбор'}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -395,10 +409,9 @@ export default function AdminCampaigns() {
       <AlertDialog open={!!deletingCampaign} onOpenChange={(o) => !o && setDeletingCampaign(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить сбор?</AlertDialogTitle>
+            <AlertDialogTitle>Удалить архивный сбор?</AlertDialogTitle>
             <AlertDialogDescription>
-              Сбор «{deletingCampaign?.title}» будет удалён без возможности восстановления.
-              Если по нему уже есть пожертвования, удаление будет отклонено — переведите его в статус «Завершён».
+              Сбор «{deletingCampaign?.title}» будет удалён из админки и больше не будет отображаться. Это действие нельзя отменить.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -407,7 +420,7 @@ export default function AdminCampaigns() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 if (deletingCampaign) {
-                  deleteMutation.mutate(deletingCampaign.id);
+                  deleteMutation.mutate(deletingCampaign);
                   setDeletingCampaign(null);
                 }
               }}
