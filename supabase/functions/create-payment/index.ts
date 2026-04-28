@@ -9,7 +9,6 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const amount = Number(body?.amount);
-    const returnUrl: string = body?.return_url || "https://ligafund.ru/thank-you";
     const description: string = body?.description || "Пожертвование в Фонд «Выпускники Лицея «Лига»";
     const donorName: string | null = body?.donor_name ?? null;
     const donorEmail: string | null = body?.donor_email ?? null;
@@ -27,9 +26,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    const shopId = Deno.env.get("YOOKASSA_SHOP_ID");
-    const secretKey = Deno.env.get("YOOKASSA_SECRET_KEY");
+    // ────────────────────────────────────────────────────────────
+    // Режим работы ЮKassa: "production" | "test" (по умолчанию test)
+    // ────────────────────────────────────────────────────────────
+    const rawMode = (Deno.env.get("YOOKASSA_MODE") ?? "test").trim().toLowerCase();
+    const mode: "production" | "test" = rawMode === "production" ? "production" : "test";
+
+    const shopId = mode === "production"
+      ? Deno.env.get("YOOKASSA_PROD_SHOP_ID")
+      : Deno.env.get("YOOKASSA_SHOP_ID");
+    const secretKey = mode === "production"
+      ? Deno.env.get("YOOKASSA_PROD_SECRET_KEY")
+      : Deno.env.get("YOOKASSA_SECRET_KEY");
+
+    // В production return_url по умолчанию — боевой домен с success-страницей.
+    const defaultReturnUrl = mode === "production"
+      ? "https://ligafund.ru/payment-success"
+      : "https://ligafund.ru/thank-you";
+    const returnUrl: string = body?.return_url || defaultReturnUrl;
+
+    console.log(`[create-payment] mode=${mode} amount=${amount} campaign_id=${campaignId ?? "general"}`);
+
     if (!shopId || !secretKey) {
+      console.error(`[create-payment] missing keys for mode=${mode}`);
       return new Response(
         JSON.stringify({ error: "Платежная система не настроена" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -146,7 +165,7 @@ Deno.serve(async (req) => {
     const data = await ykResp.json();
 
     if (!ykResp.ok) {
-      console.error("YooKassa error:", data);
+      console.error(`[create-payment] YooKassa error mode=${mode}:`, data);
       await supabase
         .from("donations")
         .update({ status: "failed" })
@@ -156,6 +175,10 @@ Deno.serve(async (req) => {
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    console.log(
+      `[create-payment] success mode=${mode} payment_id=${data.id} status=${data.status} confirmation_type=${data?.confirmation?.type ?? "n/a"} test=${data?.test ?? false}`,
+    );
 
     // 3. Сохраняем yookassa_payment_id
     await supabase
