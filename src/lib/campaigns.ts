@@ -1,7 +1,7 @@
-import campaign1 from "@/assets/campaign-1.jpg";
-import campaign2 from "@/assets/campaign-2.jpg";
-import campaign3 from "@/assets/campaign-3.jpg";
-import campaign4 from "@/assets/campaign-4.jpg";
+import campaign1 from "@/assets/campaign-1-800.webp";
+import campaign2 from "@/assets/campaign-2-800.webp";
+import campaign3 from "@/assets/campaign-3-800.webp";
+import campaign4 from "@/assets/campaign-4-800.webp";
 
 export type CampaignStatus = "active" | "completed";
 

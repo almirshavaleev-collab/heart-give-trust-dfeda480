@@ -1,5 +1,6 @@
 import { GraduationCap, Heart, Lightbulb } from "lucide-react";
-import alumniGroup from "@/assets/alumni-group.jpg";
+import alumniDesktop from "@/assets/alumni-group-1200.webp";
+import alumniMobile from "@/assets/alumni-group-700.webp";
 
 const overlayCards = [
   { icon: GraduationCap, title: "Помогаем лицею", text: "Инвестируем в инфраструктуру и образовательные программы" },
@@ -23,11 +24,19 @@ const CommunitySection = () => (
       <div className="grid lg:grid-cols-2 gap-10 items-center">
         {/* Photo */}
         <div className="relative rounded-2xl overflow-hidden">
-          <img
-            src={alumniGroup}
-            alt="Выпускники лицея на встрече"
-            className="w-full h-80 md:h-96 object-cover"
-          />
+          <picture>
+            <source media="(min-width: 641px)" srcSet={alumniDesktop} type="image/webp" />
+            <source srcSet={alumniMobile} type="image/webp" />
+            <img
+              src={alumniMobile}
+              alt="Выпускники лицея на встрече"
+              width={1200}
+              height={798}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-80 md:h-96 object-cover"
+            />
+          </picture>
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-foreground/60 to-transparent p-6">
             <p className="text-sm text-background font-medium">Традиционная встреча выпускников</p>
           </div>

@@ -13,6 +13,9 @@ interface CampaignCoverProps {
   className?: string;
   imgClassName?: string;
   loading?: "lazy" | "eager";
+  decoding?: "async" | "sync" | "auto";
+  sizes?: string;
+  fetchPriority?: "high" | "low" | "auto";
   /** Контент поверх обложки (например, badge "Сбор завершён"). */
   children?: React.ReactNode;
   /** Заглушка, если src отсутствует. */
@@ -33,6 +36,9 @@ const CampaignCover = ({
   className,
   imgClassName,
   loading = "lazy",
+  decoding = "async",
+  sizes = "(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw",
+  fetchPriority = "auto",
   children,
   placeholder,
 }: CampaignCoverProps) => {
@@ -51,6 +57,10 @@ const CampaignCover = ({
           src={src}
           alt={alt}
           loading={loading}
+          decoding={decoding}
+          sizes={sizes}
+          // @ts-expect-error fetchpriority is a valid HTML attr
+          fetchpriority={fetchPriority}
           draggable={false}
           className={cn("absolute inset-0 w-full h-full select-none", imgClassName)}
           style={style}

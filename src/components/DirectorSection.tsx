@@ -1,5 +1,6 @@
 import { Phone, Mail, Quote } from "lucide-react";
-import directorPhoto from "@/assets/director.jpg";
+import directorDesktop from "@/assets/director-800.webp";
+import directorMobile from "@/assets/director-480.webp";
 
 const DirectorSection = () => (
   <section className="py-24 md:py-32">
@@ -11,12 +12,19 @@ const DirectorSection = () => (
 
       <div className="card-light p-8 text-center">
         <div className="mx-auto mb-6 w-32 h-40 sm:w-36 sm:h-44 md:w-40 md:h-52 overflow-hidden rounded-2xl shadow-lg ring-1 ring-border bg-secondary">
-          <img
-            src={directorPhoto}
-            alt="Саитгараев Ильяс — директор фонда"
-            className="w-full h-full object-cover object-center"
-            loading="lazy"
-          />
+          <picture>
+            <source media="(min-width: 641px)" srcSet={directorDesktop} type="image/webp" />
+            <source srcSet={directorMobile} type="image/webp" />
+            <img
+              src={directorMobile}
+              alt="Саитгараев Ильяс — директор фонда"
+              width={480}
+              height={482}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover object-center"
+            />
+          </picture>
         </div>
         <h3 className="text-xl font-bold text-foreground">Саитгараев Ильяс</h3>
         <p className="text-muted-foreground text-sm mt-1 max-w-xs mx-auto">
