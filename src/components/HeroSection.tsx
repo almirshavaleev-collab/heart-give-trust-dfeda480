@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Heart, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroBg from "@/assets/hero-crowd.jpg";
+import heroDesktop from "@/assets/hero-crowd-1600.webp";
+import heroMobile from "@/assets/hero-crowd-800.webp";
 
 const stats = [
   { value: 10, suffix: "+", label: "лет работы" },
@@ -52,17 +53,27 @@ const HeroSection = () => {
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Soft background image + subtle gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-white via-[hsl(216_25%_98%)] to-[hsl(216_25%_96%)]">
-        <img
-          src={heroBg}
-          alt="Встреча выпускников лицея"
-          className="w-full h-full object-cover opacity-[0.06]"
-        />
+        <picture>
+          <source media="(min-width: 641px)" srcSet={heroDesktop} type="image/webp" />
+          <source srcSet={heroMobile} type="image/webp" />
+          <img
+            src={heroMobile}
+            alt="Встреча выпускников лицея"
+            width={1600}
+            height={1065}
+            loading="eager"
+            decoding="async"
+            // @ts-expect-error valid HTML attr
+            fetchpriority="high"
+            className="w-full h-full object-cover opacity-[0.06]"
+          />
+        </picture>
         <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-secondary/70" />
       </div>
 
-      {/* Subtle accent glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-accent/[0.05] blur-[140px]" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] rounded-[50%] bg-primary/[0.025] blur-[100px]" />
+      {/* Subtle accent glow — отключено на мобильных и при reduced motion ради производительности */}
+      <div className="hidden md:block motion-reduce:!hidden absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-accent/[0.05] blur-[140px] pointer-events-none" />
+      <div className="hidden md:block motion-reduce:!hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] rounded-[50%] bg-primary/[0.025] blur-[100px] pointer-events-none" />
 
       <div className="container relative z-10 text-center py-36 md:py-44">
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-[800px] mx-auto leading-[1.05] text-foreground fade-in-up fade-in-up-delay-1">
