@@ -106,6 +106,27 @@
   .counter-animate {
     animation: counterPulse 0.4s ease-out;
   }
+
+  /* Премиальный shimmer для skeleton-заглушек.
+     Мягкий светлый блик плавно движется по поверхности. */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: hsl(var(--muted));
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.6) 40%,
+      hsl(0 0% 100% / 0.55) 50%,
+      hsl(var(--muted) / 0.6) 60%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    background-position: 200% 0;
+    animation: skeletonShimmer 1.8s ease-in-out infinite;
+    will-change: background-position;
+  }
 }
 
 @keyframes fadeInUp {
@@ -124,6 +145,11 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Reduced motion: убираем все декоративные анимации для пользователей,
    которые предпочитают меньше движения, и для слабых устройств. */
 @media (prefers-reduced-motion: reduce) {
@@ -134,4 +160,9 @@
     scroll-behavior: auto !important;
   }
   .fade-in-up { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .skeleton-shimmer {
+    animation: none !important;
+    background-image: none !important;
+    background-color: hsl(var(--muted)) !important;
+  }
 }
