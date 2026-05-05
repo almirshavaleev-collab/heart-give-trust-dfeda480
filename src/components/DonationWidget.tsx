@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { Heart, Check, Loader2, Sparkles, Target, UserCheck } from "lucide-react";
-import { SbpLogo, CardsLogo, SberPayLogo, TPayLogo } from "@/components/payment-logos";
+import sbpLogo from "@/assets/payments/sbp.png";
+import mirLogo from "@/assets/payments/mir.png";
+import sberPayLogo from "@/assets/payments/sberpay.png";
+import tPayLogo from "@/assets/payments/tpay.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -20,12 +23,12 @@ const paymentMethods: {
   id: PaymentMethod;
   title: string;
   caption: string;
-  Logo: (props: React.SVGProps<SVGSVGElement>) => JSX.Element;
+  logo: string;
 }[] = [
-  { id: "sbp", title: "СБП", caption: "Система быстрых платежей", Logo: SbpLogo },
-  { id: "card", title: "Картой онлайн", caption: "Банковские карты Мир", Logo: CardsLogo },
-  { id: "sber", title: "SberPay", caption: "Оплата через Сбер", Logo: SberPayLogo },
-  { id: "tinkoff", title: "T‑Pay", caption: "Оплата через Т‑Банк", Logo: TPayLogo },
+  { id: "sbp", title: "СБП", caption: "Система быстрых платежей", logo: sbpLogo },
+  { id: "card", title: "Картой онлайн", caption: "Банковские карты Мир", logo: mirLogo },
+  { id: "sber", title: "SberPay", caption: "Оплата через Сбер", logo: sberPayLogo },
+  { id: "tinkoff", title: "T‑Pay", caption: "Оплата через Т‑Банк", logo: tPayLogo },
 ];
 
 export interface DonationWidgetCampaign {
@@ -404,7 +407,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       <div className="mb-6">
         <p className="text-sm font-medium text-foreground mb-3 px-0.5">Способ оплаты</p>
         <div className="grid grid-cols-2 gap-2">
-          {paymentMethods.map(({ id, title, caption, Logo }) => {
+          {paymentMethods.map(({ id, title, caption, logo }) => {
             const active = selectedPaymentMethod === id;
             return (
               <button
@@ -413,19 +416,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                 onClick={() => setSelectedPaymentMethod(id)}
                 aria-pressed={active}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all",
+                  "group flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all duration-200",
                   active
                     ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border bg-background hover:border-foreground/30 hover:shadow-md hover:-translate-y-px"
+                    : "border-border bg-background hover:border-foreground/30 hover:shadow-md hover:scale-[1.02]"
                 )}
               >
-                <span
-                  className={cn(
-                    "shrink-0 w-14 h-9 rounded-lg flex items-center justify-center transition-colors bg-white border border-border/60",
-                    active && "border-primary/40"
-                  )}
-                >
-                  <Logo className="max-h-6 w-auto" aria-label={title} />
+                <span className="shrink-0 h-6 w-14 flex items-center justify-center">
+                  <img
+                    src={logo}
+                    alt={title}
+                    className="h-6 w-auto max-w-full object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </span>
                 <span className="flex-1 min-w-0 self-center">
                   <span className="block text-sm font-semibold text-foreground leading-tight">
