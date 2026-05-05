@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { Heart, Check, Loader2, Sparkles, Target, UserCheck } from "lucide-react";
-import { SbpLogo, CardsLogo, SberPayLogo, TPayLogo } from "@/components/payment-logos";
+import sbpLogo from "@/assets/payments/sbp.png";
+import mirLogo from "@/assets/payments/mir.png";
+import sberPayLogo from "@/assets/payments/sberpay.png";
+import tPayLogo from "@/assets/payments/tpay.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -20,12 +23,12 @@ const paymentMethods: {
   id: PaymentMethod;
   title: string;
   caption: string;
-  Logo: (props: React.SVGProps<SVGSVGElement>) => JSX.Element;
+  logo: string;
 }[] = [
-  { id: "sbp", title: "СБП", caption: "Система быстрых платежей", Logo: SbpLogo },
-  { id: "card", title: "Картой онлайн", caption: "Банковские карты Мир", Logo: CardsLogo },
-  { id: "sber", title: "SberPay", caption: "Оплата через Сбер", Logo: SberPayLogo },
-  { id: "tinkoff", title: "T‑Pay", caption: "Оплата через Т‑Банк", Logo: TPayLogo },
+  { id: "sbp", title: "СБП", caption: "Система быстрых платежей", logo: sbpLogo },
+  { id: "card", title: "Картой онлайн", caption: "Банковские карты Мир", logo: mirLogo },
+  { id: "sber", title: "SberPay", caption: "Оплата через Сбер", logo: sberPayLogo },
+  { id: "tinkoff", title: "T‑Pay", caption: "Оплата через Т‑Банк", logo: tPayLogo },
 ];
 
 export interface DonationWidgetCampaign {
