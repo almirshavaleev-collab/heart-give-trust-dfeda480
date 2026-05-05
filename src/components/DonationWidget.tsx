@@ -22,10 +22,10 @@ const paymentMethods: {
   caption: string;
   Logo: (props: React.SVGProps<SVGSVGElement>) => JSX.Element;
 }[] = [
-  { id: "sbp", title: "СБП", caption: "Без комиссии", Logo: SbpLogo },
-  { id: "card", title: "Банковской картой", caption: "Visa · Mastercard · Мир", Logo: CardsLogo },
+  { id: "sbp", title: "СБП", caption: "Система быстрых платежей", Logo: SbpLogo },
+  { id: "card", title: "Картой онлайн", caption: "Банковские карты Мир", Logo: CardsLogo },
   { id: "sber", title: "SberPay", caption: "Оплата через Сбер", Logo: SberPayLogo },
-  { id: "tinkoff", title: "T-Pay", caption: "Оплата через Т‑Банк", Logo: TPayLogo },
+  { id: "tinkoff", title: "T‑Pay", caption: "Оплата через Т‑Банк", Logo: TPayLogo },
 ];
 
 export interface DonationWidgetCampaign {

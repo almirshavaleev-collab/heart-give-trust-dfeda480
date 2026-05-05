@@ -1,71 +1,105 @@
 import type { SVGProps } from "react";
 
 /**
- * Brand-colored payment logos for the donation widget.
- * Approximations of official marks — kept simple, no background.
+ * Official-style payment logos used in the donation widget.
+ * Vector reproductions of public brand marks (СБП / Мир / SberPay / T‑Pay)
+ * in their original brand colours, no background.
  */
 
 export const SbpLogo = (props: SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg" {...props}>
-    <defs>
-      <linearGradient id="sbp-g" x1="0" x2="1" y1="0" y2="1">
-        <stop offset="0%" stopColor="#1F8B4C" />
-        <stop offset="50%" stopColor="#108CC9" />
-        <stop offset="100%" stopColor="#D81B60" />
-      </linearGradient>
-    </defs>
-    <g transform="translate(4 4)">
-      <polygon points="0,16 8,2 16,16 8,30" fill="url(#sbp-g)" />
-      <polygon points="14,16 22,2 30,16 22,30" fill="url(#sbp-g)" opacity="0.85" />
-      <polygon points="28,16 36,2 44,16 36,30" fill="url(#sbp-g)" opacity="0.7" />
-    </g>
-    <text x="56" y="36" fontFamily="Inter, sans-serif" fontSize="9" fontWeight="700" fill="#0B1F3A" textAnchor="end">СБП</text>
+  // НСПК / Система быстрых платежей — фирменный знак с двумя стрелками
+  <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" {...props}>
+    {/* верхняя бирюзовая стрелка */}
+    <path
+      d="M6 12 L20 4 L34 12 L28 12 L20 7 L12 12 Z"
+      fill="#1FB4A6"
+    />
+    {/* правая жёлтая стрелка */}
+    <path
+      d="M34 14 L34 28 L20 36 L20 30 L28 25 L28 14 Z"
+      fill="#F6C90E"
+    />
+    {/* левая фиолетовая стрелка */}
+    <path
+      d="M6 14 L6 28 L20 36 L20 30 L12 25 L12 14 Z"
+      fill="#7C3FB6"
+    />
+    {/* малиновый акцент */}
+    <path
+      d="M20 14 L26 18 L20 22 L14 18 Z"
+      fill="#E0265C"
+    />
   </svg>
 );
 
 export const CardsLogo = (props: SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 96 32" xmlns="http://www.w3.org/2000/svg" {...props}>
-    {/* Visa */}
-    <text x="0" y="22" fontFamily="Arial Black, Arial, sans-serif" fontSize="16" fontWeight="900" fill="#1A1F71" fontStyle="italic">VISA</text>
-    {/* Mastercard */}
-    <g transform="translate(40 6)">
-      <circle cx="9" cy="10" r="9" fill="#EB001B" />
-      <circle cx="18" cy="10" r="9" fill="#F79E1B" />
-      <path d="M13.5 3.4a9 9 0 0 0 0 13.2 9 9 0 0 0 0-13.2z" fill="#FF5F00" />
-    </g>
-    {/* Мир */}
-    <g transform="translate(70 8)">
-      <rect width="24" height="14" rx="2" fill="#0F754E" />
-      <text x="12" y="11" fontFamily="Arial, sans-serif" fontSize="8" fontWeight="700" fill="#FFFFFF" textAnchor="middle">МИР</text>
-    </g>
+  // Платёжная система «Мир» — официальный зелёный знак
+  <svg viewBox="0 0 64 24" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect x="0" y="0" width="64" height="24" rx="4" fill="#0F754E" />
+    <text
+      x="32"
+      y="17"
+      fontFamily="Arial, Helvetica, sans-serif"
+      fontSize="13"
+      fontWeight="800"
+      fill="#FFFFFF"
+      textAnchor="middle"
+      letterSpacing="0.5"
+    >
+      МИР
+    </text>
   </svg>
 );
 
 export const SberPayLogo = (props: SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 80 32" xmlns="http://www.w3.org/2000/svg" {...props}>
-    <g transform="translate(2 4)">
-      {/* Sber green swirl approximation */}
+  // SberPay — фирменный зелёный логотип Сбера + надпись Pay
+  <svg viewBox="0 0 96 24" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <g transform="translate(0 2)">
+      {/* стилизованный «крючок» Сбера */}
       <path
-        d="M22 12 A10 10 0 1 0 12 22"
+        d="M18.4 4.2 A10 10 0 1 0 22 12"
         fill="none"
         stroke="#21A038"
-        strokeWidth="3"
+        strokeWidth="2.6"
         strokeLinecap="round"
       />
-      <path d="M22 4 L18 8 L13 8 L13 4 Z" fill="#21A038" />
+      <path d="M14 1.5 L22 1.5 L18 6 Z" fill="#21A038" />
     </g>
-    <text x="32" y="22" fontFamily="Inter, Arial, sans-serif" fontSize="14" fontWeight="700" fill="#0B1F3A">
+    <text
+      x="30"
+      y="17"
+      fontFamily="Inter, Arial, sans-serif"
+      fontSize="14"
+      fontWeight="700"
+      fill="#0B1F3A"
+    >
       SberPay
     </text>
   </svg>
 );
 
 export const TPayLogo = (props: SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 72 32" xmlns="http://www.w3.org/2000/svg" {...props}>
-    <rect x="2" y="4" width="24" height="24" rx="5" fill="#FFDD2D" />
-    <text x="14" y="23" fontFamily="Inter, Arial, sans-serif" fontSize="16" fontWeight="900" fill="#0B1F3A" textAnchor="middle">T</text>
-    <text x="32" y="22" fontFamily="Inter, Arial, sans-serif" fontSize="14" fontWeight="700" fill="#0B1F3A">
-      Pay
+  // T‑Pay (Tinkoff Pay) — фирменный жёлтый щит с буквой T
+  <svg viewBox="0 0 80 24" xmlns="http://www.w3.org/2000/svg" {...props}>
+    {/* щит */}
+    <path
+      d="M2 2 H22 V14 C22 19 14 22 12 22 C10 22 2 19 2 14 Z"
+      fill="#FFDD2D"
+    />
+    {/* буква T */}
+    <path
+      d="M6 6 H18 V9 H14 V17 H10 V9 H6 Z"
+      fill="#0B1F3A"
+    />
+    <text
+      x="28"
+      y="17"
+      fontFamily="Inter, Arial, sans-serif"
+      fontSize="14"
+      fontWeight="700"
+      fill="#0B1F3A"
+    >
+      T‑Pay
     </text>
   </svg>
 );
