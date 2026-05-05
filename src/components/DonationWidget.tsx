@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Heart, Check, Loader2, Sparkles, Target, UserCheck } from "lucide-react";
+import { Heart, Check, Loader2, Sparkles, Target, UserCheck, QrCode, CreditCard, Wallet, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,21 @@ import { cn } from "@/lib/utils";
 const presets = [500, 1000, 3000, 5000];
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
+
+type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
+const PAYMENT_METHOD_KEY = "ligafund:payment_method";
+
+const paymentMethods: {
+  id: PaymentMethod;
+  title: string;
+  caption: string;
+  Icon: typeof QrCode;
+}[] = [
+  { id: "sbp", title: "СБП", caption: "Без комиссии", Icon: QrCode },
+  { id: "card", title: "Картой онлайн", caption: "Visa / MasterCard / Мир", Icon: CreditCard },
+  { id: "sber", title: "SberPay", caption: "Сбербанк Онлайн", Icon: Wallet },
+  { id: "tinkoff", title: "T-Pay", caption: "Тинькофф", Icon: Smartphone },
+];
 
 export interface DonationWidgetCampaign {
   id: string;
@@ -45,6 +60,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(() => {
+    if (typeof window === "undefined") return "card";
+    try {
+      const saved = localStorage.getItem(PAYMENT_METHOD_KEY) as PaymentMethod | null;
+      if (saved && ["sbp", "card", "sber", "tinkoff"].includes(saved)) return saved;
+    } catch { /* ignore */ }
+    const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    return isMobile ? "sbp" : "card";
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(PAYMENT_METHOD_KEY, selectedPaymentMethod); } catch { /* ignore */ }
+  }, [selectedPaymentMethod]);
 
   // Авторизованный пользователь: автозаполнение из профиля
   const [authUser, setAuthUser] = useState<{ id: string; email: string | null } | null>(null);
@@ -166,6 +195,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           campaign_id: isCampaign ? campaign!.id : null,
           is_anonymous: anonymous,
           payment_type: "one_time", // ежемесячные — задел на будущее
+          payment_method: selectedPaymentMethod,
         },
       });
 
@@ -367,6 +397,47 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           onChange={(e) => setEmail(e.target.value)}
           className="rounded-xl h-12 bg-background border-border"
         />
+      </div>
+
+      {/* Способ оплаты */}
+      <div className="mb-6">
+        <p className="text-sm font-medium text-foreground mb-3 px-0.5">Способ оплаты</p>
+        <div className="grid grid-cols-2 gap-2">
+          {paymentMethods.map(({ id, title, caption, Icon }) => {
+            const active = selectedPaymentMethod === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setSelectedPaymentMethod(id)}
+                aria-pressed={active}
+                className={cn(
+                  "flex items-start gap-3 rounded-xl border-2 p-3 text-left transition-all",
+                  active
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border bg-background hover:border-foreground/20"
+                )}
+              >
+                <span
+                  className={cn(
+                    "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                    active ? "bg-primary/10 text-primary" : "bg-secondary text-foreground"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-foreground leading-tight">
+                    {title}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5 leading-tight truncate">
+                    {caption}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="space-y-3 mb-6">

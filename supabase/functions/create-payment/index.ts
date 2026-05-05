@@ -19,6 +19,16 @@ Deno.serve(async (req) => {
     const paymentType: "one_time" | "monthly" =
       rawPaymentType === "monthly" ? "monthly" : "one_time";
 
+    // Маппинг выбранного на фронте метода в формат ЮKassa payment_method_data.type
+    const paymentMethodMap: Record<string, string> = {
+      sbp: "sbp",
+      card: "bank_card",
+      sber: "sberbank",
+      tinkoff: "tinkoff_bank",
+    };
+    const rawPaymentMethod: string = body?.payment_method ?? "card";
+    const ykPaymentMethodType: string = paymentMethodMap[rawPaymentMethod] ?? "bank_card";
+
     if (!amount || amount < 1 || amount > 1_000_000) {
       return new Response(
         JSON.stringify({ error: "Некорректная сумма" }),
@@ -155,6 +165,7 @@ Deno.serve(async (req) => {
         confirmation: { type: "redirect", return_url: returnUrl },
         capture: true,
         description,
+        payment_method_data: { type: ykPaymentMethodType },
         metadata: {
           donation_id: donationId,
           campaign_id: campaignId ?? "general",
