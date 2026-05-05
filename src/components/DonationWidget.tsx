@@ -407,7 +407,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       <div className="mb-6">
         <p className="text-sm font-medium text-foreground mb-3 px-0.5">Способ оплаты</p>
         <div className="grid grid-cols-2 gap-2">
-          {paymentMethods.map(({ id, title, caption, Logo }) => {
+          {paymentMethods.map(({ id, title, caption, logo }) => {
             const active = selectedPaymentMethod === id;
             return (
               <button
@@ -416,19 +416,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                 onClick={() => setSelectedPaymentMethod(id)}
                 aria-pressed={active}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all",
+                  "group flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all duration-200",
                   active
                     ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border bg-background hover:border-foreground/30 hover:shadow-md hover:-translate-y-px"
+                    : "border-border bg-background hover:border-foreground/30 hover:shadow-md hover:scale-[1.02]"
                 )}
               >
-                <span
-                  className={cn(
-                    "shrink-0 w-14 h-9 rounded-lg flex items-center justify-center transition-colors bg-white border border-border/60",
-                    active && "border-primary/40"
-                  )}
-                >
-                  <Logo className="max-h-6 w-auto" aria-label={title} />
+                <span className="shrink-0 h-6 w-14 flex items-center justify-center">
+                  <img
+                    src={logo}
+                    alt={title}
+                    className="h-6 w-auto max-w-full object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </span>
                 <span className="flex-1 min-w-0 self-center">
                   <span className="block text-sm font-semibold text-foreground leading-tight">
