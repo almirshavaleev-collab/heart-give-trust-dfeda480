@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,11 @@ const nameSchema = z.string().trim().min(1, { message: "Введите имя" }
 
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/account/overview";
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromState = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+  const fromPath = fromState ? `${fromState.pathname ?? ""}${fromState.search ?? ""}${fromState.hash ?? ""}` : null;
+  const redirect = fromPath || searchParams.get("redirect") || "/account/overview";
 
   const [tab, setTab] = useState<"login" | "signup" | "reset">("login");
 

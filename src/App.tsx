@@ -30,6 +30,7 @@ import AdminDonations from "./pages/admin/AdminDonations.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import AdminDonors from "./pages/admin/AdminDonors.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
+import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { useCampaignsRealtime } from "./hooks/useCampaigns";
 
 const queryClient = new QueryClient();
@@ -60,7 +61,14 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/account" element={<AccountLayout />}>
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <AccountLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<Navigate to="/account/overview" replace />} />
             <Route path="overview" element={<AccountOverview />} />
             <Route path="donations" element={<AccountDonations />} />
@@ -69,7 +77,14 @@ const App = () => (
             <Route path="settings" element={<AccountSettings />} />
           </Route>
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAdmin redirectTo="/admin/login">
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="campaigns" element={<AdminCampaigns />} />
