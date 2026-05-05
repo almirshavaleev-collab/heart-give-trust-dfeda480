@@ -59,6 +59,7 @@ const App = () => (
           <Route path="/requisites" element={<Requisites />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/login" element={<Navigate to="/auth" replace />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route
