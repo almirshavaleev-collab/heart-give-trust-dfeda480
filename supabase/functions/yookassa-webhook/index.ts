@@ -235,6 +235,7 @@ Deno.serve(async (req) => {
 
       // 4. Идемпотентность: если уже succeeded — ничего не делаем
       if (currentStatus === "succeeded") {
+        console.log(`[yookassa-webhook] already processed donation_id=${donationId} payment_id=${paymentId}`);
         await writeLog("already_processed", donationId);
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -260,6 +261,9 @@ Deno.serve(async (req) => {
       } else {
         // 6. Если донат целевой — атомарно увеличиваем сбор
         const wasUpdated = (updatedRows?.length ?? 0) > 0;
+        console.log(
+          `[yookassa-webhook] donation updated donation_id=${donationId} payment_id=${paymentId} rows=${updatedRows?.length ?? 0}`,
+        );
         if (wasUpdated && donationCampaignId && donationAmount && donationAmount > 0) {
           const { error: rpcErr } = await supabase.rpc("increment_campaign_collected", {
             _campaign_id: donationCampaignId,
@@ -269,9 +273,15 @@ Deno.serve(async (req) => {
             console.error("increment_campaign_collected error:", rpcErr);
             await writeLog("accepted_campaign_increment_failed", donationId);
           } else {
+            console.log(
+              `[yookassa-webhook] campaign updated campaign_id=${donationCampaignId} amount=${donationAmount} donation_id=${donationId}`,
+            );
             await writeLog("accepted_with_campaign", donationId);
           }
         } else {
+          console.log(
+            `[yookassa-webhook] campaign update skipped donation_id=${donationId} campaign_id=${donationCampaignId ?? "general"} was_updated=${wasUpdated}`,
+          );
           await writeLog("accepted", donationId);
         }
 
