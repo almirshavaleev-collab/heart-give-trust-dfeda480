@@ -17,5 +17,7 @@ project_id = "uqiggzylreezigjumxmf"
     verify_jwt = true
   [functions.send-transactional-email]
     verify_jwt = true
+  [functions.sync-yookassa-payment]
+    verify_jwt = false
   [functions.yookassa-webhook]
     verify_jwt = false
