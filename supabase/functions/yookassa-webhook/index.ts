@@ -60,6 +60,8 @@ function getClientIp(req: Request): string | null {
 }
 
 Deno.serve(async (req) => {
+  console.log(`[yookassa-webhook] webhook entered method=${req.method} url=${req.url}`);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -70,6 +72,7 @@ Deno.serve(async (req) => {
   );
 
   const sourceIp = getClientIp(req);
+  console.log(`[yookassa-webhook] client_ip=${sourceIp ?? "unknown"}`);
 
   let payload: any = {};
   try {
@@ -133,6 +136,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  console.log(`[yookassa-webhook] ip allowlist passed payment_id=${paymentId ?? "n/a"}`);
 
   try {
     if (event === "payment.succeeded" && paymentId) {
@@ -180,8 +184,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      console.log(
+        `[yookassa-webhook] verification passed payment_id=${paymentId} status=${verify.data?.status} test=${verify.data?.test ?? isTestPayment}`,
+      );
 
       // 3. Находим донат
+      console.log(`[yookassa-webhook] donation lookup started payment_id=${paymentId} meta=${donationIdFromMeta ?? "n/a"}`);
       let donationId: string | null = null;
       let currentStatus: string | null = null;
       let donationCampaignId: string | null = null;
@@ -221,6 +229,9 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      console.log(
+        `[yookassa-webhook] donation found donation_id=${donationId} status=${currentStatus} campaign_id=${donationCampaignId ?? "general"} amount=${donationAmount ?? "n/a"}`,
+      );
 
       // 4. Идемпотентность: если уже succeeded — ничего не делаем
       if (currentStatus === "succeeded") {
