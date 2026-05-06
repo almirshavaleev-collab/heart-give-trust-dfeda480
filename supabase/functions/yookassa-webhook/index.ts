@@ -94,6 +94,11 @@ Deno.serve(async (req) => {
   const paymentId: string | undefined = object?.id;
   const objectStatus: string | undefined = object?.status;
   const donationIdFromMeta: string | undefined = object?.metadata?.donation_id;
+  const isTestPayment: boolean = Boolean(object?.test);
+
+  console.log(
+    `[yookassa-webhook] event=${event} payment_id=${paymentId} status=${objectStatus} test=${isTestPayment} donation_meta=${donationIdFromMeta ?? "n/a"} ip=${sourceIp}`,
+  );
 
   // Базовая запись лога — дополним result в конце
   const baseLog = {
@@ -131,25 +136,44 @@ Deno.serve(async (req) => {
 
   try {
     if (event === "payment.succeeded" && paymentId) {
-      // 2. Дополнительная верификация через API ЮKassa
-      const shopId = Deno.env.get("YOOKASSA_SHOP_ID");
-      const secretKey = Deno.env.get("YOOKASSA_SECRET_KEY");
-      if (!shopId || !secretKey) {
-        await writeLog("rejected_no_credentials");
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // 2. Дополнительная верификация через API ЮKassa.
+      //    Реальные платежи приходят с test=false и должны проверяться prod-ключами,
+      //    тестовые — test-ключами. Если первый набор не подходит — пробуем другой.
+      const testShopId = Deno.env.get("YOOKASSA_SHOP_ID");
+      const testSecret = Deno.env.get("YOOKASSA_SECRET_KEY");
+      const prodShopId = Deno.env.get("YOOKASSA_PROD_SHOP_ID");
+      const prodSecret = Deno.env.get("YOOKASSA_PROD_SECRET_KEY");
+
+      const primary = isTestPayment
+        ? { shopId: testShopId, secret: testSecret, label: "test" }
+        : { shopId: prodShopId, secret: prodSecret, label: "production" };
+      const fallback = isTestPayment
+        ? { shopId: prodShopId, secret: prodSecret, label: "production" }
+        : { shopId: testShopId, secret: testSecret, label: "test" };
+
+      const tryVerify = async (creds: { shopId?: string; secret?: string; label: string }) => {
+        if (!creds.shopId || !creds.secret) return null;
+        const auth = btoa(`${creds.shopId}:${creds.secret}`);
+        const resp = await fetch(`https://api.yookassa.ru/v3/payments/${paymentId}`, {
+          headers: { Authorization: `Basic ${auth}` },
         });
+        const data = await resp.json().catch(() => ({}));
+        console.log(
+          `[yookassa-webhook] verify ${creds.label} payment_id=${paymentId} http=${resp.status} status=${data?.status ?? "n/a"}`,
+        );
+        return { ok: resp.ok, data };
+      };
+
+      let verify = await tryVerify(primary);
+      if (!verify || !verify.ok || verify.data?.status !== "succeeded") {
+        const fb = await tryVerify(fallback);
+        if (fb && fb.ok && fb.data?.status === "succeeded") verify = fb;
       }
 
-      const auth = btoa(`${shopId}:${secretKey}`);
-      const verifyResp = await fetch(`https://api.yookassa.ru/v3/payments/${paymentId}`, {
-        headers: { Authorization: `Basic ${auth}` },
-      });
-      const verifyData = await verifyResp.json();
-
-      if (!verifyResp.ok || verifyData?.status !== "succeeded") {
-        console.warn("Payment verification mismatch:", verifyData?.status);
+      if (!verify || !verify.ok || verify.data?.status !== "succeeded") {
+        console.warn(
+          `[yookassa-webhook] verification failed payment_id=${paymentId} test=${isTestPayment}`,
+        );
         await writeLog("rejected_verification");
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -190,6 +214,7 @@ Deno.serve(async (req) => {
       }
 
       if (!donationId) {
+        console.warn(`[yookassa-webhook] donation not found payment_id=${paymentId} meta=${donationIdFromMeta ?? "n/a"}`);
         await writeLog("ignored_not_found");
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
