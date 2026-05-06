@@ -110,6 +110,17 @@ export default function AdminDonations() {
   const [campaigns, setCampaigns] = useState<CampaignLite[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const syncRecentPendingPayments = async () => {
+    const { data, error } = await supabase.functions.invoke("sync-yookassa-payment", {
+      body: { scope: "recent_pending", limit: 20 },
+    });
+    if (error) {
+      console.error("donations payment sync error:", error);
+    } else {
+      console.log("donations payment sync result:", data);
+    }
+  };
+
   // Filters & sort
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -146,6 +157,7 @@ export default function AdminDonations() {
 
   useEffect(() => {
     (async () => {
+      await syncRecentPendingPayments();
       await refresh();
       setLoading(false);
     })();

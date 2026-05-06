@@ -41,6 +41,17 @@ export default function AdminDashboard() {
   const [donations, setDonations] = useState<DonationRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const syncRecentPendingPayments = async () => {
+    const { data, error } = await supabase.functions.invoke("sync-yookassa-payment", {
+      body: { scope: "recent_pending", limit: 20 },
+    });
+    if (error) {
+      console.error("dashboard payment sync error:", error);
+    } else {
+      console.log("dashboard payment sync result:", data);
+    }
+  };
+
   const refresh = async () => {
     const { data, error } = await (supabase as any)
       .from("donations")
@@ -55,6 +66,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     (async () => {
+      await syncRecentPendingPayments();
       await refresh();
       setLoading(false);
     })();

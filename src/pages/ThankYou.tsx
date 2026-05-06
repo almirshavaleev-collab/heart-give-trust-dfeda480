@@ -2,10 +2,39 @@ import { Link } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+const PENDING_PAYMENT_KEY = "ligafund:pending_payment";
 
 const ThankYou = () => {
   useEffect(() => {
     document.title = "Спасибо за поддержку — Фонд «Лига»";
+
+    const syncPayment = async () => {
+      let pending: { donation_id?: string | null; payment_id?: string | null } | null = null;
+      try {
+        const raw = localStorage.getItem(PENDING_PAYMENT_KEY);
+        pending = raw ? JSON.parse(raw) : null;
+      } catch { /* ignore */ }
+
+      if (!pending?.donation_id && !pending?.payment_id) return;
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const { data, error } = await supabase.functions.invoke("sync-yookassa-payment", {
+          body: {
+            donation_id: pending.donation_id ?? null,
+            payment_id: pending.payment_id ?? null,
+          },
+        });
+        if (!error && data?.results?.some((r: { status?: string }) => r.status === "succeeded")) {
+          try { localStorage.removeItem(PENDING_PAYMENT_KEY); } catch { /* ignore */ }
+          break;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+      }
+    };
+
+    syncPayment();
   }, []);
 
   return (

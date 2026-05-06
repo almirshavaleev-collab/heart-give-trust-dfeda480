@@ -18,6 +18,7 @@ const MIN_AMOUNT = 1;
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
 const PAYMENT_METHOD_KEY = "ligafund:payment_method";
+const PENDING_PAYMENT_KEY = "ligafund:pending_payment";
 
 const paymentMethods: {
   id: PaymentMethod;
@@ -228,6 +229,13 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
       const url = data?.confirmation?.confirmation_url;
       if (url) {
+        try {
+          localStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify({
+            donation_id: data?.donation_id ?? null,
+            payment_id: data?.id ?? null,
+            created_at: new Date().toISOString(),
+          }));
+        } catch { /* ignore */ }
         window.location.href = url;
         return;
       }
