@@ -16,8 +16,11 @@ Deno.serve(async (req) => {
     const campaignId: string | null = body?.campaign_id ?? null;
     const isAnonymous: boolean = Boolean(body?.is_anonymous);
     const rawPaymentType: string = body?.payment_type ?? "one_time";
-    const paymentType: "one_time" | "monthly" =
-      rawPaymentType === "monthly" ? "monthly" : "one_time";
+    const paymentType: "one_time" | "recurring" =
+      rawPaymentType === "recurring" || rawPaymentType === "monthly" ? "recurring" : "one_time";
+    const rawFrequency: string = body?.frequency ?? "monthly";
+    const frequency: "weekly" | "biweekly" | "monthly" =
+      rawFrequency === "weekly" || rawFrequency === "biweekly" ? rawFrequency : "monthly";
 
     // Маппинг выбранного на фронте метода в формат ЮKassa payment_method_data.type
     const paymentMethodMap: Record<string, string> = {
@@ -166,9 +169,12 @@ Deno.serve(async (req) => {
         capture: true,
         description,
         payment_method_data: { type: ykPaymentMethodType },
+        save_payment_method: paymentType === "recurring",
         metadata: {
           donation_id: donationId,
           campaign_id: campaignId ?? "general",
+          payment_type: paymentType,
+          frequency: paymentType === "recurring" ? frequency : "",
         },
       }),
     });
@@ -196,6 +202,29 @@ Deno.serve(async (req) => {
       .from("donations")
       .update({ yookassa_payment_id: data.id })
       .eq("id", donationId);
+
+    // 3b. Если регулярная поддержка — создаём подписку (статус active, без реальных автосписаний пока).
+    if (paymentType === "recurring") {
+      const intervalMs =
+        frequency === "weekly" ? 7 * 24 * 3600 * 1000
+        : frequency === "biweekly" ? 14 * 24 * 3600 * 1000
+        : 30 * 24 * 3600 * 1000;
+      const nextChargeAt = new Date(Date.now() + intervalMs).toISOString();
+      const { error: subErr } = await supabase.from("donor_subscriptions").insert({
+        user_id: userId,
+        campaign_id: campaignId,
+        amount,
+        currency: "RUB",
+        interval: frequency,
+        status: "active",
+        next_payment_at: nextChargeAt,
+      });
+      if (subErr) {
+        console.error("[create-payment] subscription insert error:", subErr);
+      } else {
+        console.log(`[create-payment] subscription created user=${userId ?? "guest"} freq=${frequency}`);
+      }
+    }
 
     return new Response(
       JSON.stringify({
