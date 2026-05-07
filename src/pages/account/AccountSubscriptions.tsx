@@ -66,7 +66,7 @@ export default function AccountSubscriptions() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  {s.status === "active" && s.next_payment_at && <>Следующее списание: <b>{formatDate(s.next_payment_at)}</b></>}
+                  {s.status === "active" && s.next_payment_at && <>Следующая поддержка: <b>{formatDate(s.next_payment_at)}</b></>}
                   {s.status === "paused" && s.paused_at && <>На паузе с {formatDate(s.paused_at)}</>}
                   {s.status === "canceled" && s.canceled_at && <>Отменена {formatDate(s.canceled_at)}</>}
                 </p>
