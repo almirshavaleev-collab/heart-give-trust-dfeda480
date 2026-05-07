@@ -292,6 +292,42 @@ Deno.serve(async (req) => {
           });
           if (achErr) console.error("evaluate_user_achievements error:", achErr);
         }
+
+        // 7. Если это регулярная поддержка — создаём/обновляем donor_subscription.
+        if (wasUpdated) {
+          const meta = object?.metadata ?? {};
+          const isRecurring = meta?.payment_type === "recurring";
+          const freqRaw = String(meta?.frequency ?? "monthly");
+          const frequency = (["weekly","biweekly","monthly"].includes(freqRaw) ? freqRaw : "monthly") as
+            "weekly" | "biweekly" | "monthly";
+          const savedPaymentMethodId: string | null = object?.payment_method?.id ?? null;
+
+          if (isRecurring) {
+            const intervalMs =
+              frequency === "weekly" ? 7 * 24 * 3600 * 1000
+              : frequency === "biweekly" ? 14 * 24 * 3600 * 1000
+              : 30 * 24 * 3600 * 1000;
+            const nextPaymentAt = new Date(Date.now() + intervalMs).toISOString();
+
+            const { error: subErr } = await supabase.from("donor_subscriptions").insert({
+              user_id: donationUserId,
+              campaign_id: donationCampaignId,
+              amount: donationAmount,
+              currency: "RUB",
+              interval: frequency,
+              status: "active",
+              payment_method_id: savedPaymentMethodId,
+              next_payment_at: nextPaymentAt,
+            });
+            if (subErr) {
+              console.error("[yookassa-webhook] subscription insert error:", subErr);
+            } else {
+              console.log(
+                `[yookassa-webhook] subscription created donation_id=${donationId} user=${donationUserId ?? "guest"} freq=${frequency} pm=${savedPaymentMethodId ?? "n/a"}`,
+              );
+            }
+          }
+        }
       }
     } else if (event === "payment.canceled" && paymentId) {
       let donationId: string | null = null;
