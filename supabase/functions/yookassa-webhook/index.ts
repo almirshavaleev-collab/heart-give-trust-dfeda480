@@ -303,28 +303,54 @@ Deno.serve(async (req) => {
           const savedPaymentMethodId: string | null = object?.payment_method?.id ?? null;
 
           if (isRecurring) {
-            const intervalMs =
-              frequency === "weekly" ? 7 * 24 * 3600 * 1000
-              : frequency === "biweekly" ? 14 * 24 * 3600 * 1000
-              : 30 * 24 * 3600 * 1000;
-            const nextPaymentAt = new Date(Date.now() + intervalMs).toISOString();
+            // calendar-aware next payment date
+            const next = new Date();
+            if (frequency === "weekly") next.setDate(next.getDate() + 7);
+            else if (frequency === "biweekly") next.setDate(next.getDate() + 14);
+            else next.setMonth(next.getMonth() + 1); // calendar month
+            const nextPaymentAt = next.toISOString();
 
-            const { error: subErr } = await supabase.from("donor_subscriptions").insert({
-              user_id: donationUserId,
-              campaign_id: donationCampaignId,
-              amount: donationAmount,
-              currency: "RUB",
-              interval: frequency,
-              status: "active",
-              payment_method_id: savedPaymentMethodId,
-              next_payment_at: nextPaymentAt,
-            });
-            if (subErr) {
-              console.error("[yookassa-webhook] subscription insert error:", subErr);
-            } else {
+            // Save payment_method.id only if YooKassa flagged it as saved
+            const pmSaved = object?.payment_method?.saved === true;
+            const pmId = pmSaved ? savedPaymentMethodId : null;
+
+            // Dedup: same user (or guest+amount) with active subscription on same amount/freq/campaign
+            let dupQuery = supabase
+              .from("donor_subscriptions")
+              .select("id")
+              .eq("status", "active")
+              .eq("amount", donationAmount)
+              .eq("interval", frequency);
+            dupQuery = donationCampaignId
+              ? dupQuery.eq("campaign_id", donationCampaignId)
+              : dupQuery.is("campaign_id", null);
+            dupQuery = donationUserId
+              ? dupQuery.eq("user_id", donationUserId)
+              : dupQuery.is("user_id", null);
+            const { data: existing } = await dupQuery.limit(1).maybeSingle();
+
+            if (existing?.id) {
               console.log(
-                `[yookassa-webhook] subscription created donation_id=${donationId} user=${donationUserId ?? "guest"} freq=${frequency} pm=${savedPaymentMethodId ?? "n/a"}`,
+                `[yookassa-webhook] subscription dedup hit existing=${existing.id} donation_id=${donationId}`,
               );
+            } else {
+              const { error: subErr } = await supabase.from("donor_subscriptions").insert({
+                user_id: donationUserId,
+                campaign_id: donationCampaignId,
+                amount: donationAmount,
+                currency: "RUB",
+                interval: frequency,
+                status: "active",
+                payment_method_id: pmId,
+                next_payment_at: nextPaymentAt,
+              });
+              if (subErr) {
+                console.error("[yookassa-webhook] subscription insert error:", subErr);
+              } else {
+                console.log(
+                  `[yookassa-webhook] subscription created donation_id=${donationId} user=${donationUserId ?? "guest"} freq=${frequency} pm=${pmId ?? "n/a"} pm_saved=${pmSaved}`,
+                );
+              }
             }
           }
         }
