@@ -4,8 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDonorSubscriptions, useUpdateSubscription } from "@/hooks/useDonorData";
 import { formatRub, formatDate, intervalLabel } from "@/lib/donor-format";
-import { Repeat, Pause, Play, X } from "lucide-react";
+import { Repeat, Pause, Play, X, Sparkles, CheckCircle2, PauseCircle, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+const statusMeta = {
+  active:   { label: "Активна",  Icon: CheckCircle2, badge: "default" as const,  ring: "ring-primary/20", glow: "shadow-[0_8px_30px_-8px_hsl(var(--primary)/0.25)]" },
+  paused:   { label: "На паузе", Icon: PauseCircle,  badge: "secondary" as const, ring: "ring-border",     glow: "" },
+  canceled: { label: "Отменена", Icon: XCircle,      badge: "outline" as const,   ring: "ring-border",     glow: "" },
+};
 
 export default function AccountSubscriptions() {
   const { data, isLoading } = useDonorSubscriptions();
@@ -47,47 +54,86 @@ export default function AccountSubscriptions() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {(data ?? []).map((s) => (
-            <Card key={s.id} className="border-border">
-              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Repeat className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{formatRub(s.amount)} · {intervalLabel(s.interval)}</CardTitle>
-                    <p className="text-xs text-muted-foreground">Создано {formatDate(s.created_at)}</p>
-                  </div>
-                </div>
-                <Badge variant={s.status === "active" ? "default" : s.status === "paused" ? "secondary" : "outline"}>
-                  {s.status === "active" ? "Активна" : s.status === "paused" ? "На паузе" : "Отменена"}
-                </Badge>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {s.status === "active" && s.next_payment_at && <>Следующая поддержка: <b>{formatDate(s.next_payment_at)}</b></>}
-                  {s.status === "paused" && s.paused_at && <>На паузе с {formatDate(s.paused_at)}</>}
-                  {s.status === "canceled" && s.canceled_at && <>Отменена {formatDate(s.canceled_at)}</>}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {s.status === "active" && (
-                    <>
-                      <Button size="sm" variant="outline" onClick={() => handlePause(s.id)}><Pause className="w-4 h-4 mr-1" /> Пауза</Button>
-                      <Button size="sm" variant="outline" onClick={() => handleCancel(s.id)}><X className="w-4 h-4 mr-1" /> Отменить</Button>
-                    </>
+        <>
+          <div className="grid gap-4">
+            {(data ?? []).map((s) => {
+              const meta = statusMeta[s.status as keyof typeof statusMeta] ?? statusMeta.canceled;
+              const StatusIcon = meta.Icon;
+              return (
+                <Card
+                  key={s.id}
+                  className={cn(
+                    "border-border bg-background/80 backdrop-blur-sm rounded-2xl ring-1 transition-all hover:shadow-lg",
+                    meta.ring,
+                    meta.glow,
                   )}
-                  {s.status === "paused" && (
-                    <>
-                      <Button size="sm" onClick={() => handleResume(s.id)}><Play className="w-4 h-4 mr-1" /> Возобновить</Button>
-                      <Button size="sm" variant="outline" onClick={() => handleCancel(s.id)}><X className="w-4 h-4 mr-1" /> Отменить</Button>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                >
+                  <CardHeader className="flex flex-row items-start justify-between flex-wrap gap-3 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center ring-1 ring-primary/10">
+                        <Repeat className="w-5 h-5 text-primary" />
+                        {s.status === "active" && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-primary ring-2 ring-background animate-pulse" />
+                        )}
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg leading-tight">
+                          {formatRub(s.amount)} <span className="text-muted-foreground font-medium">· {intervalLabel(s.interval)}</span>
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">Оформлена {formatDate(s.created_at)}</p>
+                      </div>
+                    </div>
+                    <Badge variant={meta.badge} className="gap-1.5 px-2.5 py-1 rounded-full">
+                      <StatusIcon className="w-3.5 h-3.5" />
+                      {meta.label}
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="rounded-xl bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
+                      {s.status === "active" && s.next_payment_at && (
+                        <>Следующая поддержка: <span className="text-foreground font-medium">{formatDate(s.next_payment_at)}</span></>
+                      )}
+                      {s.status === "paused" && s.paused_at && (
+                        <>На паузе с <span className="text-foreground font-medium">{formatDate(s.paused_at)}</span></>
+                      )}
+                      {s.status === "canceled" && s.canceled_at && (
+                        <>Отменена <span className="text-foreground font-medium">{formatDate(s.canceled_at)}</span></>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {s.status === "active" && (
+                        <>
+                          <Button size="sm" variant="outline" className="rounded-full" onClick={() => handlePause(s.id)}>
+                            <Pause className="w-4 h-4 mr-1.5" /> Пауза
+                          </Button>
+                          <Button size="sm" variant="outline" className="rounded-full" onClick={() => handleCancel(s.id)}>
+                            <X className="w-4 h-4 mr-1.5" /> Отменить
+                          </Button>
+                        </>
+                      )}
+                      {s.status === "paused" && (
+                        <>
+                          <Button size="sm" className="rounded-full" onClick={() => handleResume(s.id)}>
+                            <Play className="w-4 h-4 mr-1.5" /> Возобновить
+                          </Button>
+                          <Button size="sm" variant="outline" className="rounded-full" onClick={() => handleCancel(s.id)}>
+                            <X className="w-4 h-4 mr-1.5" /> Отменить
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-secondary/30 px-4 py-3">
+            <Sparkles className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Регулярная поддержка пока работает через напоминания о повторном платеже и не является автоматическим списанием. Мы напомним вам, когда придёт время следующего взноса.
+            </p>
+          </div>
+        </>
       )}
     </div>
   );
