@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Heart, Check, Loader2, Sparkles, Target, UserCheck } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Heart, Check, Loader2, Sparkles, Target, UserCheck, Repeat, Star } from "lucide-react";
 import sbpLogo from "@/assets/payments/sbp.png";
 import mirLogo from "@/assets/payments/mir.png";
 import sberPayLogo from "@/assets/payments/sberpay.png";
@@ -12,9 +12,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const presets = [500, 1000, 3000, 5000];
+const presetsOneTime = [500, 1000, 3000, 5000];
+const presetsRecurring = [300, 500, 1000];
+const RECURRING_POPULAR = 500;
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
+
+type Frequency = "weekly" | "biweekly" | "monthly";
+const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
+  { id: "weekly", label: "Раз в неделю" },
+  { id: "biweekly", label: "Раз в 2 недели" },
+  { id: "monthly", label: "Раз в месяц", popular: true },
+];
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
 const PAYMENT_METHOD_KEY = "ligafund:payment_method";
@@ -57,6 +66,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [amount, setAmount] = useState<number | null>(1000);
   const [customAmount, setCustomAmount] = useState("");
   const [recurring, setRecurring] = useState(false);
+  const [frequency, setFrequency] = useState<Frequency>("monthly");
   const [anonymous, setAnonymous] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -125,6 +135,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anonymous]);
+
+  const presets = useMemo(() => (recurring ? presetsRecurring : presetsOneTime), [recurring]);
+
+  // При переключении режима подкручиваем сумму к разумному дефолту режима
+  useEffect(() => {
+    if (recurring) {
+      setAmount(RECURRING_POPULAR);
+      setCustomAmount("");
+    } else {
+      setAmount(1000);
+      setCustomAmount("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recurring]);
 
   const handlePreset = (val: number) => {
     setAmount(val);
@@ -199,7 +223,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           donor_phone: finalPhone,
           campaign_id: isCampaign ? campaign!.id : null,
           is_anonymous: anonymous,
-          payment_type: "one_time", // ежемесячные — задел на будущее
+          payment_type: recurring ? "recurring" : "one_time",
+          frequency: recurring ? frequency : undefined,
           payment_method: selectedPaymentMethod,
         },
       });
