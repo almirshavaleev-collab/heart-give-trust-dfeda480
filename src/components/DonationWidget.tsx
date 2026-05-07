@@ -259,6 +259,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             donation_id: data?.donation_id ?? null,
             payment_id: data?.id ?? null,
             created_at: new Date().toISOString(),
+            payment_type: recurring ? "recurring" : "one_time",
+            frequency: recurring ? frequency : null,
           }));
         } catch { /* ignore */ }
         window.location.href = url;
