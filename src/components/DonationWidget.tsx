@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Heart, Check, Loader2, Sparkles, Target, UserCheck } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Heart, Check, Loader2, Sparkles, Target, UserCheck, Repeat, Star } from "lucide-react";
 import sbpLogo from "@/assets/payments/sbp.png";
 import mirLogo from "@/assets/payments/mir.png";
 import sberPayLogo from "@/assets/payments/sberpay.png";
@@ -12,9 +12,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const presets = [500, 1000, 3000, 5000];
+const presetsOneTime = [500, 1000, 3000, 5000];
+const presetsRecurring = [300, 500, 1000];
+const RECURRING_POPULAR = 500;
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
+
+type Frequency = "weekly" | "biweekly" | "monthly";
+const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
+  { id: "weekly", label: "Раз в неделю" },
+  { id: "biweekly", label: "Раз в 2 недели" },
+  { id: "monthly", label: "Раз в месяц", popular: true },
+];
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
 const PAYMENT_METHOD_KEY = "ligafund:payment_method";
@@ -57,6 +66,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [amount, setAmount] = useState<number | null>(1000);
   const [customAmount, setCustomAmount] = useState("");
   const [recurring, setRecurring] = useState(false);
+  const [frequency, setFrequency] = useState<Frequency>("monthly");
   const [anonymous, setAnonymous] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -125,6 +135,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anonymous]);
+
+  const presets = useMemo(() => (recurring ? presetsRecurring : presetsOneTime), [recurring]);
+
+  // При переключении режима подкручиваем сумму к разумному дефолту режима
+  useEffect(() => {
+    if (recurring) {
+      setAmount(RECURRING_POPULAR);
+      setCustomAmount("");
+    } else {
+      setAmount(1000);
+      setCustomAmount("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recurring]);
 
   const handlePreset = (val: number) => {
     setAmount(val);
@@ -199,7 +223,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           donor_phone: finalPhone,
           campaign_id: isCampaign ? campaign!.id : null,
           is_anonymous: anonymous,
-          payment_type: "one_time", // ежемесячные — задел на будущее
+          payment_type: recurring ? "recurring" : "one_time",
+          frequency: recurring ? frequency : undefined,
           payment_method: selectedPaymentMethod,
         },
       });
@@ -290,35 +315,79 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           </p>
         </div>
       )}
-      {/* Тип платежа */}
-      <div className="flex gap-2 rounded-xl bg-secondary p-1 mb-6">
-        <button
-          onClick={() => setRecurring(false)}
-          className={cn(
-            "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all",
-            !recurring ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
-          )}
-        >
-          Разово
-        </button>
-        <button
-          type="button"
-          disabled
-          title="Скоро"
-          className="flex-1 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
-        >
-          Ежемесячно
-          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-background/60 border border-border">
-            скоро
-          </span>
-        </button>
+      {/* Тип платежа — segmented toggle */}
+      <div
+        role="tablist"
+        aria-label="Тип пожертвования"
+        className="relative flex gap-1 rounded-2xl bg-secondary/70 backdrop-blur-sm p-1 mb-5 border border-border/60 shadow-inner"
+      >
+        {[
+          { id: "one_time" as const, label: "Разовое пожертвование", icon: Heart },
+          { id: "recurring" as const, label: "Регулярная поддержка", icon: Repeat },
+        ].map(({ id, label, icon: Icon }) => {
+          const active = (id === "recurring") === recurring;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setRecurring(id === "recurring")}
+              className={cn(
+                "relative flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all duration-300 whitespace-nowrap",
+                active
+                  ? "bg-background text-foreground shadow-md ring-1 ring-border"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className={cn("w-4 h-4 transition-transform duration-300", active && "scale-110")} />
+              <span className="truncate">{label}</span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Периодичность — только для регулярной поддержки */}
+      {recurring && (
+        <div className="mb-5 animate-fade-in">
+          <p className="text-sm font-medium text-foreground mb-2.5 px-0.5">Как часто помогать?</p>
+          <div className="grid grid-cols-3 gap-2">
+            {frequencyOptions.map(({ id, label, popular }) => {
+              const active = frequency === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFrequency(id)}
+                  aria-pressed={active}
+                  className={cn(
+                    "relative h-12 rounded-xl text-xs sm:text-sm font-medium border transition-all duration-200 px-2",
+                    active
+                      ? "bg-primary text-primary-foreground border-primary shadow-md"
+                      : "bg-background border-border hover:border-foreground/30 text-foreground"
+                  )}
+                >
+                  {popular && !active && (
+                    <Star className="absolute top-1 right-1 w-3 h-3 text-primary fill-primary/40" aria-hidden />
+                  )}
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed px-0.5">
+            Регулярная помощь позволяет фонду планировать программы и помогать стабильно.
+          </p>
+        </div>
+      )}
 
       {/* Presets — адаптивная сетка: 2 кол. в узком embedded, 4 на широком */}
       <div
         className={cn(
           "grid gap-2 mb-4",
-          embedded ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"
+          recurring
+            ? "grid-cols-3"
+            : embedded ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"
         )}
       >
         {presets.map((val) => (
@@ -326,12 +395,15 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             key={val}
             onClick={() => handlePreset(val)}
             className={cn(
-              "h-12 rounded-xl text-sm font-semibold transition-all border whitespace-nowrap",
+              "relative h-12 rounded-xl text-sm font-semibold transition-all border whitespace-nowrap",
               amount === val
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "bg-background border-border hover:border-foreground/20"
             )}
           >
+            {recurring && val === RECURRING_POPULAR && amount !== val && (
+              <Star className="absolute top-1 right-1 w-3 h-3 text-primary fill-primary/40" aria-hidden />
+            )}
             {val.toLocaleString("ru-RU")} ₽
           </button>
         ))}
@@ -527,11 +599,19 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             <Loader2 className="w-5 h-5 animate-spin" />
             Переход к оплате...
           </>
+        ) : recurring ? (
+          <>
+            <Repeat className="w-5 h-5 shrink-0" />
+            <span>
+              Поддерживать регулярно
+              {amountValid ? ` · ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+            </span>
+          </>
         ) : (
           <>
             <Heart className="w-5 h-5 shrink-0" />
             <span>
-              {isCampaign ? "Поддержать сбор" : "Поддержать"}
+              {isCampaign ? "Поддержать сбор" : "Помочь"}
               {amountValid ? ` ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
             </span>
           </>

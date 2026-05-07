@@ -243,12 +243,13 @@ export type Database = {
           external_subscription_id: string | null
           id: string
           interval: string
+          last_charge_at: string | null
           next_payment_at: string | null
           paused_at: string | null
           payment_method_id: string | null
           status: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           amount: number
@@ -259,12 +260,13 @@ export type Database = {
           external_subscription_id?: string | null
           id?: string
           interval?: string
+          last_charge_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
           payment_method_id?: string | null
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           amount?: number
@@ -275,12 +277,13 @@ export type Database = {
           external_subscription_id?: string | null
           id?: string
           interval?: string
+          last_charge_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
           payment_method_id?: string | null
           status?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
