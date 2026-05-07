@@ -84,6 +84,9 @@ const CampaignPage = () => {
               cropSettings={campaign.crop_settings}
               aspect={12 / 5}
               loading="eager"
+              fetchPriority="high"
+              baseWidth={1200}
+              sizes="(min-width: 1024px) 1200px, 100vw"
               className="rounded-2xl"
               imgClassName={isCompleted ? "grayscale-[25%]" : ""}
             >
