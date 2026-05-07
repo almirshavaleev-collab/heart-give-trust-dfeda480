@@ -203,28 +203,7 @@ Deno.serve(async (req) => {
       .update({ yookassa_payment_id: data.id })
       .eq("id", donationId);
 
-    // 3b. Если регулярная поддержка — создаём подписку (статус active, без реальных автосписаний пока).
-    if (paymentType === "recurring") {
-      const intervalMs =
-        frequency === "weekly" ? 7 * 24 * 3600 * 1000
-        : frequency === "biweekly" ? 14 * 24 * 3600 * 1000
-        : 30 * 24 * 3600 * 1000;
-      const nextChargeAt = new Date(Date.now() + intervalMs).toISOString();
-      const { error: subErr } = await supabase.from("donor_subscriptions").insert({
-        user_id: userId,
-        campaign_id: campaignId,
-        amount,
-        currency: "RUB",
-        interval: frequency,
-        status: "active",
-        next_payment_at: nextChargeAt,
-      });
-      if (subErr) {
-        console.error("[create-payment] subscription insert error:", subErr);
-      } else {
-        console.log(`[create-payment] subscription created user=${userId ?? "guest"} freq=${frequency}`);
-      }
-    }
+    // Подписка donor_subscriptions создаётся в webhook после успешной оплаты.
 
     return new Response(
       JSON.stringify({
