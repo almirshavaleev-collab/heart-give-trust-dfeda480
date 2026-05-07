@@ -704,6 +704,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string
       }
+      reset_test_data: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "user"
