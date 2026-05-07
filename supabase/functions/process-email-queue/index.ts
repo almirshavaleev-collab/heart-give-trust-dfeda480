@@ -1,6 +1,5 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { encodingDiagnostic } from '../_shared/email-debug.ts'
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -18,8 +17,8 @@ function isRateLimited(error: unknown): boolean {
   return error instanceof Error && error.message.includes('429')
 }
 
-// Check if an error is a forbidden (403) response, which means emails are
-// disabled for this project. Retrying won't help — move straight to DLQ.
+// Check if an error is a forbidden (403) response. Retrying won't help.
+// Move straight to DLQ.
 function isForbidden(error: unknown): boolean {
   if (error && typeof error === 'object' && 'status' in error) {
     return (error as { status: number }).status === 403
@@ -198,17 +197,6 @@ Deno.serve(async (req) => {
           ? (failedAttemptsByMessageId.get(payload.message_id) ?? 0)
           : msg.read_ct ?? 0
 
-      // Stage 5: payload as read from queue (auth_emails only — recovery focus).
-      // Stage 6: payload right before sendLovableEmail. Compare sha256 across
-      // stages 4→5→6 to pinpoint where U+FFFD first appears.
-      const isAuthRecovery = queue === 'auth_emails' && payload?.label === 'recovery'
-      if (isAuthRecovery) {
-        const ctx = { messageId: payload?.message_id, runId: payload?.run_id }
-        console.log('[encoding-stage]', await encodingDiagnostic('5_after_queue_read', 'subject', payload?.subject), ctx)
-        console.log('[encoding-stage]', await encodingDiagnostic('5_after_queue_read', 'html', payload?.html), ctx)
-        console.log('[encoding-stage]', await encodingDiagnostic('5_after_queue_read', 'text', payload?.text), ctx)
-      }
-
       // Drop expired messages (TTL exceeded).
       // Prefer payload.queued_at when present; fall back to PGMQ's enqueued_at
       // which is always set by the queue.
@@ -261,12 +249,6 @@ Deno.serve(async (req) => {
       }
 
       try {
-        if (isAuthRecovery) {
-          const ctx = { messageId: payload?.message_id, runId: payload?.run_id }
-          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'subject', payload?.subject), ctx)
-          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'html', payload?.html), ctx)
-          console.log('[encoding-stage]', await encodingDiagnostic('6_payload_before_sendLovableEmail', 'text', payload?.text), ctx)
-        }
         await sendLovableEmail(
           {
             run_id: payload.run_id,
@@ -342,12 +324,12 @@ Deno.serve(async (req) => {
           )
         }
 
-        // 403 means emails are disabled for this project — retrying won't help.
-        // Move straight to DLQ and stop processing the rest of the batch.
+        // 403s are permanent configuration or authorization failures for this
+        // message, so move straight to DLQ and stop processing the rest of the batch.
         if (isForbidden(error)) {
-          await moveToDlq(supabase, queue, msg, 'Emails disabled for this project')
+          await moveToDlq(supabase, queue, msg, errorMsg.slice(0, 1000))
           return new Response(
-            JSON.stringify({ processed: totalProcessed, stopped: 'emails_disabled' }),
+            JSON.stringify({ processed: totalProcessed, stopped: 'forbidden' }),
             { headers: { 'Content-Type': 'application/json' } }
           )
         }
