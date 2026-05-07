@@ -599,11 +599,19 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             <Loader2 className="w-5 h-5 animate-spin" />
             Переход к оплате...
           </>
+        ) : recurring ? (
+          <>
+            <Repeat className="w-5 h-5 shrink-0" />
+            <span>
+              Поддерживать регулярно
+              {amountValid ? ` · ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+            </span>
+          </>
         ) : (
           <>
             <Heart className="w-5 h-5 shrink-0" />
             <span>
-              {isCampaign ? "Поддержать сбор" : "Поддержать"}
+              {isCampaign ? "Поддержать сбор" : "Помочь"}
               {amountValid ? ` ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
             </span>
           </>
