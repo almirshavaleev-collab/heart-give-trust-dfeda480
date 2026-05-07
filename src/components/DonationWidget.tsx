@@ -378,6 +378,9 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed px-0.5">
             Регулярная помощь позволяет фонду планировать программы и помогать стабильно.
           </p>
+          <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed px-0.5">
+            Регулярная поддержка пока работает через напоминания о повторном платеже и не является автоматическим списанием.
+          </p>
         </div>
       )}
 
