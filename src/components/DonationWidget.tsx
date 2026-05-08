@@ -265,6 +265,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             frequency: recurring ? frequency : null,
           }));
         } catch { /* ignore */ }
+        // Mock subscription persistence (localStorage). Easily swappable for Supabase later.
+        if (recurring && authUser) {
+          try {
+            await getSubscriptionsRepo().create({
+              user_id: authUser.id,
+              amount: activeAmount,
+              frequency,
+              campaign_id: isCampaign ? campaign!.id : null,
+              campaign_title: isCampaign ? campaign!.title : null,
+            });
+          } catch (err) {
+            console.error("[subscriptions] failed to persist mock", err);
+          }
+        }
         window.location.href = url;
         return;
       }
