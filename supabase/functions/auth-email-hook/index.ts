@@ -9,15 +9,6 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
-import {
-  buildEmailDebugPayload,
-  buildOutboundDiff,
-  buildRenderDiagnostics,
-  encodingDiagnostic,
-  inspectString,
-  type OutboundEmailSnapshot,
-} from '../_shared/email-debug.ts'
-import { recoveryDiagnosticsScenarios } from '../_shared/recovery-render-debug.tsx'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,44 +16,13 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const AUTH_TEMPLATE_VERSION = 'AUTH_EMAIL_PIPELINE_V2_2026_04_22'
-
-// In-memory ring buffer for the most recent outbound payloads enqueued by this
-// edge function instance. Used by /diff-outbound to compare what was actually
-// sent to the email provider against a freshly rendered template.
-const OUTBOUND_SNAPSHOTS_LIMIT = 8
-const outboundSnapshots: OutboundEmailSnapshot[] = []
-
-const recordOutboundSnapshot = (snapshot: OutboundEmailSnapshot) => {
-  outboundSnapshots.unshift(snapshot)
-  if (outboundSnapshots.length > OUTBOUND_SNAPSHOTS_LIMIT) {
-    outboundSnapshots.length = OUTBOUND_SNAPSHOTS_LIMIT
-  }
-}
-
-const findOutboundSnapshot = (
-  emailType: string,
-  runId?: string,
-  messageId?: string,
-) => {
-  if (messageId) {
-    const byMessage = outboundSnapshots.find((snap) => snap.messageId === messageId)
-    if (byMessage) return byMessage
-  }
-  if (runId) {
-    const exact = outboundSnapshots.find((snap) => snap.runId === runId)
-    if (exact) return exact
-  }
-  return outboundSnapshots.find((snap) => snap.emailType === emailType) ?? null
-}
-
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'SIGNUP TEMPLATE V2 · Подтвердите email — Фонд «Лига»',
-  invite: 'Приглашение в личный кабинет — Фонд «Лига»',
-  magiclink: 'Ссылка для входа — Фонд «Лига»',
-  recovery: 'RECOVERY TEMPLATE V2 · Восстановление пароля — Фонд «Лига»',
-  email_change: 'Подтверждение смены email — Фонд «Лига»',
-  reauthentication: 'Код подтверждения — Фонд «Лига»',
+  signup: 'Confirm your email',
+  invite: "You've been invited",
+  magiclink: 'Your login link',
+  recovery: 'Reset your password',
+  email_change: 'Confirm your new email',
+  reauthentication: 'Your verification code',
 }
 
 // Template mapping
@@ -76,11 +36,10 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-import { BRAND_NAME } from '../_shared/brand.ts'
-const SITE_NAME = BRAND_NAME
-const SENDER_DOMAIN = "notify.ligafund.ru"
-const ROOT_DOMAIN = "ligafund.ru"
-const FROM_DOMAIN = "notify.ligafund.ru" // Domain shown in From address (may be root or sender subdomain)
+const SITE_NAME = "heart-give-trust"
+const SENDER_DOMAIN = "notify.mail.ligafund.ru"
+const ROOT_DOMAIN = "mail.ligafund.ru"
+const FROM_DOMAIN = "mail.ligafund.ru" // Domain shown in From address (may be root or sender subdomain)
 
 // Sample data for preview mode ONLY (not used in actual email sending).
 // URLs are baked in at scaffold time from the project's real data.
@@ -111,6 +70,7 @@ const SAMPLE_DATA: Record<string, object> = {
   },
   email_change: {
     siteName: SITE_NAME,
+    oldEmail: SAMPLE_EMAIL,
     email: SAMPLE_EMAIL,
     newEmail: SAMPLE_EMAIL,
     confirmationUrl: SAMPLE_PROJECT_URL,
@@ -118,348 +78,6 @@ const SAMPLE_DATA: Record<string, object> = {
   reauthentication: {
     token: '123456',
   },
-}
-
-const buildTemplateProps = (data: Record<string, any>) => ({
-  siteName: SITE_NAME,
-  siteUrl: `https://${ROOT_DOMAIN}`,
-  recipient: data.email,
-  confirmationUrl: data.url,
-  token: data.token,
-  email: data.email,
-  newEmail: data.new_email,
-})
-
-async function renderEmailContent(emailType: string, templateProps: Record<string, any>) {
-  const EmailTemplate = EMAIL_TEMPLATES[emailType]
-
-  if (!EmailTemplate) {
-    throw new Error(`Unknown email type: ${emailType}`)
-  }
-
-  const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
-  const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
-    plainText: true,
-  })
-  const subject = EMAIL_SUBJECTS[emailType] || 'Notification'
-
-  return { EmailTemplate, html, text, subject }
-}
-
-const isRecoveryEmail = (emailType: string) => emailType === 'recovery'
-
-const logEmailDebug = ({ emailType, subject, siteName, html, text }: {
-  emailType: string
-  subject: string
-  siteName?: string
-  html: string
-  text: string
-}) => {
-  if (!isRecoveryEmail(emailType)) return
-
-  console.log('Auth email debug', {
-    templateVersion: AUTH_TEMPLATE_VERSION,
-    ...buildEmailDebugPayload({
-      emailType,
-      subject,
-      siteName,
-      brandName: BRAND_NAME,
-      html,
-      text,
-    }),
-  })
-}
-
-async function handleDebugPreview(req: Request): Promise<Response> {
-  const previewCorsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, content-type',
-  }
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: previewCorsHeaders })
-  }
-
-  const apiKey = Deno.env.get('LOVABLE_API_KEY')
-  const authHeader = req.headers.get('Authorization')
-
-  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  let type: string
-  let templateData: Record<string, any> | undefined
-  try {
-    const body = await req.json()
-    type = body.type
-    templateData = body.templateData
-  } catch (_error) {
-    return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
-      status: 400,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  try {
-    const sampleData = SAMPLE_DATA[type] || {}
-    const data = { ...sampleData, ...templateData }
-    const templateProps = type === 'recovery'
-      ? {
-          siteName: SITE_NAME,
-          confirmationUrl: data.confirmationUrl ?? SAMPLE_PROJECT_URL,
-        }
-      : buildTemplateProps(data)
-    const { html, text, subject } = await renderEmailContent(type, templateProps)
-
-    return new Response(JSON.stringify({
-      templateVersion: AUTH_TEMPLATE_VERSION,
-      sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-      sender_domain: SENDER_DOMAIN,
-      ...buildEmailDebugPayload({
-        emailType: type,
-        subject,
-        siteName: SITE_NAME,
-        brandName: BRAND_NAME,
-        html,
-        text,
-      }),
-    }), {
-      status: 200,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: message }), {
-      status: 400,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  }
-}
-
-async function handleRecoveryRenderDebug(req: Request): Promise<Response> {
-  const debugCorsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, content-type',
-  }
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: debugCorsHeaders })
-  }
-
-  const results = []
-
-  for (const scenario of recoveryDiagnosticsScenarios) {
-    const html = await renderAsync(scenario.node())
-    const text = await renderAsync(scenario.node(), { plainText: true })
-
-    results.push({
-      id: scenario.id,
-      ...buildRenderDiagnostics({
-        label: scenario.label,
-        jsx: scenario.jsx,
-        expected: scenario.expected,
-        html,
-        text,
-      }),
-    })
-  }
-
-  const firstBrokenScenario = results.find((scenario) => scenario.hasReplacementCharacter.html || scenario.hasReplacementCharacter.text)
-
-  console.log('Recovery render diagnostics', {
-    brandName: inspectString(BRAND_NAME),
-    firstBrokenScenario,
-    results,
-  })
-
-  return new Response(JSON.stringify({
-    brandName: inspectString(BRAND_NAME),
-    firstBrokenScenario,
-    results,
-  }), {
-    status: 200,
-    headers: { ...debugCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-  })
-}
-
-async function handleDiffOutbound(req: Request): Promise<Response> {
-  const previewCorsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, content-type',
-  }
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: previewCorsHeaders })
-  }
-
-  const apiKey = Deno.env.get('LOVABLE_API_KEY')
-  const authHeader = req.headers.get('Authorization')
-
-  if (!apiKey || authHeader !== `Bearer ${apiKey}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  }
-
-  let type: string
-  let runId: string | undefined
-  let messageId: string | undefined
-  let templateData: Record<string, any> | undefined
-  try {
-    const body = await req.json()
-    type = body.type
-    runId = body.runId ?? body.run_id
-    messageId = body.messageId ?? body.message_id
-    templateData = body.templateData
-  } catch (_error) {
-    return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
-      status: 400,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  }
-
-  if (!type || !EMAIL_TEMPLATES[type]) {
-    return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
-      status: 400,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  }
-
-  try {
-    const sampleData = SAMPLE_DATA[type] || {}
-    const data = { ...sampleData, ...templateData }
-    const templateProps = type === 'recovery'
-      ? {
-          siteName: SITE_NAME,
-          confirmationUrl: data.confirmationUrl ?? SAMPLE_PROJECT_URL,
-        }
-      : buildTemplateProps(data)
-    const { html, text, subject } = await renderEmailContent(type, templateProps)
-
-    const renderedSnapshot = {
-      emailType: type,
-      templateVersion: AUTH_TEMPLATE_VERSION,
-      subject,
-      html,
-      text,
-    }
-
-    const outboundSnapshot = findOutboundSnapshot(type, runId, messageId)
-
-    const diff = await buildOutboundDiff(renderedSnapshot, outboundSnapshot)
-
-    const matchedBy = outboundSnapshot
-      ? messageId && outboundSnapshot.messageId === messageId
-        ? 'messageId'
-        : runId && outboundSnapshot.runId === runId
-          ? 'runId'
-          : 'emailType'
-      : null
-
-    const snippets = (diff as any).snippets ?? null
-    const diffBlock = (diff as any).diff ?? null
-
-    // Compact human-readable summary surfaced at the top of the response so a
-    // human can quickly answer: which email, which version, did we match a
-    // snapshot, by what key, and where does the text first diverge / break.
-    const summary = {
-      emailType: type,
-      templateVersion: AUTH_TEMPLATE_VERSION,
-      hasOutboundSnapshot: Boolean(outboundSnapshot),
-      matchedBy,
-      requestedMessageId: messageId ?? null,
-      requestedRunId: runId ?? null,
-      matchedSnapshot: outboundSnapshot
-        ? {
-            emailType: outboundSnapshot.emailType,
-            templateVersion: outboundSnapshot.templateVersion,
-            runId: outboundSnapshot.runId ?? null,
-            messageId: outboundSnapshot.messageId ?? null,
-            capturedAt: outboundSnapshot.capturedAt,
-            to: outboundSnapshot.to ?? null,
-            from: outboundSnapshot.from ?? null,
-            senderDomain: outboundSnapshot.senderDomain ?? null,
-            subject: outboundSnapshot.subject,
-          }
-        : null,
-      sameTemplateVersion: diffBlock?.sameTemplateVersion ?? null,
-      identical: diffBlock
-        ? {
-            subject: diffBlock.subject?.identical ?? null,
-            html: diffBlock.html?.identical ?? null,
-            text: diffBlock.text?.identical ?? null,
-          }
-        : null,
-      replacementCharacterCounts: {
-        rendered: {
-          subject: (diff as any).rendered?.fields?.subject?.replacementCount ?? 0,
-          html: (diff as any).rendered?.fields?.html?.replacementCount ?? 0,
-          text: (diff as any).rendered?.fields?.text?.replacementCount ?? 0,
-        },
-        outbound: outboundSnapshot
-          ? {
-              subject: (diff as any).outbound?.fields?.subject?.replacementCount ?? 0,
-              html: (diff as any).outbound?.fields?.html?.replacementCount ?? 0,
-              text: (diff as any).outbound?.fields?.text?.replacementCount ?? 0,
-            }
-          : null,
-      },
-      readableSnippets: snippets
-        ? {
-            subject: {
-              rendered: snippets.subject?.renderedHead ?? null,
-              outbound: snippets.subject?.outboundHead ?? null,
-              firstDifference: snippets.subject?.snippetAroundFirstDifference ?? null,
-              firstReplacement: snippets.subject?.snippetAroundFirstReplacement ?? null,
-            },
-            html: {
-              rendered: snippets.html?.renderedHead ?? null,
-              outbound: snippets.html?.outboundHead ?? null,
-              firstDifference: snippets.html?.snippetAroundFirstDifference ?? null,
-              firstReplacement: snippets.html?.snippetAroundFirstReplacement ?? null,
-            },
-            text: {
-              rendered: snippets.text?.renderedHead ?? null,
-              outbound: snippets.text?.outboundHead ?? null,
-              firstDifference: snippets.text?.snippetAroundFirstDifference ?? null,
-              firstReplacement: snippets.text?.snippetAroundFirstReplacement ?? null,
-            },
-          }
-        : null,
-    }
-
-    return new Response(JSON.stringify({
-      summary,
-      templateVersion: AUTH_TEMPLATE_VERSION,
-      requestedType: type,
-      requestedRunId: runId ?? null,
-      requestedMessageId: messageId ?? null,
-      matchedBy,
-      sender: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-      sender_domain: SENDER_DOMAIN,
-      availableSnapshots: outboundSnapshots.map((snap) => ({
-        emailType: snap.emailType,
-        templateVersion: snap.templateVersion,
-        runId: snap.runId,
-        messageId: snap.messageId,
-        capturedAt: snap.capturedAt,
-      })),
-      ...diff,
-    }, null, 2), {
-      status: 200,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...previewCorsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-    })
-  }
 }
 
 // Preview endpoint handler - returns rendered HTML without sending email
@@ -494,7 +112,9 @@ async function handlePreview(req: Request): Promise<Response> {
     })
   }
 
-  if (!EMAIL_TEMPLATES[type]) {
+  const EmailTemplate = EMAIL_TEMPLATES[type]
+
+  if (!EmailTemplate) {
     return new Response(JSON.stringify({ error: `Unknown email type: ${type}` }), {
       status: 400,
       headers: { ...previewCorsHeaders, 'Content-Type': 'application/json' },
@@ -502,21 +122,11 @@ async function handlePreview(req: Request): Promise<Response> {
   }
 
   const sampleData = SAMPLE_DATA[type] || {}
-  const templateProps = type === 'recovery'
-    ? {
-        siteName: SITE_NAME,
-        confirmationUrl: (sampleData as Record<string, any>).confirmationUrl ?? SAMPLE_PROJECT_URL,
-      }
-    : buildTemplateProps(sampleData as Record<string, any>)
-  const { html } = await renderEmailContent(type, templateProps)
+  const html = await renderAsync(React.createElement(EmailTemplate, sampleData))
 
   return new Response(html, {
     status: 200,
-    headers: {
-      ...previewCorsHeaders,
-      'Content-Type': 'text/html; charset=utf-8',
-      'X-Auth-Template-Version': AUTH_TEMPLATE_VERSION,
-    },
+    headers: { ...previewCorsHeaders, 'Content-Type': 'text/html; charset=utf-8' },
   })
 }
 
@@ -599,7 +209,8 @@ async function handleWebhook(req: Request): Promise<Response> {
   const emailType = payload.data.action_type
   console.log('Received auth event', { emailType, email: payload.data.email, run_id })
 
-  if (!EMAIL_TEMPLATES[emailType]) {
+  const EmailTemplate = EMAIL_TEMPLATES[emailType]
+  if (!EmailTemplate) {
     console.error('Unknown email type', { emailType, run_id })
     return new Response(
       JSON.stringify({ error: `Unknown email type: ${emailType}` }),
@@ -608,28 +219,22 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   // Build template props from payload.data (HookData structure)
-  const templateProps = buildTemplateProps(payload.data)
-
-  // Stage 1: subject pulled from EMAIL_SUBJECTS (source-of-truth string literal).
-  // Stage 2: props passed into renderAsync (siteName / brandName from brand.ts).
-  // Logged only for recovery to keep noise low while we hunt the U+FFFD source.
-  if (isRecoveryEmail(emailType)) {
-    const subjectFromMap = EMAIL_SUBJECTS[emailType] ?? ''
-    console.log('[encoding-stage]', await encodingDiagnostic('1_subject_from_EMAIL_SUBJECTS', 'subject', subjectFromMap))
-    console.log('[encoding-stage]', await encodingDiagnostic('2_props_before_renderAsync', 'siteName', (templateProps as any).siteName))
-    console.log('[encoding-stage]', await encodingDiagnostic('2_props_before_renderAsync', 'brandName', BRAND_NAME))
+  const templateProps = {
+    siteName: SITE_NAME,
+    siteUrl: `https://${ROOT_DOMAIN}`,
+    recipient: payload.data.email,
+    confirmationUrl: payload.data.url,
+    token: payload.data.token,
+    email: payload.data.email,
+    oldEmail: payload.data.old_email,
+    newEmail: payload.data.new_email,
   }
 
   // Render React Email to HTML and plain text
-  const { html, text, subject } = await renderEmailContent(emailType, templateProps)
-  logEmailDebug({ emailType, subject, siteName: SITE_NAME, html, text })
-
-  // Stage 3: html/text/subject right after renderAsync.
-  if (isRecoveryEmail(emailType)) {
-    console.log('[encoding-stage]', await encodingDiagnostic('3_html_text_after_renderAsync', 'subject', subject))
-    console.log('[encoding-stage]', await encodingDiagnostic('3_html_text_after_renderAsync', 'html', html))
-    console.log('[encoding-stage]', await encodingDiagnostic('3_html_text_after_renderAsync', 'text', text))
-  }
+  const html = await renderAsync(React.createElement(EmailTemplate, templateProps))
+  const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
+    plainText: true,
+  })
 
   // Enqueue email for async processing by the dispatcher (process-email-queue).
   const supabase = createClient(
@@ -655,7 +260,7 @@ async function handleWebhook(req: Request): Promise<Response> {
       to: payload.data.email,
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
-      subject,
+      subject: EMAIL_SUBJECTS[emailType] || 'Notification',
       html,
       text,
       purpose: 'transactional',
@@ -663,13 +268,6 @@ async function handleWebhook(req: Request): Promise<Response> {
       queued_at: new Date().toISOString(),
     },
   })
-
-  // Stage 4: payload right before enqueue_email.
-  if (isRecoveryEmail(emailType)) {
-    console.log('[encoding-stage]', await encodingDiagnostic('4_payload_before_enqueue_email', 'subject', subject), { messageId, run_id })
-    console.log('[encoding-stage]', await encodingDiagnostic('4_payload_before_enqueue_email', 'html', html), { messageId })
-    console.log('[encoding-stage]', await encodingDiagnostic('4_payload_before_enqueue_email', 'text', text), { messageId })
-  }
 
   if (enqueueError) {
     console.error('Failed to enqueue auth email', { error: enqueueError, run_id, emailType })
@@ -686,21 +284,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     })
   }
 
-  console.log('Auth email enqueued', { emailType, email: payload.data.email, run_id, templateVersion: AUTH_TEMPLATE_VERSION })
-
-  recordOutboundSnapshot({
-    capturedAt: new Date().toISOString(),
-    emailType,
-    templateVersion: AUTH_TEMPLATE_VERSION,
-    runId: run_id,
-    messageId,
-    subject,
-    to: payload.data.email,
-    from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-    senderDomain: SENDER_DOMAIN,
-    html,
-    text,
-  })
+  console.log('Auth email enqueued', { emailType, email: payload.data.email, run_id })
 
   return new Response(
     JSON.stringify({ success: true, queued: true }),
@@ -719,18 +303,6 @@ Deno.serve(async (req) => {
   // Route to preview handler for /preview path
   if (url.pathname.endsWith('/preview')) {
     return handlePreview(req)
-  }
-
-  if (url.pathname.endsWith('/debug-preview')) {
-    return handleDebugPreview(req)
-  }
-
-  if (url.pathname.endsWith('/debug-recovery-render')) {
-    return handleRecoveryRenderDebug(req)
-  }
-
-  if (url.pathname.endsWith('/diff-outbound')) {
-    return handleDiffOutbound(req)
   }
 
   // Main webhook handler
