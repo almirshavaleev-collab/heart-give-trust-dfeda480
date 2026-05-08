@@ -296,60 +296,92 @@ Deno.serve(async (req) => {
         // 7. Если это регулярная поддержка — создаём/обновляем donor_subscription.
         if (wasUpdated) {
           const meta = object?.metadata ?? {};
-          const isRecurring = meta?.payment_type === "recurring";
+          const isRecurring = meta?.payment_type === "recurring" || meta?.type === "recurring";
           const freqRaw = String(meta?.frequency ?? "monthly");
           const frequency = (["weekly","biweekly","monthly"].includes(freqRaw) ? freqRaw : "monthly") as
             "weekly" | "biweekly" | "monthly";
           const savedPaymentMethodId: string | null = object?.payment_method?.id ?? null;
+          const paymentMethodType: string | null = object?.payment_method?.type ?? null;
+          const pmSaved = object?.payment_method?.saved === true;
+
+          console.log(
+            `[yookassa-webhook] recurring branch donation_id=${donationId} is_recurring=${isRecurring} pm_id=${savedPaymentMethodId ?? "null"} pm_saved=${pmSaved} pm_type=${paymentMethodType ?? "n/a"}`,
+          );
 
           if (isRecurring) {
-            // calendar-aware next payment date
-            const next = new Date();
-            if (frequency === "weekly") next.setDate(next.getDate() + 7);
-            else if (frequency === "biweekly") next.setDate(next.getDate() + 14);
-            else next.setMonth(next.getMonth() + 1); // calendar month
-            const nextPaymentAt = next.toISOString();
-
-            // Save payment_method.id only if YooKassa flagged it as saved
-            const pmSaved = object?.payment_method?.saved === true;
-            const pmId = pmSaved ? savedPaymentMethodId : null;
-
-            // Dedup: same user (or guest+amount) with active subscription on same amount/freq/campaign
-            let dupQuery = supabase
-              .from("donor_subscriptions")
-              .select("id")
-              .eq("status", "active")
-              .eq("amount", donationAmount)
-              .eq("interval", frequency);
-            dupQuery = donationCampaignId
-              ? dupQuery.eq("campaign_id", donationCampaignId)
-              : dupQuery.is("campaign_id", null);
-            dupQuery = donationUserId
-              ? dupQuery.eq("user_id", donationUserId)
-              : dupQuery.is("user_id", null);
-            const { data: existing } = await dupQuery.limit(1).maybeSingle();
-
-            if (existing?.id) {
-              console.log(
-                `[yookassa-webhook] subscription dedup hit existing=${existing.id} donation_id=${donationId}`,
+            // Without a saved payment_method.id we cannot trigger off-session
+            // autopayments later — refuse to create an active subscription.
+            // The donation itself is already saved; we just don't promise autopay.
+            if (!savedPaymentMethodId || !pmSaved) {
+              console.warn(
+                `[yookassa-webhook] recurring without saved payment method — skipping subscription create. donation_id=${donationId}. ` +
+                `Likely cause: 'Forbidden to use saved payment method' — recurring is not enabled on the YooKassa shop.`,
               );
+              await writeLog("recurring_no_payment_method", donationId);
             } else {
-              const { error: subErr } = await supabase.from("donor_subscriptions").insert({
-                user_id: donationUserId,
-                campaign_id: donationCampaignId,
-                amount: donationAmount,
-                currency: "RUB",
-                interval: frequency,
-                status: "active",
-                payment_method_id: pmId,
-                next_payment_at: nextPaymentAt,
-              });
-              if (subErr) {
-                console.error("[yookassa-webhook] subscription insert error:", subErr);
+              // calendar-aware next payment date
+              const next = new Date();
+              if (frequency === "weekly") next.setDate(next.getDate() + 7);
+              else if (frequency === "biweekly") next.setDate(next.getDate() + 14);
+              else next.setMonth(next.getMonth() + 1);
+              const nextPaymentAt = next.toISOString();
+              const nowIso = new Date().toISOString();
+
+              // Dedup by user/campaign/amount/interval — covers two cases:
+              //   1. Duplicate first-payment webhook (idempotency)
+              //   2. Subsequent autopay charges that re-enter the webhook
+              let dupQuery = supabase
+                .from("donor_subscriptions")
+                .select("id, payment_method_id")
+                .eq("status", "active")
+                .eq("amount", donationAmount)
+                .eq("interval", frequency);
+              dupQuery = donationCampaignId
+                ? dupQuery.eq("campaign_id", donationCampaignId)
+                : dupQuery.is("campaign_id", null);
+              dupQuery = donationUserId
+                ? dupQuery.eq("user_id", donationUserId)
+                : dupQuery.is("user_id", null);
+              const { data: existing } = await dupQuery.limit(1).maybeSingle();
+
+              if (existing?.id) {
+                // Existing subscription — bump charge timestamps (autopay path).
+                const { error: updSubErr } = await supabase
+                  .from("donor_subscriptions")
+                  .update({
+                    last_charge_at: nowIso,
+                    next_payment_at: nextPaymentAt,
+                    payment_method_id: existing.payment_method_id ?? savedPaymentMethodId,
+                    payment_method_type: paymentMethodType,
+                  })
+                  .eq("id", existing.id);
+                if (updSubErr) {
+                  console.error("[yookassa-webhook] subscription update error:", updSubErr);
+                } else {
+                  console.log(
+                    `[yookassa-webhook] subscription updated (autopay) sub_id=${existing.id} donation_id=${donationId} next=${nextPaymentAt}`,
+                  );
+                }
               } else {
-                console.log(
-                  `[yookassa-webhook] subscription created donation_id=${donationId} user=${donationUserId ?? "guest"} freq=${frequency} pm=${pmId ?? "n/a"} pm_saved=${pmSaved}`,
-                );
+                const { error: subErr } = await supabase.from("donor_subscriptions").insert({
+                  user_id: donationUserId,
+                  campaign_id: donationCampaignId,
+                  amount: donationAmount,
+                  currency: "RUB",
+                  interval: frequency,
+                  status: "active",
+                  payment_method_id: savedPaymentMethodId,
+                  payment_method_type: paymentMethodType,
+                  next_payment_at: nextPaymentAt,
+                  last_charge_at: nowIso,
+                });
+                if (subErr) {
+                  console.error("[yookassa-webhook] subscription insert error:", subErr);
+                } else {
+                  console.log(
+                    `[yookassa-webhook] subscription created donation_id=${donationId} user=${donationUserId ?? "guest"} freq=${frequency} pm=${savedPaymentMethodId} pm_type=${paymentMethodType ?? "n/a"}`,
+                  );
+                }
               }
             }
           }
