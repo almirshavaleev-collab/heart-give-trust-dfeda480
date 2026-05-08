@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Heart, Check, Loader2, Sparkles, Target, UserCheck, Repeat, Star } from "lucide-react";
+import { Heart, Check, Loader2, Sparkles, Target, UserCheck, Repeat, Star, ShieldCheck, LogIn } from "lucide-react";
 import sbpLogo from "@/assets/payments/sbp.png";
 import mirLogo from "@/assets/payments/mir.png";
 import sberPayLogo from "@/assets/payments/sberpay.png";
@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getSubscriptionsRepo } from "@/lib/subscriptions-repo";
+import { Link } from "react-router-dom";
 
 const presetsOneTime = [500, 1000, 3000, 5000];
 const presetsRecurring = [300, 500, 1000];
@@ -596,7 +598,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       <Button
         size="xl"
         className="w-full min-h-[52px] whitespace-normal text-center leading-tight"
-        disabled={!canSubmit}
+        disabled={!canSubmit || (recurring && !authUser)}
         onClick={handleSubmit}
       >
         {loading ? (
