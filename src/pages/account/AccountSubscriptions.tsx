@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -264,16 +264,16 @@ function EditDialog({
   onClose: () => void;
   onSave: (id: string, patch: { amount: number; frequency: SubscriptionFrequency }) => Promise<void>;
 }) {
-  const [amount, setAmount] = useState<number>(sub?.amount ?? 500);
-  const [frequency, setFrequency] = useState<SubscriptionFrequency>(sub?.frequency ?? "monthly");
+  const [amount, setAmount] = useState<number>(500);
+  const [frequency, setFrequency] = useState<SubscriptionFrequency>("monthly");
   const [saving, setSaving] = useState(false);
 
-  // Sync when opening with new sub
-  if (sub && (amount === 0 || (sub.id !== editingRefId.current))) {
-    editingRefId.current = sub.id;
-    setAmount(sub.amount);
-    setFrequency(sub.frequency);
-  }
+  useEffect(() => {
+    if (sub) {
+      setAmount(sub.amount);
+      setFrequency(sub.frequency);
+    }
+  }, [sub]);
 
   if (!sub) return null;
 
@@ -341,6 +341,3 @@ function EditDialog({
     </Dialog>
   );
 }
-
-// Track which sub is loaded into the dialog state to avoid stale form
-const editingRefId: { current: string | null } = { current: null };
