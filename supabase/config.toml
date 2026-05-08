@@ -1,8 +1,6 @@
 project_id = "uqiggzylreezigjumxmf"
 
 [functions]
-  [functions.auth-email-hook]
-    verify_jwt = false
   [functions.create-payment]
     verify_jwt = false
   [functions.handle-email-suppression]
