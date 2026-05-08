@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Heart, Check, Loader2, Sparkles, Target, UserCheck, Repeat, Star } from "lucide-react";
+import { Heart, Check, Loader2, Sparkles, Target, UserCheck, Repeat, Star, ShieldCheck, LogIn } from "lucide-react";
 import sbpLogo from "@/assets/payments/sbp.png";
 import mirLogo from "@/assets/payments/mir.png";
 import sberPayLogo from "@/assets/payments/sberpay.png";
@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getSubscriptionsRepo } from "@/lib/subscriptions-repo";
+import { Link } from "react-router-dom";
 
 const presetsOneTime = [500, 1000, 3000, 5000];
 const presetsRecurring = [300, 500, 1000];
@@ -263,6 +265,20 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             frequency: recurring ? frequency : null,
           }));
         } catch { /* ignore */ }
+        // Mock subscription persistence (localStorage). Easily swappable for Supabase later.
+        if (recurring && authUser) {
+          try {
+            await getSubscriptionsRepo().create({
+              user_id: authUser.id,
+              amount: activeAmount,
+              frequency,
+              campaign_id: isCampaign ? campaign!.id : null,
+              campaign_title: isCampaign ? campaign!.title : null,
+            });
+          } catch (err) {
+            console.error("[subscriptions] failed to persist mock", err);
+          }
+        }
         window.location.href = url;
         return;
       }
@@ -593,6 +609,29 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         </div>
       </div>
 
+      {recurring && !authUser ? (
+        <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-50/40 p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 ring-1 ring-amber-200/70">
+              <ShieldCheck className="w-5 h-5 text-amber-700" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">
+                Нужен личный кабинет
+              </p>
+              <p className="text-[13px] leading-relaxed text-amber-900/80">
+                Регулярная поддержка доступна только зарегистрированным пользователям, чтобы вы могли управлять подпиской, изменять сумму и при необходимости приостанавливать помощь.
+              </p>
+            </div>
+          </div>
+          <Button asChild size="lg" className="w-full bg-amber-600 hover:bg-amber-600/90 text-white">
+            <Link to={`/auth?next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname + window.location.hash : "/")}`}>
+              <LogIn className="w-4 h-4" />
+              Войти или зарегистрироваться
+            </Link>
+          </Button>
+        </div>
+      ) : (
       <Button
         size="xl"
         className="w-full min-h-[52px] whitespace-normal text-center leading-tight"
@@ -622,6 +661,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           </>
         )}
       </Button>
+      )}
 
       <p className="text-xs text-center text-muted-foreground mt-4">Безопасная оплата через ЮKassa</p>
     </div>
