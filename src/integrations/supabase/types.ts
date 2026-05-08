@@ -247,6 +247,7 @@ export type Database = {
           next_payment_at: string | null
           paused_at: string | null
           payment_method_id: string | null
+          payment_method_type: string | null
           status: string
           updated_at: string
           user_id: string | null
@@ -264,6 +265,7 @@ export type Database = {
           next_payment_at?: string | null
           paused_at?: string | null
           payment_method_id?: string | null
+          payment_method_type?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -281,6 +283,7 @@ export type Database = {
           next_payment_at?: string | null
           paused_at?: string | null
           payment_method_id?: string | null
+          payment_method_type?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
