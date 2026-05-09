@@ -44,6 +44,7 @@ type Subscription = {
   payment_method_type: string | null;
   next_payment_at: string | null;
   current_billing_key: string | null;
+  is_test?: boolean;
 };
 
 Deno.serve(async (req) => {
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
   const { data: due, error: dueErr } = await supabase
     .from("donor_subscriptions")
     .select(
-      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at, current_billing_key",
+      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at, current_billing_key, is_test",
     )
     .eq("status", "active")
     .lte("next_payment_at", nowIso)
@@ -117,13 +118,13 @@ Deno.serve(async (req) => {
   for (const sub of subs) {
     if (!sub.payment_method_id) { skipped++; continue; }
 
-    // Shadow mode: full pipeline simulation, no YooKassa, no campaign increment.
-    if (shadowMode) {
+    // Hard guardrail: sandbox subscriptions OR shadow mode → always simulate, never call YooKassa.
+    if (shadowMode || sub.is_test) {
       const simSub: SimSubscription = {
         id: sub.id, user_id: sub.user_id, campaign_id: sub.campaign_id,
         amount: Number(sub.amount), currency: sub.currency,
         interval: sub.interval, retry_count: 0, status: sub.status,
-        payment_method_type: sub.payment_method_type,
+        payment_method_type: sub.payment_method_type, is_test: !!sub.is_test,
       };
       const r = await simulateChargeCycle(supabase, simSub, cfg);
       if (r.outcome === "succeeded") payments_created++; else failed++;

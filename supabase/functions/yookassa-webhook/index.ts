@@ -209,21 +209,23 @@ Deno.serve(async (req) => {
 
       const { data: byPayment } = await supabase
         .from("donations")
-        .select("id, status, campaign_id, amount, user_id")
+        .select("id, status, campaign_id, amount, user_id, is_test")
         .eq("yookassa_payment_id", paymentId)
         .maybeSingle();
 
       let donationUserId: string | null = null;
+      let donationIsTest = false;
       if (byPayment?.id) {
         donationId = byPayment.id;
         currentStatus = byPayment.status;
         donationCampaignId = byPayment.campaign_id ?? null;
         donationAmount = Number(byPayment.amount);
         donationUserId = byPayment.user_id ?? null;
+        donationIsTest = !!byPayment.is_test;
       } else if (donationIdFromMeta) {
         const { data: byMeta } = await supabase
           .from("donations")
-          .select("id, status, campaign_id, amount, user_id")
+          .select("id, status, campaign_id, amount, user_id, is_test")
           .eq("id", donationIdFromMeta)
           .maybeSingle();
         donationId = byMeta?.id ?? null;
@@ -231,6 +233,7 @@ Deno.serve(async (req) => {
         donationCampaignId = byMeta?.campaign_id ?? null;
         donationAmount = byMeta?.amount != null ? Number(byMeta.amount) : null;
         donationUserId = byMeta?.user_id ?? null;
+        donationIsTest = !!byMeta?.is_test;
       }
 
       if (!donationId) {
@@ -276,7 +279,11 @@ Deno.serve(async (req) => {
         console.log(
           `[yookassa-webhook] donation updated donation_id=${donationId} payment_id=${paymentId} rows=${updatedRows?.length ?? 0}`,
         );
-        if (wasUpdated && donationCampaignId && donationAmount && donationAmount > 0) {
+        if (wasUpdated && donationIsTest) {
+          // Sandbox guardrail: NEVER touch campaign collected for test donations.
+          console.log(`[yookassa-webhook] sandbox donation, skip campaign increment donation_id=${donationId}`);
+          await writeLog("accepted_sandbox_skip_increment", donationId);
+        } else if (wasUpdated && donationCampaignId && donationAmount && donationAmount > 0) {
           const { error: rpcErr } = await supabase.rpc("increment_campaign_collected", {
             _campaign_id: donationCampaignId,
             _amount: donationAmount,
