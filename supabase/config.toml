@@ -25,3 +25,7 @@ project_id = "uqiggzylreezigjumxmf"
     verify_jwt = false
   [functions.admin-recurring]
     verify_jwt = false
+  [functions.cleanup-recurring-artifacts]
+    verify_jwt = false
+  [functions.recurring-health-check]
+    verify_jwt = false
