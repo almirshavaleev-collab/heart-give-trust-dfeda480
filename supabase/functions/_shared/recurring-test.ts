@@ -33,7 +33,10 @@ export interface SimSubscription {
   retry_count: number;
   status: string;
   payment_method_type: string | null;
+  is_test?: boolean;
 }
+
+export const SANDBOX_META = { is_test: true, simulated: true, sandbox_version: 1 } as const;
 
 function testLog(ns: "test" | "simulate" | "dry_run", phase: string, ctx: Record<string, unknown> = {}) {
   structuredLog(`${ns}_${phase}`, ctx);
@@ -70,6 +73,8 @@ export async function simulateChargeCycle(
       payment_method_type: sub.payment_method_type,
       status: outcome === "succeeded" ? "succeeded" : "failed",
       paid_at: outcome === "succeeded" ? new Date().toISOString() : null,
+      is_test: true,
+      payment_provider: "sandbox",
     })
     .select("id")
     .single();
@@ -85,14 +90,15 @@ export async function simulateChargeCycle(
     status: outcome === "succeeded" ? "test_succeeded" : "test_failed",
     error_code: outcome === "failed" ? "test_simulated_failure" : null,
     error_description: outcome === "failed" ? "Simulated failure (shadow mode)" : null,
-    metadata: { simulated: true, shadow: true, force_success: cfg.forceSuccess, force_failure: cfg.forceFailure },
+    is_test: true,
+    metadata: { ...SANDBOX_META, shadow: true, force_success: cfg.forceSuccess, force_failure: cfg.forceFailure },
   });
 
   // 3. Event
   await supabase.from("subscription_events").insert({
     subscription_id: sub.id,
     event_type: "test_payment_simulated",
-    metadata: { donation_id: donation.id, outcome, simulated: true },
+    metadata: { ...SANDBOX_META, donation_id: donation.id, outcome },
   });
 
   // 4. Advance subscription state — DO NOT touch campaign collected.
