@@ -1,6 +1,6 @@
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
-import { alertLog, structuredLog } from "../_shared/recurring.ts";
+import { alertLog, structuredLog, recordHeartbeat } from "../_shared/recurring.ts";
 
 /**
  * Read-only health probe for the recurring billing pipeline.
@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
   };
 
   structuredLog("health_check_end", { healthy, alerts: alerts.join(",") || "none" });
+  await recordHeartbeat(supabase, "recurring-health-check", healthy ? "healthy" : "degraded", summary);
   return new Response(JSON.stringify(summary), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
