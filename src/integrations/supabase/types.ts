@@ -764,6 +764,27 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      donor_cancel_subscription: { Args: { _id: string }; Returns: undefined }
+      donor_my_subscriptions: {
+        Args: never
+        Returns: {
+          amount: number
+          campaign_id: string
+          card_expiry: string
+          card_last4: string
+          card_type: string
+          created_at: string
+          currency: string
+          frequency: string
+          id: string
+          last_charge_at: string
+          next_payment_at: string
+          paused_reason: string
+          status: string
+        }[]
+      }
+      donor_pause_subscription: { Args: { _id: string }; Returns: undefined }
+      donor_resume_subscription: { Args: { _id: string }; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
