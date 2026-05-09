@@ -306,140 +306,23 @@ Deno.serve(async (req) => {
           const freqRaw = String(meta?.frequency ?? "monthly");
           const frequency = (["weekly","biweekly","monthly"].includes(freqRaw) ? freqRaw : "monthly") as
             "weekly" | "biweekly" | "monthly";
-          const savedPaymentMethodId: string | null = object?.payment_method?.id ?? null;
-          const paymentMethodType: string | null = object?.payment_method?.type ?? null;
-          const pmSaved = object?.payment_method?.saved === true;
-
-          console.log(
-            `[yookassa-webhook] recurring branch donation_id=${donationId} is_recurring=${isRecurring} pm_id=${savedPaymentMethodId ?? "null"} pm_saved=${pmSaved} pm_type=${paymentMethodType ?? "n/a"}`,
-          );
-
           if (isRecurring) {
-            // Without a saved payment_method.id we cannot trigger off-session
-            // autopayments later — refuse to create an active subscription.
-            // The donation itself is already saved; we just don't promise autopay.
-            if (!savedPaymentMethodId || !pmSaved) {
-              console.warn(
-                `[yookassa-webhook] recurring without saved payment method — skipping subscription create. donation_id=${donationId}. ` +
-                `Likely cause: 'Forbidden to use saved payment method' — recurring is not enabled on the YooKassa shop.`,
-              );
-              await writeLog("recurring_no_payment_method", donationId);
-            } else {
-              // calendar-aware next payment date
-              const next = new Date();
-              if (frequency === "weekly") next.setDate(next.getDate() + 7);
-              else if (frequency === "biweekly") next.setDate(next.getDate() + 14);
-              else next.setMonth(next.getMonth() + 1);
-              const nextPaymentAt = next.toISOString();
-              const nowIso = new Date().toISOString();
-
-              // Card details (best-effort — only present for card-type methods).
-              const card = object?.payment_method?.card ?? null;
-              const cardLast4: string | null = card?.last4 ?? null;
-              const cardType: string | null = card?.card_type ?? null;
-              const cardExpiry: string | null =
-                card?.expiry_month && card?.expiry_year
-                  ? `${card.expiry_month}/${card.expiry_year}`
-                  : null;
-              const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
-              const isAutopay = meta?.autopay === "true" || meta?.autopay === true;
-
-              // Dedup by user/campaign/amount/interval — covers two cases:
-              //   1. Duplicate first-payment webhook (idempotency)
-              //   2. Subsequent autopay charges that re-enter the webhook
-              let existing: { id: string; payment_method_id: string | null } | null = null;
-              if (subscriptionIdFromMeta) {
-                const { data: bySubId } = await supabase
-                  .from("donor_subscriptions")
-                  .select("id, payment_method_id")
-                  .eq("id", subscriptionIdFromMeta)
-                  .maybeSingle();
-                existing = bySubId ?? null;
-              }
-              if (!existing) {
-                let dupQuery = supabase
-                  .from("donor_subscriptions")
-                  .select("id, payment_method_id")
-                  .in("status", ["active", "past_due"])
-                  .eq("amount", donationAmount)
-                  .eq("interval", frequency);
-                dupQuery = donationCampaignId
-                  ? dupQuery.eq("campaign_id", donationCampaignId)
-                  : dupQuery.is("campaign_id", null);
-                dupQuery = donationUserId
-                  ? dupQuery.eq("user_id", donationUserId)
-                  : dupQuery.is("user_id", null);
-                const { data: byDup } = await dupQuery.limit(1).maybeSingle();
-                existing = byDup ?? null;
-              }
-
-              if (existing?.id) {
-                // Existing subscription — bump charge timestamps (autopay path).
-                const { error: updSubErr } = await supabase
-                  .from("donor_subscriptions")
-                  .update({
-                    last_charge_at: nowIso,
-                    next_payment_at: nextPaymentAt,
-                    payment_method_id: existing.payment_method_id ?? savedPaymentMethodId,
-                    payment_method_type: paymentMethodType,
-                    status: "active",
-                    retry_count: 0,
-                    last_failure_reason: null,
-                    last_failure_code: null,
-                    last_retry_at: null,
-                    processing_at: null,
-                    card_last4: cardLast4 ?? undefined,
-                    card_type: cardType ?? undefined,
-                    card_expiry: cardExpiry ?? undefined,
-                    payment_method_saved_at: pmSaved ? nowIso : undefined,
-                  })
-                  .eq("id", existing.id);
-                if (updSubErr) {
-                  console.error("[yookassa-webhook] subscription update error:", updSubErr);
-                } else {
-                  console.log(
-                    `[recurring] phase=webhook_reconcile sub=${existing.id} donation_id=${donationId} next=${nextPaymentAt} autopay=${isAutopay}`,
-                  );
-                  await supabase.from("subscription_charge_attempts").insert({
-                    subscription_id: existing.id,
-                    donation_id: donationId,
-                    yookassa_payment_id: paymentId,
-                    status: "succeeded",
-                  });
-                }
-              } else {
-                const { error: subErr } = await supabase.from("donor_subscriptions").insert({
-                  user_id: donationUserId,
-                  campaign_id: donationCampaignId,
-                  amount: donationAmount,
-                  currency: "RUB",
-                  interval: frequency,
-                  status: "active",
-                  payment_method_id: savedPaymentMethodId,
-                  payment_method_type: paymentMethodType,
-                  next_payment_at: nextPaymentAt,
-                  last_charge_at: nowIso,
-                  card_last4: cardLast4,
-                  card_type: cardType,
-                  card_expiry: cardExpiry,
-                  payment_method_saved_at: pmSaved ? nowIso : null,
-                });
-                if (subErr) {
-                  console.error("[yookassa-webhook] subscription insert error:", subErr);
-                } else {
-                  console.log(
-                    `[yookassa-webhook] subscription created donation_id=${donationId} user=${donationUserId ?? "guest"} freq=${frequency} pm=${savedPaymentMethodId} pm_type=${paymentMethodType ?? "n/a"}`,
-                  );
-                }
-              }
-            }
+            const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
+            await handleRecurringSuccess(supabase, {
+              subscriptionId: subscriptionIdFromMeta,
+              donationId: donationId!,
+              donationAmount,
+              donationCampaignId,
+              donationUserId,
+              frequency: frequency as Frequency,
+              paymentObject: object,
+            });
           }
         }
       }
     } else if (event === "payment.canceled" && paymentId) {
       let donationId: string | null = null;
       let currentStatus: string | null = null;
-      let canceledMeta: any = null;
 
       const { data: byPayment } = await supabase
         .from("donations")
@@ -450,7 +333,6 @@ Deno.serve(async (req) => {
       if (byPayment?.id) {
         donationId = byPayment.id;
         currentStatus = byPayment.status;
-        canceledMeta = byPayment;
       } else if (donationIdFromMeta) {
         const { data: byMeta } = await supabase
           .from("donations")
@@ -459,7 +341,6 @@ Deno.serve(async (req) => {
           .maybeSingle();
         donationId = byMeta?.id ?? null;
         currentStatus = byMeta?.status ?? null;
-        canceledMeta = byMeta;
       }
 
       if (!donationId) {
@@ -474,7 +355,6 @@ Deno.serve(async (req) => {
           .eq("id", donationId)
           .neq("status", "succeeded");
 
-        // Recurring autopay failure path: bump retry / move to past_due.
         const meta = object?.metadata ?? {};
         const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
         const isAutopay =
@@ -482,51 +362,12 @@ Deno.serve(async (req) => {
           (meta?.payment_type === "recurring" || meta?.type === "recurring");
 
         if (isAutopay && subscriptionIdFromMeta) {
-          const reason: string | null =
-            object?.cancellation_details?.reason ?? null;
-          const party: string | null = object?.cancellation_details?.party ?? null;
-          const failureCode = reason ?? "canceled";
-          const failureDesc = party ? `${party}:${reason ?? "n/a"}` : reason;
-
-          const { data: subRow } = await supabase
-            .from("donor_subscriptions")
-            .select("id, retry_count, interval")
-            .eq("id", subscriptionIdFromMeta)
-            .maybeSingle();
-
-          if (subRow?.id) {
-            const newRetry = (subRow.retry_count ?? 0) + 1;
-            const MAX_RETRIES = 2;
-            const becomesPastDue = newRetry > MAX_RETRIES;
-            // On retry: try again in 24h. On past_due: stop scheduling.
-            const retryAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-            const patch: Record<string, unknown> = {
-              retry_count: newRetry,
-              last_retry_at: new Date().toISOString(),
-              last_failure_reason: failureDesc,
-              last_failure_code: failureCode,
-              processing_at: null,
-            };
-            if (becomesPastDue) {
-              patch.status = "past_due";
-            } else {
-              patch.next_payment_at = retryAt;
-            }
-            await supabase.from("donor_subscriptions").update(patch).eq("id", subRow.id);
-            await supabase.from("subscription_charge_attempts").insert({
-              subscription_id: subRow.id,
-              donation_id: donationId,
-              yookassa_payment_id: paymentId,
-              status: becomesPastDue ? "past_due" : "retry_scheduled",
-              error_code: failureCode,
-              error_description: failureDesc,
-              metadata: { retry_count: newRetry },
-            });
-            console.log(
-              `[recurring] phase=webhook_failure sub=${subRow.id} retry=${newRetry} past_due=${becomesPastDue} reason=${failureCode}`,
-            );
-          }
+          await handleRecurringFailure(supabase, {
+            subscriptionId: subscriptionIdFromMeta,
+            donationId,
+            paymentId,
+            paymentObject: object,
+          });
         }
 
         await writeLog("accepted", donationId);
