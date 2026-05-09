@@ -1,115 +1,98 @@
-# Recurring Testing Infrastructure (Sandbox)
+# Recurring QA / Sandbox Center
 
-Цель: контролируемая sandbox-среда для тестирования recurring billing без реальных списаний. Всё additive, за feature-flags, production-safe. Не трогаем one-time, не переписываем существующий recurring flow.
+Превращение `/admin/recurring/testing` из monitoring panel в полноценную тестовую лабораторию. Всё additive, за feature flags, **production logic не трогаем**.
 
-## 1. Расширение конфига (`_shared/recurring-config.ts`)
+## Sandbox isolation guarantees (закрепляем в коде)
 
-Добавить в `RecurringConfig`:
-- `testMode: boolean`           — `RECURRING_TEST_MODE`
-- `forceSuccess: boolean`       — `RECURRING_FORCE_SUCCESS`
-- `forceFailure: boolean`       — `RECURRING_FORCE_FAILURE`
-- `simulateTimeoutMs: number`   — `RECURRING_SIMULATE_TIMEOUT_MS` (для simulate_timeout)
+1. `donor_subscriptions.is_test = true` → cron pipeline пропускает реальный YooKassa charge (используем существующий `simulateChargeCycle`).
+2. Sandbox donations создаются с `payment_provider='sandbox'` и `metadata.simulated=true` → `increment_campaign_collected` НЕ вызывается ни в webhook, ни в reconcile (добавим guard).
+3. Sandbox emails не отправляются: `send-transactional-email` skip при `metadata.simulated=true`.
+4. Все sandbox actions admin-gated + требуют `RECURRING_TEST_MODE=true` в DB-конфиге.
 
-Новый helper `getEffectiveTimings(cfg)`:
-- если `testMode=true` → ускоренные интервалы:
-  - monthly = 2 min, biweekly = 1 min, weekly = 30 sec
-  - retryDelayHr → 1 min (внутри как minutes)
-  - execLockTtlMin → 2 min
-- иначе — обычные значения из cfg.
+## 1. Schema (одна additive миграция)
 
-Реализация: новые helper'ы `nextRunAtFor(interval, cfg)` и `retryAfterAt(cfg)` возвращают `Date`. Существующие константы НЕ переписываем — добавляем новые, callers переключаются осознанно.
+```sql
+-- Flags теперь живут в DB (env остаётся fallback)
+create table public.admin_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now(),
+  updated_by uuid
+);
+-- seed: recurring_enabled, recurring_test_mode, recurring_dry_run,
+--       recurring_force_success, recurring_force_failure
 
-Добавить frontend-зеркало в `src/lib/recurring-config.ts` (`VITE_RECURRING_TEST_MODE`, `VITE_RECURRING_DRY_RUN`) — только для UI badge.
+-- is_test флаг на ключевых таблицах
+alter table public.donor_subscriptions add column is_test boolean not null default false;
+alter table public.donations            add column is_test boolean not null default false;
+alter table public.subscription_charge_attempts add column is_test boolean not null default false;
 
-## 2. Dry-run pipeline
+-- Index для быстрого фильтра sandbox
+create index idx_donor_subs_is_test on public.donor_subscriptions(is_test) where is_test = true;
+```
 
-В `process-recurring-payments`:
-- если `cfg.dryRun=true` И НЕ `testMode` — оставляем текущее поведение (cancel donation, attempt=dry_run).
-- если `cfg.testMode=true` И `cfg.dryRun=true` (shadow mode) — добавить новую ветку `simulateCycle()`:
-  - НЕ дергаем YooKassa
-  - создаём `donations` (status=succeeded если forceSuccess; failed если forceFailure; иначе случайно 90/10)
-  - НЕ дергаем `increment_campaign_collected`
-  - вставляем `subscription_charge_attempts` с `status=test_succeeded|test_failed`, `metadata.simulated=true`
-  - вставляем `subscription_events` (`event_type=test_payment_simulated`)
-  - обновляем `donor_subscriptions.next_payment_at` через `nextRunAtFor`, `last_charge_at=now()` при success, `retry_count++` при failure
-  - всё логируется как `[recurring][dry_run]` / `[recurring][simulate]`
+RPC (admin-only, security definer):
+- `admin_get_settings()` / `admin_set_setting(key, value)` — runtime flags.
+- `admin_create_sandbox_subscription(amount, interval, campaign_id, donor_email, donor_name)`.
+- `admin_fast_forward_subscription(id, seconds)` — двигает `next_payment_at` / `last_retry_at`.
+- `admin_subscription_inspector(id)` — JSON: sub + последние attempts + events + webhook_logs.
+- `admin_recurring_integrity_scan()` — возвращает массив issues `{kind, severity, count, sample_ids}`.
+- `admin_recurring_metrics_extended()` — avg processing, retry success rate, dedupe count, stale-lock recoveries, shadow/simulated counts.
 
-Реализуем как отдельный helper `_shared/recurring-test.ts` — `simulateChargeCycle(supabase, sub, cfg)` — чтобы не загрязнять production-путь. В `process-recurring-payments` ветка переключения занимает ~10 строк.
+## 2. Edge function changes (минимально)
 
-## 3. Manual runners + simulations (admin endpoint)
+- `supabase/functions/_shared/recurring-config.ts` — `loadConfig()` сначала тянет из `admin_settings`, env как fallback.
+- `process-recurring-payments` — если `sub.is_test=true` ИЛИ `dryRun` → ВСЕГДА `simulateChargeCycle`, никаких HTTP к YooKassa.
+- `yookassa-webhook` + `reconcile-recurring-payments` — guard: если donation `is_test=true` → не вызывать `increment_campaign_collected`.
+- `send-transactional-email` — skip при `payload.simulated === true`.
+- `admin-recurring` — новые actions: `create_sandbox_subscription`, `fast_forward`, `inspector`, `integrity_scan`, `metrics_extended`, `chaos_run`, `cron_tick` (последовательно вызывает три cron функции через service role).
 
-Расширить существующий `admin-recurring/index.ts` новыми actions (admin-only, проверка `has_role`):
-- `run_recurring_now` → внутренний fetch на `process-recurring-payments`
-- `run_reconcile_now` → fetch на `reconcile-recurring-payments`
-- `run_cleanup_now` → fetch на `cleanup-recurring-artifacts`
-- `run_health_check_now` → fetch на `recurring-health-check`
-- `simulate` (поле `kind`):
-  - `success`, `failure`, `timeout`, `network_error`, `expired_card`,
-    `duplicate_webhook`, `reconcile_delay`, `stale_lock`
-  - все требуют `subscription_id`, проверяют `cfg.testMode=true`, иначе 403
-  - каждое действие пишет `subscription_events` с `event_type=simulate_<kind>` и `subscription_charge_attempts`
-- `replay_webhook` → принимает `payment_id`, повторно вызывает `yookassa-webhook` с тем же payload (см. п.6)
-- `replay_reconcile` → точечный reconcile одного donation_id
-- `force_next_payment` → выставляет `next_payment_at = now() - 1 sec`
-- `clear_locks` → `processing_at=NULL, current_billing_key=NULL` для одной подписки
+## 3. Frontend — `src/pages/admin/AdminRecurringTesting.tsx` (rewrite)
 
-Все simulate-* — только при `cfg.testMode`. Логи namespace `[recurring][simulate]`.
+Раскладка через `Tabs`:
 
-## 4. Idempotency / replay testing
+- **Overview** — sticky banner (SHADOW/PRODUCTION), extended metrics cards, кнопки `Run cron tick`, `Run integrity scan`, `Run chaos test`.
+- **Subscriptions** — table (только `is_test=true` по умолчанию + toggle "show production"), realtime подписка на `donor_subscriptions`. Клик → Sheet inspector с табами Attempts / Events / Webhooks / Raw.
+- **Create** — форма sandbox subscription creator.
+- **Failures** — preset кнопки (8 штук) с выбором target sub.
+- **Replay** — выбор payment_id, кнопки replay success/canceled/duplicate, таблица результатов.
+- **Console** — live processing console (auto-refresh 2s, объединяет `subscription_events` + `webhook_logs` + `recurring_cron_heartbeats`).
+- **Flags** — runtime feature flags panel, switches, persist через `admin_set_setting`.
+- **Integrity** — таблица последнего scan с severity badges.
 
-`replay_webhook`: формирует синтетический payload с теми же `payment_id` и `metadata.subscription_id`/`billing_key` как у последней attempt. Отправляет в `yookassa-webhook`. Это даёт реальный тест:
-- unique-индекс на `webhook_logs` (object_id+event)
-- `billing_cycle_key` unique на donations
-- `increment_campaign_collected` non-double
+Новые компоненты:
+- `src/components/admin/recurring/SandboxBanner.tsx`
+- `src/components/admin/recurring/SubscriptionInspector.tsx` (Sheet + Tabs)
+- `src/components/admin/recurring/EventTimeline.tsx` (vertical timeline с icons/colors)
+- `src/components/admin/recurring/FastForwardButtons.tsx`
+- `src/components/admin/recurring/LiveConsole.tsx`
+- `src/components/admin/recurring/FlagsPanel.tsx`
+- `src/components/admin/recurring/IntegrityTable.tsx`
+- `src/components/admin/recurring/ChaosRunner.tsx`
+- `src/components/admin/recurring/SandboxCreator.tsx`
+- `src/lib/recurring-sandbox.ts` — клиентские helpers + типы.
 
-Никаких изменений в самом webhook не нужно — он уже идемпотентен.
+Дизайн: shadcn (Card/Tabs/Sheet/Badge/Switch/ScrollArea), семантические токены, Stripe-like spacing, skeleton loaders, empty states.
 
-## 5. Admin Testing UI: `/admin/recurring/testing`
+## 4. Chaos testing
 
-Новый файл `src/pages/admin/AdminRecurringTesting.tsx`. Простой UI без премиум-полировки:
-- Баннер «TEST MODE / SHADOW MODE» (читает `recurringFlags.testMode`, `dryRun`)
-- Блок «Manual runners»: 4 кнопки → POST `admin-recurring` action
-- Блок «Test subscription»: список подписок текущего админа (через `donor_my_subscriptions`) с действиями:
-  - Force next payment now
-  - Clear locks
-  - Simulate (dropdown с 8 вариантами)
-  - Replay last webhook
-- Блок «Recent simulated events»: чтение `subscription_events` где `event_type LIKE 'simulate_%' OR 'test_%'` (через новый admin RPC `admin_recent_test_events()`)
+`admin-recurring` action `chaos_run` создаёт 100 sandbox subs, каждая получает рандомный preset (success/fail/timeout/duplicate/stale_lock), затем вызывает `process-recurring-payments` несколько раз. Возвращает summary `{succeeded, failed, recovered, stuck, dedupe_prevented}`.
 
-Маршрут добавить в `App.tsx` под `/admin/recurring/testing`. Ссылка в `AdminLayout` навигации с пометкой «Testing» и значком только при `recurringFlags.testMode`.
+## 5. Routes
 
-Доступ: `RequireAuth` + проверка роли admin (как у остальных admin pages).
+`/admin/recurring/testing` остаётся; внутри tabs. Sidebar пункт переименуем на "QA Sandbox".
 
-## 6. Structured logs
+## 6. Что НЕ делаем
 
-Расширить `structuredLog` namespaces — сейчас он принимает event-name. Добавим конвенцию: префиксы `test_*`, `simulate_*`, `dry_run_*`, `dedupe_*`, `lock_reclaimed_*`. Грепабельно по namespace.
+- Не трогаем `create-payment`, one-time flow, `sync-yookassa-payment`.
+- Не меняем production schema колонок (только additive).
+- Не включаем realtime broadcast для production subs (только sandbox + admin view).
+- Не отправляем real emails / charges ни при каких action.
 
-## 7. Что НЕ делаем
+## Deliverables в финальном ответе
 
-- chaos testing, concurrent spawners, race generators, production realtime — отложено
-- никаких изменений в webhook, в one-time create-payment, в sync-yookassa-payment
-- не меняем существующие recurring SQL-функции — только добавляем `admin_recent_test_events()`
-
-## Файлы
-
-**Новые:**
-- `supabase/functions/_shared/recurring-test.ts` — `simulateChargeCycle`, `simulateAction(kind, sub, cfg)`, `buildReplayWebhookPayload`
-- `src/pages/admin/AdminRecurringTesting.tsx`
-- migration: SQL-функция `admin_recent_test_events(_limit int)` (admin-only)
-
-**Правим:**
-- `supabase/functions/_shared/recurring-config.ts` — поля + `getEffectiveTimings`/`nextRunAtFor`
-- `supabase/functions/process-recurring-payments/index.ts` — ветка shadow-simulate
-- `supabase/functions/admin-recurring/index.ts` — новые actions
-- `src/lib/recurring-config.ts` — флаги для UI
-- `src/App.tsx` — роут
-- `src/pages/admin/AdminLayout.tsx` — ссылка Testing
-- `supabase/config.toml` — без изменений (admin-recurring уже зарегистрирован)
-
-## Безопасность
-
-- Все simulate / manual-runner actions — admin-role check + `cfg.testMode` guard.
-- Никаких real charges в shadow mode (двойная защита: `dryRun` ИЛИ `testMode` без production credentials).
-- Production остаётся on `RECURRING_TEST_MODE=false` и `RECURRING_DRY_RUN=false` — поведение не меняется.
-
-После approval — реализую за один проход.
+- Список новых routes/tabs.
+- Список новых tables / RPC / edge actions.
+- Список feature flags (DB).
+- Изменённые edge functions.
+- Sandbox isolation guarantees (5 пунктов выше).
