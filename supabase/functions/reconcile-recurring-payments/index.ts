@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
   const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   const { data: pending, error } = await supabase
     .from("donations")
-    .select("id, amount, campaign_id, user_id, yookassa_payment_id, payment_type, created_at")
+    .select("id, amount, campaign_id, user_id, yookassa_payment_id, payment_type, created_at, is_test")
     .eq("status", "pending")
     .eq("payment_type", "recurring")
     .not("yookassa_payment_id", "is", null)
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
         .from("donations")
         .update({ status: "succeeded", paid_at: new Date().toISOString() })
         .eq("id", d.id).neq("status", "succeeded").select("id");
-      if ((upd?.length ?? 0) > 0 && d.campaign_id && d.amount) {
+      if ((upd?.length ?? 0) > 0 && d.campaign_id && d.amount && !d.is_test) {
         await supabase.rpc("increment_campaign_collected", {
           _campaign_id: d.campaign_id, _amount: d.amount,
         });
