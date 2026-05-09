@@ -110,6 +110,7 @@ export type Database = {
       donations: {
         Row: {
           amount: number
+          billing_cycle_key: string | null
           campaign_id: string | null
           created_at: string
           currency: string
@@ -130,6 +131,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          billing_cycle_key?: string | null
           campaign_id?: string | null
           created_at?: string
           currency?: string
@@ -150,6 +152,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          billing_cycle_key?: string | null
           campaign_id?: string | null
           created_at?: string
           currency?: string
@@ -508,6 +511,27 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_cron_heartbeats: {
+        Row: {
+          job: string
+          last_payload: Json | null
+          last_run_at: string
+          last_status: string | null
+        }
+        Insert: {
+          job: string
+          last_payload?: Json | null
+          last_run_at?: string
+          last_status?: string | null
+        }
+        Update: {
+          job?: string
+          last_payload?: Json | null
+          last_run_at?: string
+          last_status?: string | null
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           category: string | null
@@ -540,6 +564,7 @@ export type Database = {
       }
       subscription_charge_attempts: {
         Row: {
+          billing_cycle_key: string | null
           created_at: string
           donation_id: string | null
           error_code: string | null
@@ -551,6 +576,7 @@ export type Database = {
           yookassa_payment_id: string | null
         }
         Insert: {
+          billing_cycle_key?: string | null
           created_at?: string
           donation_id?: string | null
           error_code?: string | null
@@ -562,6 +588,7 @@ export type Database = {
           yookassa_payment_id?: string | null
         }
         Update: {
+          billing_cycle_key?: string | null
           created_at?: string
           donation_id?: string | null
           error_code?: string | null
@@ -756,6 +783,16 @@ export type Database = {
     Functions: {
       _hash_link_code: { Args: { _code: string }; Returns: string }
       admin_recurring_metrics: { Args: never; Returns: Json }
+      admin_recurring_readiness: { Args: never; Returns: Json }
+      admin_recurring_timeseries: {
+        Args: { _days?: number }
+        Returns: {
+          attempts: number
+          day: string
+          failed: number
+          succeeded: number
+        }[]
+      }
       confirm_link_donations: {
         Args: { _code: string; _user_id: string }
         Returns: number

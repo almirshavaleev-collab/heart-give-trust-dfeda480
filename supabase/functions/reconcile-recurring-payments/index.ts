@@ -4,6 +4,9 @@ import {
   handleRecurringFailure,
   handleRecurringSuccess,
   structuredLog,
+  recordHeartbeat,
+  billingCycleKey,
+  getRecurringConfig,
   type Frequency,
 } from "../_shared/recurring.ts";
 
@@ -117,6 +120,9 @@ Deno.serve(async (req) => {
         donationUserId: d.user_id,
         frequency,
         paymentObject: obj,
+        billingCycleKey: subscriptionId
+          ? billingCycleKey(subscriptionId, null, getRecurringConfig().cycleBucketHours)
+          : null,
       });
       resolved_succeeded++;
     } else if (status === "canceled") {
@@ -136,6 +142,9 @@ Deno.serve(async (req) => {
   const ms = Date.now() - startedAt;
   structuredLog("reconcile_end", {
     selected: rows.length, resolved_succeeded, resolved_canceled, still_pending, errors, duration_ms: ms,
+  });
+  await recordHeartbeat(supabase, "reconcile-recurring-payments", "ok", {
+    selected: rows.length, resolved_succeeded, resolved_canceled, still_pending, errors,
   });
 
   return new Response(

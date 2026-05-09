@@ -1,9 +1,13 @@
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import {
-  deterministicBillingKey,
   normalizeYkCreatedStatus,
   structuredLog,
+  billingCycleKey,
+  getRecurringConfig,
+  recordHeartbeat,
+  logDuplicatePrevention,
+  PG_UNIQUE_VIOLATION,
 } from "../_shared/recurring.ts";
 
 /**
@@ -52,7 +56,15 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const dryRun = (Deno.env.get("RECURRING_DRY_RUN") ?? "").toLowerCase() === "true";
+  const cfg = getRecurringConfig();
+  const dryRun = cfg.dryRun;
+  if (!cfg.enabled) {
+    structuredLog("cron_disabled");
+    await recordHeartbeat(supabase, "process-recurring-payments", "disabled", {});
+    return new Response(JSON.stringify({ ok: true, disabled: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   const rawMode = (Deno.env.get("YOOKASSA_MODE") ?? "test").trim().toLowerCase();
   const mode: "production" | "test" = rawMode === "production" ? "production" : "test";
   const shopId = mode === "production"
@@ -71,7 +83,7 @@ Deno.serve(async (req) => {
   const auth = shopId && secretKey ? btoa(`${shopId}:${secretKey}`) : "";
 
   const nowIso = new Date().toISOString();
-  const execLockHorizon = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const execLockHorizon = new Date(Date.now() - cfg.execLockTtlMin * 60 * 1000).toISOString();
 
   // 1. Eligible subs: due, has saved PM, no active billing key, not held by exec lock.
   const { data: due, error: dueErr } = await supabase
@@ -103,7 +115,7 @@ Deno.serve(async (req) => {
   for (const sub of subs) {
     if (!sub.payment_method_id) { skipped++; continue; }
 
-    const billingKey = deterministicBillingKey(sub.id, sub.next_payment_at);
+    const billingKey = billingCycleKey(sub.id, sub.next_payment_at, cfg.cycleBucketHours);
 
     // 2+3. Atomic combined lock: short-term processing_at AND long-term billing_key.
     const { data: locked, error: lockErr } = await supabase
@@ -120,12 +132,18 @@ Deno.serve(async (req) => {
       skipped++;
       continue;
     }
+    if (sub.current_billing_key) {
+      structuredLog("stale_processing_detected", { sub: sub.id, prev_key: sub.current_billing_key });
+      await logDuplicatePrevention(supabase, sub.id, "process-recurring", {
+        reason: "stale_lock_reclaimed", prev_key: sub.current_billing_key,
+      });
+    }
     structuredLog("lock_acquire", { sub: sub.id, billing_key: billingKey });
 
     let releaseBillingKey = false; // only if we never created a payment
     try {
       // 4. Create pending donation
-      const { data: donationRow, error: donationErr } = await supabase
+      let { data: donationRow, error: donationErr } = await supabase
         .from("donations")
         .insert({
           amount: sub.amount,
@@ -137,9 +155,22 @@ Deno.serve(async (req) => {
           is_recurring: true,
           user_id: sub.user_id,
           payment_method_type: sub.payment_method_type,
+          billing_cycle_key: billingKey,
         })
         .select("id")
         .single();
+
+      // Duplicate-cycle guard: if another worker already created a donation for this cycle,
+      // unique index on billing_cycle_key trips. Treat as success-of-prevention.
+      if (donationErr && (donationErr.code === PG_UNIQUE_VIOLATION || /duplicate key/i.test(String(donationErr.message)))) {
+        await logDuplicatePrevention(supabase, sub.id, "process-recurring", {
+          reason: "donation_cycle_duplicate", billing_key: billingKey,
+        });
+        structuredLog("donation_duplicate_skip", { sub: sub.id, billing_key: billingKey });
+        skipped++;
+        releaseBillingKey = true;
+        continue;
+      }
 
       if (donationErr || !donationRow) {
         structuredLog("donation_insert_error", { sub: sub.id, msg: donationErr?.message ?? "n/a" });
@@ -227,11 +258,17 @@ Deno.serve(async (req) => {
 
       // 5. Payment created — webhook will reconcile + clear billing_key.
       await supabase.from("donations").update({ yookassa_payment_id: data.id }).eq("id", donationId);
-      await supabase.from("subscription_charge_attempts").insert({
+      const { error: attemptErr } = await supabase.from("subscription_charge_attempts").insert({
         subscription_id: sub.id, donation_id: donationId, yookassa_payment_id: data.id,
         status: normalizeYkCreatedStatus(data?.status),
+        billing_cycle_key: billingKey,
         metadata: { billing_key: billingKey, yk_status: data?.status ?? null },
       });
+      if (attemptErr && (attemptErr.code === PG_UNIQUE_VIOLATION || /duplicate key/i.test(String(attemptErr.message)))) {
+        await logDuplicatePrevention(supabase, sub.id, "process-recurring", {
+          reason: "attempt_cycle_duplicate", billing_key: billingKey,
+        });
+      }
       await supabase.from("subscription_events").insert({
         subscription_id: sub.id, event_type: "payment_created",
         metadata: { donation_id: donationId, payment_id: data.id, billing_key: billingKey, yk_status: data.status },
@@ -253,6 +290,9 @@ Deno.serve(async (req) => {
 
   const ms = Date.now() - startedAt;
   structuredLog("cron_end", {
+    due: subs.length, payments_created, failed, skipped, duration_ms: ms,
+  });
+  await recordHeartbeat(supabase, "process-recurring-payments", "ok", {
     due: subs.length, payments_created, failed, skipped, duration_ms: ms,
   });
 

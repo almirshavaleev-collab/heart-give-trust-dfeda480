@@ -29,3 +29,5 @@ project_id = "uqiggzylreezigjumxmf"
     verify_jwt = false
   [functions.recurring-health-check]
     verify_jwt = false
+  [functions.recurring-readiness]
+    verify_jwt = false

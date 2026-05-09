@@ -4,6 +4,8 @@ import {
   handleRecurringSuccess,
   handleRecurringFailure,
   structuredLog,
+  billingCycleKey,
+  getRecurringConfig,
   type Frequency,
 } from "../_shared/recurring.ts";
 
@@ -122,11 +124,15 @@ Deno.serve(async (req) => {
 
   const writeLog = async (result: string, donationId?: string | null) => {
     try {
-      await supabase.from("webhook_logs").insert({
+      // Best-effort: if (provider,event,object_id) duplicate, swallow — webhook is idempotent.
+      const { error } = await supabase.from("webhook_logs").insert({
         ...baseLog,
         donation_id: donationId ?? baseLog.donation_id,
         result,
       });
+      if (error && /duplicate key/i.test(String(error.message))) {
+        structuredLog("webhook_dedup", { event, payment_id: paymentId });
+      }
     } catch (e) {
       console.error("webhook_logs insert error:", e);
     }
@@ -308,6 +314,10 @@ Deno.serve(async (req) => {
             "weekly" | "biweekly" | "monthly";
           if (isRecurring) {
             const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
+            const cfg = getRecurringConfig();
+            const cycleKey = subscriptionIdFromMeta
+              ? billingCycleKey(subscriptionIdFromMeta, null, cfg.cycleBucketHours)
+              : null;
             await handleRecurringSuccess(supabase, {
               subscriptionId: subscriptionIdFromMeta,
               donationId: donationId!,
@@ -316,6 +326,7 @@ Deno.serve(async (req) => {
               donationUserId,
               frequency: frequency as Frequency,
               paymentObject: object,
+              billingCycleKey: cycleKey,
             });
           }
         }

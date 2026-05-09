@@ -96,6 +96,31 @@ export function deterministicBillingKey(subId: string, nextPaymentAt: string | n
   return `autopay-${subId}-${period}`;
 }
 
+// Re-export the canonical cycle key from recurring-config so legacy imports keep working.
+export { billingCycleKey, getRecurringConfig, recordHeartbeat } from "./recurring-config.ts";
+
+/** Insert a `duplicate_charge_prevented` event. Best-effort; never throws. */
+// deno-lint-ignore no-explicit-any
+export async function logDuplicatePrevention(
+  supabase: any,
+  subscriptionId: string | null,
+  source: string,
+  meta: Record<string, unknown>,
+) {
+  if (!subscriptionId) return;
+  try {
+    await supabase.from("subscription_events").insert({
+      subscription_id: subscriptionId,
+      event_type: "duplicate_charge_prevented",
+      metadata: { source, ...meta },
+    });
+    structuredLog("duplicate_prevented", { sub: subscriptionId, source, ...meta });
+  } catch (_e) { /* swallow */ }
+}
+
+/** Pg unique-violation error code. */
+export const PG_UNIQUE_VIOLATION = "23505";
+
 // YooKassa cancellation_details.reason classification.
 // https://yookassa.ru/developers/payment-acceptance/after-the-payment/declined-payments
 const UNRECOVERABLE_REASONS = new Set([
@@ -132,6 +157,7 @@ export interface RecurringSuccessInput {
   donationUserId: string | null;
   frequency: Frequency;
   paymentObject: any; // YooKassa payment object
+  billingCycleKey?: string | null;
 }
 
 /**
@@ -145,7 +171,7 @@ export async function handleRecurringSuccess(
 ): Promise<{ subscriptionId: string | null; created: boolean; updated: boolean }> {
   const {
     subscriptionId, donationId, donationAmount, donationCampaignId, donationUserId,
-    frequency, paymentObject,
+    frequency, paymentObject, billingCycleKey: cycleKeyIn,
   } = input;
 
   const paymentId: string | null = paymentObject?.id ?? null;
@@ -223,6 +249,7 @@ export async function handleRecurringSuccess(
         donation_id: donationId,
         yookassa_payment_id: paymentId,
         status: "succeeded",
+        billing_cycle_key: cycleKeyIn ?? null,
       },
       { onConflict: "subscription_id,yookassa_payment_id,status", ignoreDuplicates: true },
     );
@@ -293,6 +320,7 @@ export async function handleRecurringSuccess(
       donation_id: donationId,
       yookassa_payment_id: paymentId,
       status: "succeeded",
+      billing_cycle_key: cycleKeyIn ?? null,
     },
     { onConflict: "subscription_id,yookassa_payment_id,status", ignoreDuplicates: true },
   );
