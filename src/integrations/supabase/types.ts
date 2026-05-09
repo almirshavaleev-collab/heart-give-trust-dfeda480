@@ -238,16 +238,25 @@ export type Database = {
           amount: number
           campaign_id: string | null
           canceled_at: string | null
+          card_expiry: string | null
+          card_last4: string | null
+          card_type: string | null
           created_at: string
           currency: string
           external_subscription_id: string | null
           id: string
           interval: string
           last_charge_at: string | null
+          last_failure_code: string | null
+          last_failure_reason: string | null
+          last_retry_at: string | null
           next_payment_at: string | null
           paused_at: string | null
           payment_method_id: string | null
+          payment_method_saved_at: string | null
           payment_method_type: string | null
+          processing_at: string | null
+          retry_count: number
           status: string
           updated_at: string
           user_id: string | null
@@ -256,16 +265,25 @@ export type Database = {
           amount: number
           campaign_id?: string | null
           canceled_at?: string | null
+          card_expiry?: string | null
+          card_last4?: string | null
+          card_type?: string | null
           created_at?: string
           currency?: string
           external_subscription_id?: string | null
           id?: string
           interval?: string
           last_charge_at?: string | null
+          last_failure_code?: string | null
+          last_failure_reason?: string | null
+          last_retry_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
           payment_method_id?: string | null
+          payment_method_saved_at?: string | null
           payment_method_type?: string | null
+          processing_at?: string | null
+          retry_count?: number
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -274,16 +292,25 @@ export type Database = {
           amount?: number
           campaign_id?: string | null
           canceled_at?: string | null
+          card_expiry?: string | null
+          card_last4?: string | null
+          card_type?: string | null
           created_at?: string
           currency?: string
           external_subscription_id?: string | null
           id?: string
           interval?: string
           last_charge_at?: string | null
+          last_failure_code?: string | null
+          last_failure_reason?: string | null
+          last_retry_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
           payment_method_id?: string | null
+          payment_method_saved_at?: string | null
           payment_method_type?: string | null
+          processing_at?: string | null
+          retry_count?: number
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -502,6 +529,42 @@ export type Database = {
           title?: string
           updated_at?: string
           year?: number | null
+        }
+        Relationships: []
+      }
+      subscription_charge_attempts: {
+        Row: {
+          created_at: string
+          donation_id: string | null
+          error_code: string | null
+          error_description: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          subscription_id: string
+          yookassa_payment_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          donation_id?: string | null
+          error_code?: string | null
+          error_description?: string | null
+          id?: string
+          metadata?: Json | null
+          status: string
+          subscription_id: string
+          yookassa_payment_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          donation_id?: string | null
+          error_code?: string | null
+          error_description?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          subscription_id?: string
+          yookassa_payment_id?: string | null
         }
         Relationships: []
       }
