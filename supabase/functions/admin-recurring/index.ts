@@ -197,27 +197,65 @@ Deno.serve(async (req) => {
       case "force_reconcile_subscription": {
         const subId = String(body?.subscription_id ?? "");
         if (!subId) return bad("subscription_id required");
+        // Reconcile every pending recurring donation tied to this user/sub via metadata,
+        // then clear stale execution lock and billing key.
+        const { data: sub } = await supabase
+          .from("donor_subscriptions")
+          .select("id, user_id, current_billing_key, last_charge_at, last_retry_at")
+          .eq("id", subId).maybeSingle();
+        if (!sub) return bad("subscription not found", 404);
+
         const { data: pendings } = await supabase
           .from("donations")
-          .select("id, yookassa_payment_id")
+          .select("id, amount, campaign_id, user_id, yookassa_payment_id, payment_type")
           .eq("status", "pending")
+          .eq("payment_type", "recurring")
+          .eq("user_id", sub.user_id)
           .not("yookassa_payment_id", "is", null);
-        const ids = pendings ?? [];
+
         let resolved = 0;
-        for (const d of ids) {
-          // Reuse the donation reconcile path
-          const r = await fetch(req.url.replace(/admin-recurring$/, "admin-recurring"), {
-            // no-op recursion guard — we reconcile inline instead
-          }).catch(() => null);
-          void r;
+        for (const d of pendings ?? []) {
           const obj = await fetchPayment(d.yookassa_payment_id!);
-          if (obj && (obj.status === "succeeded" || obj.status === "canceled")) resolved++;
+          if (!obj) continue;
+          const meta = obj?.metadata ?? {};
+          if (meta?.subscription_id && meta.subscription_id !== subId) continue;
+          const freqRaw = String(meta?.frequency ?? "monthly");
+          const frequency: Frequency =
+            freqRaw === "weekly" || freqRaw === "biweekly" ? freqRaw : "monthly";
+          if (obj.status === "succeeded") {
+            await supabase.from("donations").update({
+              status: "succeeded", paid_at: new Date().toISOString(),
+            }).eq("id", d.id).neq("status", "succeeded");
+            await handleRecurringSuccess(supabase, {
+              subscriptionId: subId, donationId: d.id, donationAmount: Number(d.amount),
+              donationCampaignId: d.campaign_id, donationUserId: d.user_id,
+              frequency, paymentObject: obj,
+            });
+            resolved++;
+          } else if (obj.status === "canceled") {
+            await supabase.from("donations").update({ status: "canceled" })
+              .eq("id", d.id).neq("status", "succeeded");
+            await handleRecurringFailure(supabase, {
+              subscriptionId: subId, donationId: d.id, paymentId: obj?.id ?? null, paymentObject: obj,
+            });
+            resolved++;
+          }
         }
-        // Also clear stale billing key (>24h) on this subscription.
-        await supabase.from("donor_subscriptions").update({
-          processing_at: null,
-        }).eq("id", subId);
-        return ok({ subscription_id: subId, scanned: ids.length, resolved });
+
+        // Stale billing key recovery (>24h since any progress).
+        const stale = sub.current_billing_key && (() => {
+          const last = sub.last_retry_at ?? sub.last_charge_at;
+          if (!last) return true;
+          return Date.now() - new Date(last).getTime() > 24 * 60 * 60 * 1000;
+        })();
+        const patch: Record<string, unknown> = { processing_at: null };
+        if (stale) patch.current_billing_key = null;
+        await supabase.from("donor_subscriptions").update(patch).eq("id", subId);
+
+        return ok({
+          subscription_id: subId, scanned: pendings?.length ?? 0, resolved,
+          billing_key_cleared: !!stale,
+        });
       }
 
       default:
