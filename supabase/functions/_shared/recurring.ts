@@ -171,7 +171,7 @@ export async function handleRecurringSuccess(
 ): Promise<{ subscriptionId: string | null; created: boolean; updated: boolean }> {
   const {
     subscriptionId, donationId, donationAmount, donationCampaignId, donationUserId,
-    frequency, paymentObject,
+    frequency, paymentObject, billingCycleKey: cycleKeyIn,
   } = input;
 
   const paymentId: string | null = paymentObject?.id ?? null;
@@ -249,6 +249,7 @@ export async function handleRecurringSuccess(
         donation_id: donationId,
         yookassa_payment_id: paymentId,
         status: "succeeded",
+        billing_cycle_key: cycleKeyIn ?? null,
       },
       { onConflict: "subscription_id,yookassa_payment_id,status", ignoreDuplicates: true },
     );
@@ -319,6 +320,7 @@ export async function handleRecurringSuccess(
       donation_id: donationId,
       yookassa_payment_id: paymentId,
       status: "succeeded",
+      billing_cycle_key: cycleKeyIn ?? null,
     },
     { onConflict: "subscription_id,yookassa_payment_id,status", ignoreDuplicates: true },
   );
