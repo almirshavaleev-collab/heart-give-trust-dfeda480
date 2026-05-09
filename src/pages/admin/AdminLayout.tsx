@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Target, Newspaper, FileText, Heart, Users, LogOut, Repeat, Activity } from 'lucide-react';
+import { LayoutDashboard, Target, Newspaper, FileText, Heart, Users, LogOut, Repeat, Activity, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/admin/donations', label: 'Донаты', icon: Heart },
   { to: '/admin/recurring', label: 'Регулярные', icon: Repeat },
   { to: '/admin/recurring/readiness', label: 'Готовность', icon: Activity },
+  { to: '/admin/recurring/testing', label: 'Sandbox', icon: FlaskConical },
   { to: '/admin/donors', label: 'Доноры', icon: Users },
 ];
 
