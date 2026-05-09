@@ -765,6 +765,19 @@ export type Database = {
         Returns: boolean
       }
       donor_cancel_subscription: { Args: { _id: string }; Returns: undefined }
+      donor_my_charge_attempts: {
+        Args: { _limit?: number; _subscription_id: string }
+        Returns: {
+          created_at: string
+          donation_id: string
+          error_code: string
+          error_description: string
+          id: string
+          metadata: Json
+          status: string
+          yookassa_payment_id: string
+        }[]
+      }
       donor_my_subscriptions: {
         Args: never
         Returns: {
@@ -785,6 +798,10 @@ export type Database = {
       }
       donor_pause_subscription: { Args: { _id: string }; Returns: undefined }
       donor_resume_subscription: { Args: { _id: string }; Returns: undefined }
+      donor_retry_subscription_now: {
+        Args: { _id: string }
+        Returns: undefined
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number

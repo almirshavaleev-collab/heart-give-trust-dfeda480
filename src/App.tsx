@@ -29,6 +29,8 @@ import AdminReports from "./pages/admin/AdminReports.tsx";
 import AdminDonations from "./pages/admin/AdminDonations.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import AdminDonors from "./pages/admin/AdminDonors.tsx";
+import AdminRecurring from "./pages/admin/AdminRecurring.tsx";
+import AdminRecurringDetail from "./pages/admin/AdminRecurringDetail.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { useCampaignsRealtime } from "./hooks/useCampaigns";
@@ -93,6 +95,8 @@ const App = () => (
             <Route path="reports" element={<AdminReports />} />
             <Route path="donations" element={<AdminDonations />} />
             <Route path="donors" element={<AdminDonors />} />
+            <Route path="recurring" element={<AdminRecurring />} />
+            <Route path="recurring/:id" element={<AdminRecurringDetail />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
