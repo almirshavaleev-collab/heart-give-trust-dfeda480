@@ -136,6 +136,124 @@ Deno.serve(async (req) => {
         return ok({ metrics: data });
       }
 
+      // ─── Settings / runtime flags ────────────────────────────────────────
+      case "get_settings": {
+        const { data, error } = await userClient.rpc("admin_get_settings");
+        if (error) return bad(error.message, 500);
+        return ok({ settings: data });
+      }
+      case "set_setting": {
+        const key = String(body?.key ?? "");
+        if (!key) return bad("key required");
+        const { error } = await userClient.rpc("admin_set_setting", { _key: key, _value: body?.value });
+        if (error) return bad(error.message, 500);
+        return ok({ key, value: body?.value });
+      }
+      case "extended_metrics": {
+        const { data, error } = await userClient.rpc("admin_recurring_metrics_extended");
+        if (error) return bad(error.message, 500);
+        return ok({ metrics: data });
+      }
+
+      // ─── Sandbox CRUD ────────────────────────────────────────────────────
+      case "create_sandbox_subscription": {
+        const amount = Number(body?.amount ?? 0);
+        const interval = String(body?.interval ?? "monthly");
+        const campaign_id = body?.campaign_id ?? null;
+        const next_in = Number(body?.next_in_seconds ?? 60);
+        const { data, error } = await userClient.rpc("admin_create_sandbox_subscription", {
+          _amount: amount, _interval: interval, _campaign_id: campaign_id,
+          _next_in_seconds: next_in,
+        });
+        if (error) return bad(error.message, 400);
+        return ok({ subscription_id: data });
+      }
+      case "fast_forward": {
+        const subId = String(body?.subscription_id ?? "");
+        const seconds = Number(body?.seconds ?? 60);
+        if (!subId) return bad("subscription_id required");
+        const { error } = await userClient.rpc("admin_fast_forward_subscription", {
+          _id: subId, _seconds: seconds,
+        });
+        if (error) return bad(error.message, 400);
+        return ok({ subscription_id: subId, seconds });
+      }
+      case "inspector": {
+        const subId = String(body?.subscription_id ?? "");
+        if (!subId) return bad("subscription_id required");
+        const { data, error } = await userClient.rpc("admin_subscription_inspector", { _id: subId });
+        if (error) return bad(error.message, 500);
+        return ok({ inspector: data });
+      }
+      case "integrity_scan": {
+        const { data, error } = await userClient.rpc("admin_recurring_integrity_scan");
+        if (error) return bad(error.message, 500);
+        return ok({ scan: data });
+      }
+      case "destroy_sandbox": {
+        if (body?.confirm !== "DESTROY") return bad("confirm token required");
+        const { data, error } = await userClient.rpc("admin_destroy_sandbox_data");
+        if (error) return bad(error.message, 500);
+        return ok({ destroyed: data });
+      }
+      case "audit_log": {
+        const limit = Math.min(200, Math.max(1, Number(body?.limit ?? 50)));
+        const { data, error } = await supabase
+          .from("sandbox_audit_log")
+          .select("id, actor, action, payload, created_at")
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (error) return bad(error.message, 500);
+        return ok({ entries: data ?? [] });
+      }
+
+      // ─── Chaos runner: capped at 100 sandbox subs ────────────────────────
+      case "chaos_run": {
+        if (!cfg.testMode) return bad("test mode disabled", 403);
+        const requested = Math.min(100, Math.max(1, Number(body?.count ?? 10)));
+        const created: string[] = [];
+        const presets: SimulationKind[] = [
+          "success","failure","timeout","network_error",
+          "expired_card","duplicate_webhook","reconcile_delay","stale_lock",
+        ];
+        for (let i = 0; i < requested; i++) {
+          const interval = (["weekly","biweekly","monthly"] as const)[i % 3];
+          const { data: subId, error } = await userClient.rpc("admin_create_sandbox_subscription", {
+            _amount: 100 + (i % 10) * 10, _interval: interval, _campaign_id: null, _next_in_seconds: 30,
+          });
+          if (error) { structuredLog("chaos_create_error", { i, msg: error.message }); break; }
+          created.push(subId as string);
+        }
+        // Apply random preset to each.
+        let succeeded = 0, failed = 0, dedupe = 0;
+        for (const subId of created) {
+          const sub = await loadSimSub(subId);
+          if (!sub) continue;
+          const kind = presets[Math.floor(Math.random() * presets.length)];
+          try {
+            const r: any = await simulateAction(supabase, kind, sub, cfg);
+            if (r?.outcome === "succeeded") succeeded++;
+            else if (r?.outcome === "failed") failed++;
+            if (r?.dedupe_prevented) dedupe++;
+          } catch (e) {
+            structuredLog("chaos_sim_error", { sub: subId, kind, msg: String(e) });
+          }
+        }
+        await userClient.rpc("admin_log_sandbox_action", {
+          _action: "chaos_run",
+          _payload: { count: created.length, succeeded, failed, dedupe },
+        });
+        return ok({ created: created.length, succeeded, failed, dedupe_prevented: dedupe });
+      }
+
+      case "cron_tick": {
+        // Sequentially run process → reconcile → cleanup.
+        const a = await invokeFn("process-recurring-payments");
+        const b = await invokeFn("reconcile-recurring-payments");
+        const c = await invokeFn("cleanup-recurring-artifacts");
+        return ok({ process: a, reconcile: b, cleanup: c });
+      }
+
       // ─── Manual runners ──────────────────────────────────────────────────
       case "run_recurring_now":   return ok({ result: await invokeFn("process-recurring-payments") });
       case "run_reconcile_now":   return ok({ result: await invokeFn("reconcile-recurring-payments") });
