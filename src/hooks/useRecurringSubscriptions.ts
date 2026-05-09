@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { recurringFlags } from "@/lib/recurring-config";
 
 export type RecurringStatus = "active" | "paused" | "past_due" | "canceled";
 export type RecurringFrequency = "weekly" | "biweekly" | "monthly" | "month" | "week";
@@ -25,6 +26,7 @@ export function useRecurringSubscriptions(pollMs: number = 30000) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refetch = useCallback(async () => {
     setError(null);
@@ -39,15 +41,42 @@ export function useRecurringSubscriptions(pollMs: number = 30000) {
     setLoading(false);
   }, []);
 
+  const debouncedRefetch = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => { void refetch(); }, 500);
+  }, [refetch]);
+
   useEffect(() => {
     mounted.current = true;
     refetch();
-    const t = setInterval(refetch, Math.max(5000, pollMs));
+    // Polling fallback. When realtime is on, slow down polling.
+    const interval = recurringFlags.realtimeDonor ? Math.max(60000, pollMs * 2) : Math.max(5000, pollMs);
+    const t = setInterval(refetch, interval);
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    if (recurringFlags.realtimeDonor) {
+      (async () => {
+        const { data: who } = await supabase.auth.getUser();
+        const uid = who?.user?.id;
+        if (!uid || !mounted.current) return;
+        channel = supabase
+          .channel(`donor-subs-${uid}`)
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "donor_subscriptions", filter: `user_id=eq.${uid}` },
+            () => debouncedRefetch(),
+          )
+          .subscribe();
+      })();
+    }
+
     return () => {
       mounted.current = false;
       clearInterval(t);
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [refetch, pollMs]);
+  }, [refetch, debouncedRefetch, pollMs]);
 
   return { data, loading, error, refetch };
 }
