@@ -44,6 +44,27 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           beneficiary: string | null
@@ -120,6 +141,7 @@ export type Database = {
           id: string
           is_anonymous: boolean
           is_recurring: boolean
+          is_test: boolean
           paid_at: string | null
           payment_id: string | null
           payment_method_type: string | null
@@ -141,6 +163,7 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_recurring?: boolean
+          is_test?: boolean
           paid_at?: string | null
           payment_id?: string | null
           payment_method_type?: string | null
@@ -162,6 +185,7 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_recurring?: boolean
+          is_test?: boolean
           paid_at?: string | null
           payment_id?: string | null
           payment_method_type?: string | null
@@ -250,6 +274,7 @@ export type Database = {
           external_subscription_id: string | null
           id: string
           interval: string
+          is_test: boolean
           last_charge_at: string | null
           last_failure_code: string | null
           last_failure_reason: string | null
@@ -279,6 +304,7 @@ export type Database = {
           external_subscription_id?: string | null
           id?: string
           interval?: string
+          is_test?: boolean
           last_charge_at?: string | null
           last_failure_code?: string | null
           last_failure_reason?: string | null
@@ -308,6 +334,7 @@ export type Database = {
           external_subscription_id?: string | null
           id?: string
           interval?: string
+          is_test?: boolean
           last_charge_at?: string | null
           last_failure_code?: string | null
           last_failure_reason?: string | null
@@ -562,6 +589,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sandbox_audit_log: {
+        Row: {
+          action: string
+          actor: string | null
+          created_at: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: []
+      }
       subscription_charge_attempts: {
         Row: {
           billing_cycle_key: string | null
@@ -570,6 +621,7 @@ export type Database = {
           error_code: string | null
           error_description: string | null
           id: string
+          is_test: boolean
           metadata: Json | null
           status: string
           subscription_id: string
@@ -582,6 +634,7 @@ export type Database = {
           error_code?: string | null
           error_description?: string | null
           id?: string
+          is_test?: boolean
           metadata?: Json | null
           status: string
           subscription_id: string
@@ -594,6 +647,7 @@ export type Database = {
           error_code?: string | null
           error_description?: string | null
           id?: string
+          is_test?: boolean
           metadata?: Json | null
           status?: string
           subscription_id?: string
@@ -782,6 +836,25 @@ export type Database = {
     }
     Functions: {
       _hash_link_code: { Args: { _code: string }; Returns: string }
+      admin_create_sandbox_subscription: {
+        Args: {
+          _amount: number
+          _campaign_id?: string
+          _interval: string
+          _next_in_seconds?: number
+        }
+        Returns: string
+      }
+      admin_destroy_sandbox_data: { Args: never; Returns: Json }
+      admin_fast_forward_subscription: {
+        Args: { _id: string; _seconds: number }
+        Returns: undefined
+      }
+      admin_get_settings: { Args: never; Returns: Json }
+      admin_log_sandbox_action: {
+        Args: { _action: string; _payload: Json }
+        Returns: undefined
+      }
       admin_recent_test_events: {
         Args: { _limit?: number }
         Returns: {
@@ -792,7 +865,9 @@ export type Database = {
           subscription_id: string
         }[]
       }
+      admin_recurring_integrity_scan: { Args: never; Returns: Json }
       admin_recurring_metrics: { Args: never; Returns: Json }
+      admin_recurring_metrics_extended: { Args: never; Returns: Json }
       admin_recurring_readiness: { Args: never; Returns: Json }
       admin_recurring_timeseries: {
         Args: { _days?: number }
@@ -803,6 +878,11 @@ export type Database = {
           succeeded: number
         }[]
       }
+      admin_set_setting: {
+        Args: { _key: string; _value: Json }
+        Returns: undefined
+      }
+      admin_subscription_inspector: { Args: { _id: string }; Returns: Json }
       confirm_link_donations: {
         Args: { _code: string; _user_id: string }
         Returns: number
