@@ -289,6 +289,15 @@ export default function AdminRecurringTesting() {
                   {selected && inspector.subscription?.is_test && (
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" disabled={!!busy}
+                        className="bg-amber-500 hover:bg-amber-600 text-white"
+                        onClick={() => run("sim_cycle", async () => {
+                          const r = await call("simulate", { subscription_id: selected, kind: "success" });
+                          await openInspector(selected);
+                          return r;
+                        })}>
+                        ▶ Запустить charge cycle
+                      </Button>
+                      <Button size="sm" disabled={!!busy}
                         onClick={() => run("ff60", () => call("fast_forward", { subscription_id: selected, seconds: 60 }))}>
                         Fast-forward 60s
                       </Button>
