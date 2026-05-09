@@ -782,6 +782,16 @@ export type Database = {
     }
     Functions: {
       _hash_link_code: { Args: { _code: string }; Returns: string }
+      admin_recent_test_events: {
+        Args: { _limit?: number }
+        Returns: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          subscription_id: string
+        }[]
+      }
       admin_recurring_metrics: { Args: never; Returns: Json }
       admin_recurring_readiness: { Args: never; Returns: Json }
       admin_recurring_timeseries: {

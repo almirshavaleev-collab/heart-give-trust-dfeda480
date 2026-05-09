@@ -28,6 +28,10 @@ export interface RecurringConfig {
   retryDelayHr: number;
   notifyThrottleHr: number;
   cycleBucketHours: number;
+  testMode: boolean;
+  forceSuccess: boolean;
+  forceFailure: boolean;
+  simulateTimeoutMs: number;
 }
 
 export function getRecurringConfig(): RecurringConfig {
@@ -43,7 +47,49 @@ export function getRecurringConfig(): RecurringConfig {
     retryDelayHr: envInt("RECURRING_RETRY_DELAY_HR", 24),
     notifyThrottleHr: envInt("RECURRING_NOTIFY_THROTTLE_HR", 24),
     cycleBucketHours: envInt("RECURRING_CYCLE_BUCKET_HOURS", 1),
+    testMode: envBool("RECURRING_TEST_MODE", false),
+    forceSuccess: envBool("RECURRING_FORCE_SUCCESS", false),
+    forceFailure: envBool("RECURRING_FORCE_FAILURE", false),
+    simulateTimeoutMs: envInt("RECURRING_SIMULATE_TIMEOUT_MS", 35_000),
   };
+}
+
+/**
+ * Effective timings — accelerated when testMode is on.
+ * monthly: 2min, biweekly: 1min, weekly: 30sec
+ * retry: 1min, exec lock TTL: 2min
+ */
+export function getEffectiveTimings(cfg: RecurringConfig) {
+  if (cfg.testMode) {
+    return {
+      execLockTtlMs: 2 * 60_000,
+      retryDelayMs: 60_000,
+      intervalMs: { weekly: 30_000, biweekly: 60_000, monthly: 120_000 },
+    };
+  }
+  return {
+    execLockTtlMs: cfg.execLockTtlMin * 60_000,
+    retryDelayMs: cfg.retryDelayHr * 3_600_000,
+    intervalMs: {
+      weekly: 7 * 86_400_000,
+      biweekly: 14 * 86_400_000,
+      monthly: 30 * 86_400_000, // approximate; production path uses bumpNextPaymentAt's calendar math
+    },
+  };
+}
+
+export function nextRunAtFor(
+  interval: "weekly" | "biweekly" | "monthly",
+  cfg: RecurringConfig,
+  from: Date = new Date(),
+): Date {
+  const t = getEffectiveTimings(cfg);
+  return new Date(from.getTime() + t.intervalMs[interval]);
+}
+
+export function retryAfterAt(cfg: RecurringConfig, from: Date = new Date()): Date {
+  const t = getEffectiveTimings(cfg);
+  return new Date(from.getTime() + t.retryDelayMs);
 }
 
 /**

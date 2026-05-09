@@ -6,6 +6,13 @@ import {
   structuredLog,
   type Frequency,
 } from "../_shared/recurring.ts";
+import { getRecurringConfig } from "../_shared/recurring-config.ts";
+import {
+  buildReplayWebhookPayload,
+  simulateAction,
+  type SimulationKind,
+  type SimSubscription,
+} from "../_shared/recurring-test.ts";
 
 /**
  * Admin-only operations for recurring billing.
@@ -58,6 +65,38 @@ Deno.serve(async (req) => {
   const action = String(body?.action ?? "");
   structuredLog("admin_action", { actor: userId, action });
 
+  const cfg = getRecurringConfig();
+  const projectUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  async function invokeFn(name: string, payload: unknown = {}) {
+    const r = await fetch(`${projectUrl}/functions/v1/${name}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
+        "apikey": serviceKey,
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await r.text();
+    let data: unknown = text;
+    try { data = JSON.parse(text); } catch { /* keep text */ }
+    return { status: r.status, ok: r.ok, data };
+  }
+
+  async function loadSimSub(subId: string): Promise<SimSubscription | null> {
+    const { data } = await supabase
+      .from("donor_subscriptions")
+      .select("id,user_id,campaign_id,amount,currency,interval,retry_count,status,payment_method_type")
+      .eq("id", subId).maybeSingle();
+    if (!data) return null;
+    return {
+      ...data,
+      interval: (data.interval === "weekly" || data.interval === "biweekly") ? data.interval : "monthly",
+    } as SimSubscription;
+  }
+
   async function fetchPayment(id: string) {
     const rawMode = (Deno.env.get("YOOKASSA_MODE") ?? "test").trim().toLowerCase();
     const mode: "production" | "test" = rawMode === "production" ? "production" : "test";
@@ -95,6 +134,97 @@ Deno.serve(async (req) => {
         const { data, error } = await userClient.rpc("admin_recurring_metrics");
         if (error) return bad(error.message, 500);
         return ok({ metrics: data });
+      }
+
+      // ─── Manual runners ──────────────────────────────────────────────────
+      case "run_recurring_now":   return ok({ result: await invokeFn("process-recurring-payments") });
+      case "run_reconcile_now":   return ok({ result: await invokeFn("reconcile-recurring-payments") });
+      case "run_cleanup_now":     return ok({ result: await invokeFn("cleanup-recurring-artifacts") });
+      case "run_health_check_now":return ok({ result: await invokeFn("recurring-health-check") });
+
+      // ─── Test sandbox config ─────────────────────────────────────────────
+      case "test_config":
+        return ok({
+          config: {
+            test_mode: cfg.testMode,
+            dry_run: cfg.dryRun,
+            force_success: cfg.forceSuccess,
+            force_failure: cfg.forceFailure,
+            shadow_mode: cfg.testMode && cfg.dryRun,
+            enabled: cfg.enabled,
+          },
+        });
+
+      // ─── Force eligibility / clear locks (always allowed for admin) ──────
+      case "force_next_payment": {
+        const subId = String(body?.subscription_id ?? "");
+        if (!subId) return bad("subscription_id required");
+        await supabase.from("donor_subscriptions").update({
+          next_payment_at: new Date(Date.now() - 1000).toISOString(),
+        }).eq("id", subId);
+        await supabase.from("subscription_events").insert({
+          subscription_id: subId, event_type: "test_force_next_payment",
+          metadata: { actor: userId },
+        });
+        return ok({ subscription_id: subId });
+      }
+      case "clear_locks": {
+        const subId = String(body?.subscription_id ?? "");
+        if (!subId) return bad("subscription_id required");
+        await supabase.from("donor_subscriptions").update({
+          processing_at: null, current_billing_key: null,
+        }).eq("id", subId);
+        await supabase.from("subscription_events").insert({
+          subscription_id: subId, event_type: "test_clear_locks",
+          metadata: { actor: userId },
+        });
+        return ok({ subscription_id: subId });
+      }
+
+      // ─── Deterministic simulations (test mode only) ──────────────────────
+      case "simulate": {
+        if (!cfg.testMode) return bad("test mode disabled", 403);
+        const kind = String(body?.kind ?? "") as SimulationKind;
+        const subId = String(body?.subscription_id ?? "");
+        if (!subId) return bad("subscription_id required");
+        const sub = await loadSimSub(subId);
+        if (!sub) return bad("subscription not found", 404);
+        const result = await simulateAction(supabase, kind, sub, cfg);
+        return ok({ kind, subscription_id: subId, ...result });
+      }
+
+      // ─── Replay tools (idempotency tests) ────────────────────────────────
+      case "replay_webhook": {
+        if (!cfg.testMode) return bad("test mode disabled", 403);
+        const subId = String(body?.subscription_id ?? "");
+        if (!subId) return bad("subscription_id required");
+        // Find the most recent payment_id for this sub.
+        const { data: lastAttempt } = await supabase
+          .from("subscription_charge_attempts")
+          .select("yookassa_payment_id")
+          .eq("subscription_id", subId)
+          .not("yookassa_payment_id", "is", null)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        const sub = await loadSimSub(subId);
+        if (!sub) return bad("subscription not found", 404);
+        const paymentId: string = String(body?.payment_id ?? lastAttempt?.yookassa_payment_id ?? `replay_${Date.now()}`);
+        const status = (body?.status === "canceled" ? "canceled" : "succeeded") as "succeeded" | "canceled";
+        const payload = buildReplayWebhookPayload(paymentId, subId, Number(sub.amount), status);
+        structuredLog("test_replay_webhook", { sub: subId, payment_id: paymentId, status });
+        const r = await invokeFn("yookassa-webhook", payload);
+        return ok({ payment_id: paymentId, replay: r });
+      }
+      case "replay_reconcile": {
+        if (!cfg.testMode) return bad("test mode disabled", 403);
+        return ok({ result: await invokeFn("reconcile-recurring-payments") });
+      }
+
+      // ─── Recent test events ──────────────────────────────────────────────
+      case "recent_test_events": {
+        const limit = Number(body?.limit ?? 100);
+        const { data, error } = await userClient.rpc("admin_recent_test_events", { _limit: limit });
+        if (error) return bad(error.message, 500);
+        return ok({ events: data ?? [] });
       }
 
       case "overview": {
