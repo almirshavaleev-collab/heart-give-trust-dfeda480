@@ -1,6 +1,10 @@
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
-import { deterministicBillingKey, structuredLog } from "../_shared/recurring.ts";
+import {
+  deterministicBillingKey,
+  normalizeYkCreatedStatus,
+  structuredLog,
+} from "../_shared/recurring.ts";
 
 /**
  * Recurring autopay engine.
@@ -225,7 +229,8 @@ Deno.serve(async (req) => {
       await supabase.from("donations").update({ yookassa_payment_id: data.id }).eq("id", donationId);
       await supabase.from("subscription_charge_attempts").insert({
         subscription_id: sub.id, donation_id: donationId, yookassa_payment_id: data.id,
-        status: `created:${data.status ?? "unknown"}`, metadata: { billing_key: billingKey },
+        status: normalizeYkCreatedStatus(data?.status),
+        metadata: { billing_key: billingKey, yk_status: data?.status ?? null },
       });
       await supabase.from("subscription_events").insert({
         subscription_id: sub.id, event_type: "payment_created",
