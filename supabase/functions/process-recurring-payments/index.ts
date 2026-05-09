@@ -9,6 +9,7 @@ import {
   logDuplicatePrevention,
   PG_UNIQUE_VIOLATION,
 } from "../_shared/recurring.ts";
+import { simulateChargeCycle, type SimSubscription } from "../_shared/recurring-test.ts";
 
 /**
  * Recurring autopay engine.
@@ -58,6 +59,7 @@ Deno.serve(async (req) => {
 
   const cfg = getRecurringConfig();
   const dryRun = cfg.dryRun;
+  const shadowMode = cfg.testMode && cfg.dryRun;
   if (!cfg.enabled) {
     structuredLog("cron_disabled");
     await recordHeartbeat(supabase, "process-recurring-payments", "disabled", {});
@@ -106,7 +108,7 @@ Deno.serve(async (req) => {
   }
 
   const subs = (due ?? []) as Subscription[];
-  structuredLog("cron_selected", { mode, dry_run: dryRun, due_count: subs.length });
+  structuredLog("cron_selected", { mode, dry_run: dryRun, shadow: shadowMode, due_count: subs.length });
 
   let payments_created = 0;
   let failed = 0;
@@ -114,6 +116,19 @@ Deno.serve(async (req) => {
 
   for (const sub of subs) {
     if (!sub.payment_method_id) { skipped++; continue; }
+
+    // Shadow mode: full pipeline simulation, no YooKassa, no campaign increment.
+    if (shadowMode) {
+      const simSub: SimSubscription = {
+        id: sub.id, user_id: sub.user_id, campaign_id: sub.campaign_id,
+        amount: Number(sub.amount), currency: sub.currency,
+        interval: sub.interval, retry_count: 0, status: sub.status,
+        payment_method_type: sub.payment_method_type,
+      };
+      const r = await simulateChargeCycle(supabase, simSub, cfg);
+      if (r.outcome === "succeeded") payments_created++; else failed++;
+      continue;
+    }
 
     const billingKey = billingCycleKey(sub.id, sub.next_payment_at, cfg.cycleBucketHours);
 
