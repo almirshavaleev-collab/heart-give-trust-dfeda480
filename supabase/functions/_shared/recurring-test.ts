@@ -158,7 +158,8 @@ export async function simulateAction(
       await supabase.from("subscription_charge_attempts").insert({
         subscription_id: sub.id, status: "test_failed",
         error_code: "simulated_timeout", error_description: "Simulated timeout",
-        metadata: { simulated: true, kind },
+        is_test: true,
+        metadata: { ...SANDBOX_META, kind },
       });
       await supabase.from("donor_subscriptions").update({
         retry_count: sub.retry_count + 1,
@@ -174,7 +175,8 @@ export async function simulateAction(
       await supabase.from("subscription_charge_attempts").insert({
         subscription_id: sub.id, status: "test_failed",
         error_code: "simulated_network_error", error_description: "Simulated network error",
-        metadata: { simulated: true, kind },
+        is_test: true,
+        metadata: { ...SANDBOX_META, kind },
       });
       await insertSimEvent(supabase, sub.id, kind, evtMeta);
       return { ok: true };
@@ -196,12 +198,14 @@ export async function simulateAction(
       const a1 = await supabase.from("subscription_charge_attempts").insert({
         subscription_id: sub.id, status: "test_succeeded",
         yookassa_payment_id: fakePid,
-        metadata: { simulated: true, kind, attempt: 1 },
+        is_test: true,
+        metadata: { ...SANDBOX_META, kind, attempt: 1 },
       }).select("id");
       const a2 = await supabase.from("subscription_charge_attempts").insert({
         subscription_id: sub.id, status: "test_succeeded",
         yookassa_payment_id: fakePid,
-        metadata: { simulated: true, kind, attempt: 2 },
+        is_test: true,
+        metadata: { ...SANDBOX_META, kind, attempt: 2 },
       });
       const dedup = !!a2.error;
       structuredLog("dedupe_test", { sub: sub.id, prevented: dedup, msg: a2.error?.message });
@@ -217,6 +221,7 @@ export async function simulateAction(
         campaign_id: sub.campaign_id, user_id: sub.user_id,
         payment_type: "recurring", is_recurring: true, is_anonymous: false,
         status: "pending", yookassa_payment_id: fakePid, created_at: fifteenMinAgo,
+        is_test: true, payment_provider: "sandbox",
       }).select("id").single();
       await insertSimEvent(supabase, sub.id, kind, { ...evtMeta, donation_id: data?.id, payment_id: fakePid });
       return { ok: !error, donation_id: data?.id ?? null, error: error?.message };
