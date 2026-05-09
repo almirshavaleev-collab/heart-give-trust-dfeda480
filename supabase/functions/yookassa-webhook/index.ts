@@ -1,5 +1,11 @@
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import {
+  handleRecurringSuccess,
+  handleRecurringFailure,
+  structuredLog,
+  type Frequency,
+} from "../_shared/recurring.ts";
 
 // Webhook от ЮKassa. Должен ВСЕГДА возвращать 200, иначе ЮKassa будет ретраить.
 // URL для настройки в личном кабинете ЮKassa:
