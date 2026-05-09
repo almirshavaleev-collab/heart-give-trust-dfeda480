@@ -97,6 +97,52 @@ Deno.serve(async (req) => {
         return ok({ metrics: data });
       }
 
+      case "overview": {
+        // Combined dashboard payload: metrics + recent failures + recoveries + stuck billing.
+        const { data: metrics, error: mErr } = await userClient.rpc("admin_recurring_metrics");
+        if (mErr) return bad(mErr.message, 500);
+
+        const since30 = new Date(Date.now() - 30 * 86400e3).toISOString();
+        const m10 = new Date(Date.now() - 10 * 60_000).toISOString();
+        const h24 = new Date(Date.now() - 24 * 3_600_000).toISOString();
+        const m15 = new Date(Date.now() - 15 * 60_000).toISOString();
+
+        const [recentFailures, recoveries, stuckSubs, oldPending] = await Promise.all([
+          supabase.from("subscription_charge_attempts")
+            .select("subscription_id, donation_id, yookassa_payment_id, status, error_code, error_description, created_at")
+            .in("status", ["create_failed","network_error","retry_scheduled","past_due","paused"])
+            .gt("created_at", since30)
+            .order("created_at", { ascending: false }).limit(50),
+          supabase.from("subscription_events")
+            .select("subscription_id, event_type, metadata, created_at")
+            .eq("event_type", "recovered")
+            .gt("created_at", since30)
+            .order("created_at", { ascending: false }).limit(50),
+          supabase.from("donor_subscriptions")
+            .select("id, user_id, amount, interval, status, current_billing_key, processing_at, last_charge_at, last_retry_at, updated_at")
+            .or(`processing_at.lt.${m10},current_billing_key.not.is.null`)
+            .order("updated_at", { ascending: true }).limit(50),
+          supabase.from("donations")
+            .select("id, amount, user_id, yookassa_payment_id, created_at, payment_type")
+            .eq("status", "pending").eq("payment_type", "recurring")
+            .lt("created_at", m15)
+            .order("created_at", { ascending: true }).limit(50),
+        ]);
+
+        return ok({
+          metrics,
+          recent_failures: recentFailures.data ?? [],
+          recoveries: recoveries.data ?? [],
+          stuck_billing: (stuckSubs.data ?? []).filter((s: any) => {
+            const last = s.last_retry_at ?? s.last_charge_at ?? s.updated_at;
+            return s.current_billing_key && (!last || Date.now() - new Date(last).getTime() > 24 * 3600e3)
+              || (s.processing_at && new Date(s.processing_at).getTime() < Date.now() - 10 * 60_000);
+          }),
+          old_pending_donations: oldPending.data ?? [],
+          generated_at: new Date().toISOString(),
+        });
+      }
+
       case "resume_subscription": {
         const subId = String(body?.subscription_id ?? "");
         if (!subId) return bad("subscription_id required");

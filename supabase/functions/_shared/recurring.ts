@@ -10,6 +10,26 @@
 type SB = any;
 
 export type Frequency = "weekly" | "biweekly" | "monthly";
+export type ChargeAttemptStatus =
+  | "created_pending"
+  | "created_waiting_capture"
+  | "created_succeeded"
+  | "succeeded"
+  | "retry_scheduled"
+  | "past_due"
+  | "paused"
+  | "network_error"
+  | "internal_error"
+  | "create_failed"
+  | "dry_run";
+
+export function normalizeYkCreatedStatus(yk: string | undefined | null): ChargeAttemptStatus {
+  switch (yk) {
+    case "succeeded": return "created_succeeded";
+    case "waiting_for_capture": return "created_waiting_capture";
+    default: return "created_pending";
+  }
+}
 
 export function structuredLog(
   phase: string,
@@ -21,6 +41,44 @@ export function structuredLog(
     parts.push(`${k}=${v}`);
   }
   console.log(parts.join(" "));
+}
+
+export function alertLog(reason: string, ctx: Record<string, unknown> = {}) {
+  const parts = [`[recurring][ALERT]`, `reason=${reason}`];
+  for (const [k, v] of Object.entries(ctx)) {
+    if (v === undefined || v === null) continue;
+    parts.push(`${k}=${v}`);
+  }
+  console.warn(parts.join(" "));
+}
+
+/**
+ * Fire-and-forget transactional email enqueue. Never throws — recurring
+ * billing flows must not break if notifications are misconfigured.
+ */
+export function notifyDonor(
+  supabase: SB,
+  templateName: string,
+  recipientEmail: string | null,
+  templateData: Record<string, unknown>,
+) {
+  if (!recipientEmail) return;
+  // Don't await — this must be non-blocking.
+  void (async () => {
+    try {
+      await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          template_name: templateName,
+          recipient_email: recipientEmail,
+          template_data: templateData,
+          idempotency_key: `${templateName}:${templateData?.subscription_id ?? ""}:${templateData?.payment_id ?? Date.now()}`,
+          purpose: "transactional",
+        },
+      });
+    } catch (e) {
+      structuredLog("notify_failed", { template: templateName, msg: String(e) });
+    }
+  })();
 }
 
 export function bumpNextPaymentAt(from: Date, freq: Frequency): string {
@@ -180,6 +238,22 @@ export async function handleRecurringSuccess(
       next: nextPaymentAt,
       recovered: wasPastDue,
     });
+    // Notify donor (non-blocking, best-effort). Look up email lazily.
+    if (donationUserId) {
+      const { data: prof } = await supabase
+        .from("profiles").select("email, full_name").eq("user_id", donationUserId).maybeSingle();
+      const tplData = {
+        subscription_id: existing.id, payment_id: paymentId, donation_id: donationId,
+        amount: donationAmount, currency: "RUB", next_payment_at: nextPaymentAt,
+        card_last4: cardLast4, name: prof?.full_name ?? null,
+      };
+      notifyDonor(
+        supabase,
+        wasPastDue ? "recurring-recovered" : "recurring-payment-succeeded",
+        prof?.email ?? null,
+        tplData,
+      );
+    }
     return { subscriptionId: existing.id, created: false, updated: true };
   }
 
@@ -332,5 +406,24 @@ export async function handleRecurringFailure(
   structuredLog("webhook_failure", {
     sub: subRow.id, payment_id: paymentId, retry: newRetry, outcome, code: failureCode,
   });
+
+  // Donor notifications (non-blocking).
+  const { data: subForNotify } = await supabase
+    .from("donor_subscriptions").select("user_id").eq("id", subRow.id).maybeSingle();
+  if (subForNotify?.user_id) {
+    const { data: prof } = await supabase
+      .from("profiles").select("email, full_name").eq("user_id", subForNotify.user_id).maybeSingle();
+    const tplData = {
+      subscription_id: subRow.id, payment_id: paymentId, retry_count: newRetry,
+      reason: failureCode, name: prof?.full_name ?? null,
+    };
+    if (outcome === "paused") {
+      notifyDonor(supabase, "recurring-paused", prof?.email ?? null, tplData);
+    } else if (outcome === "retry_scheduled") {
+      notifyDonor(supabase, "recurring-retry-scheduled", prof?.email ?? null, tplData);
+    }
+    // past_due — no separate email; donor will get the next retry-scheduled or paused.
+  }
+
   return { acted: true, outcome };
 }
