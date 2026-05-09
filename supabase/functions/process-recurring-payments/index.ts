@@ -1,20 +1,26 @@
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import { deterministicBillingKey, structuredLog } from "../_shared/recurring.ts";
 
 /**
  * Recurring autopay engine.
+ * Narrow responsibilities — webhook is the source of truth.
  *
- * Responsibilities (intentionally narrow — the webhook is the source of truth):
- *   1. Pick due active subscriptions (with payment_method_id, not currently locked).
- *   2. Atomically lock each one via processing_at to prevent double charging.
- *   3. Create a pending donation row.
- *   4. POST to YooKassa with a deterministic Idempotence-Key.
- *   5. Persist yookassa_payment_id on the donation, log the attempt, release the lock.
+ *   1. Pick due active subscriptions (no current_billing_key, not currently locked).
+ *   2. Atomically lock via processing_at (short-lived execution lock).
+ *   3. Set current_billing_key (long-lived billing lock, cleared by webhook).
+ *   4. Create pending donation + POST to YooKassa with deterministic Idempotence-Key.
+ *   5. Persist yookassa_payment_id and release execution lock.
  *
- * It does NOT update next_payment_at, last_charge_at or subscription status — that
- * is exclusively the webhook's job once payment.succeeded / payment.canceled arrives.
+ * It does NOT update next_payment_at, last_charge_at or status — webhook does that
+ * (and clears current_billing_key as part of the same reconcile).
  *
- * DRY RUN: set RECURRING_DRY_RUN=true to skip the YooKassa POST.
+ * Recovery horizons:
+ *   - processing_at older than 10 min  → considered stale, re-locked
+ *   - current_billing_key older than 24h (last_retry_at / last_charge_at) → not enforced here;
+ *     reconcile-recurring-payments resolves the underlying donation and clears it.
+ *
+ * DRY RUN: set RECURRING_DRY_RUN=true.
  */
 
 type Subscription = {
@@ -28,28 +34,14 @@ type Subscription = {
   payment_method_id: string | null;
   payment_method_type: string | null;
   next_payment_at: string | null;
+  current_billing_key: string | null;
 };
-
-function deterministicIdempotenceKey(subId: string, nextPaymentAt: string | null): string {
-  // Same key for the same billing period — protects against retry/crash double-charge.
-  const period = nextPaymentAt
-    ? new Date(nextPaymentAt).toISOString().slice(0, 10) // YYYY-MM-DD
-    : new Date().toISOString().slice(0, 10);
-  return `autopay-${subId}-${period}`;
-}
-
-function log(phase: string, sub: string | null, extra: Record<string, unknown> = {}) {
-  const parts = [`[recurring]`, `phase=${phase}`];
-  if (sub) parts.push(`sub=${sub}`);
-  for (const [k, v] of Object.entries(extra)) parts.push(`${k}=${v}`);
-  console.log(parts.join(" "));
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const startedAt = Date.now();
-  log("cron_start", null);
+  structuredLog("cron_start");
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -67,70 +59,68 @@ Deno.serve(async (req) => {
     : Deno.env.get("YOOKASSA_SECRET_KEY");
 
   if (!dryRun && (!shopId || !secretKey)) {
-    log("cron_abort", null, { reason: "missing_keys", mode });
+    structuredLog("cron_abort", { reason: "missing_keys", mode });
     return new Response(JSON.stringify({ error: "YooKassa not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-
   const auth = shopId && secretKey ? btoa(`${shopId}:${secretKey}`) : "";
 
-  // 1. Pull due subscriptions (status active, has saved PM, not currently locked).
-  // Lock window: ignore subs whose processing_at is fresher than 10 minutes (stuck-lock recovery).
   const nowIso = new Date().toISOString();
-  const lockHorizon = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const execLockHorizon = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
+  // 1. Eligible subs: due, has saved PM, no active billing key, not held by exec lock.
   const { data: due, error: dueErr } = await supabase
     .from("donor_subscriptions")
     .select(
-      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at",
+      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at, current_billing_key",
     )
     .eq("status", "active")
     .lte("next_payment_at", nowIso)
     .not("payment_method_id", "is", null)
-    .or(`processing_at.is.null,processing_at.lt.${lockHorizon}`)
+    .is("current_billing_key", null)
+    .or(`processing_at.is.null,processing_at.lt.${execLockHorizon}`)
     .limit(50);
 
   if (dueErr) {
-    log("cron_query_error", null, { msg: dueErr.message });
+    structuredLog("cron_query_error", { msg: dueErr.message });
     return new Response(JSON.stringify({ error: dueErr.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   const subs = (due ?? []) as Subscription[];
-  log("cron_selected", null, { mode, dry_run: dryRun, due_count: subs.length });
+  structuredLog("cron_selected", { mode, dry_run: dryRun, due_count: subs.length });
 
-  let succeeded = 0; // accepted by YooKassa (final status from webhook)
+  let payments_created = 0;
   let failed = 0;
   let skipped = 0;
 
   for (const sub of subs) {
-    if (!sub.payment_method_id) {
-      skipped++;
-      continue;
-    }
+    if (!sub.payment_method_id) { skipped++; continue; }
 
-    // 2. Atomic lock: only proceed if we win the UPDATE race.
+    const billingKey = deterministicBillingKey(sub.id, sub.next_payment_at);
+
+    // 2+3. Atomic combined lock: short-term processing_at AND long-term billing_key.
     const { data: locked, error: lockErr } = await supabase
       .from("donor_subscriptions")
-      .update({ processing_at: nowIso })
+      .update({ processing_at: nowIso, current_billing_key: billingKey })
       .eq("id", sub.id)
       .eq("status", "active")
-      .or(`processing_at.is.null,processing_at.lt.${lockHorizon}`)
+      .is("current_billing_key", null)
+      .or(`processing_at.is.null,processing_at.lt.${execLockHorizon}`)
       .select("id");
 
     if (lockErr || !locked || locked.length === 0) {
-      log("lock_skip", sub.id, { reason: lockErr?.message ?? "race_lost" });
+      structuredLog("lock_skip", { sub: sub.id, reason: lockErr?.message ?? "race_lost" });
       skipped++;
       continue;
     }
-    log("lock_acquire", sub.id);
+    structuredLog("lock_acquire", { sub: sub.id, billing_key: billingKey });
 
+    let releaseBillingKey = false; // only if we never created a payment
     try {
-      // 3. Create pending donation.
+      // 4. Create pending donation
       const { data: donationRow, error: donationErr } = await supabase
         .from("donations")
         .insert({
@@ -148,36 +138,30 @@ Deno.serve(async (req) => {
         .single();
 
       if (donationErr || !donationRow) {
-        log("donation_insert_error", sub.id, { msg: donationErr?.message ?? "n/a" });
+        structuredLog("donation_insert_error", { sub: sub.id, msg: donationErr?.message ?? "n/a" });
         await supabase.from("subscription_charge_attempts").insert({
-          subscription_id: sub.id,
-          status: "internal_error",
-          error_code: "donation_insert",
-          error_description: donationErr?.message ?? null,
+          subscription_id: sub.id, status: "internal_error",
+          error_code: "donation_insert", error_description: donationErr?.message ?? null,
         });
         failed++;
+        releaseBillingKey = true;
         continue;
       }
       const donationId = donationRow.id;
 
-      // 4. Idempotent POST to YooKassa (or dry-run).
-      const idemKey = deterministicIdempotenceKey(sub.id, sub.next_payment_at);
-
       if (dryRun) {
-        log("payment_create_dry_run", sub.id, { donation_id: donationId, idem: idemKey });
+        structuredLog("payment_create_dry_run", { sub: sub.id, donation_id: donationId, billing_key: billingKey });
         await supabase.from("subscription_charge_attempts").insert({
-          subscription_id: sub.id,
-          donation_id: donationId,
-          status: "dry_run",
-          metadata: { idempotence_key: idemKey },
+          subscription_id: sub.id, donation_id: donationId, status: "dry_run",
+          metadata: { billing_key: billingKey },
         });
-        // Mark donation canceled so it doesn't sit pending forever.
         await supabase.from("donations").update({ status: "canceled" }).eq("id", donationId);
         skipped++;
+        releaseBillingKey = true;
         continue;
       }
 
-      log("payment_create", sub.id, { donation_id: donationId, idem: idemKey });
+      structuredLog("payment_create", { sub: sub.id, donation_id: donationId, billing_key: billingKey });
 
       let ykResp: Response;
       try {
@@ -186,7 +170,7 @@ Deno.serve(async (req) => {
           headers: {
             "Authorization": `Basic ${auth}`,
             "Content-Type": "application/json",
-            "Idempotence-Key": idemKey,
+            "Idempotence-Key": billingKey,
           },
           body: JSON.stringify({
             amount: { value: Number(sub.amount).toFixed(2), currency: sub.currency || "RUB" },
@@ -202,90 +186,74 @@ Deno.serve(async (req) => {
               frequency: sub.interval,
               subscription_id: sub.id,
               autopay: "true",
+              billing_key: billingKey,
             },
           }),
         });
       } catch (e) {
-        log("payment_network_error", sub.id, { msg: String(e) });
+        structuredLog("payment_network_error", { sub: sub.id, msg: String(e) });
         await supabase.from("donations").update({ status: "failed" }).eq("id", donationId);
         await supabase.from("subscription_charge_attempts").insert({
-          subscription_id: sub.id,
-          donation_id: donationId,
-          status: "network_error",
+          subscription_id: sub.id, donation_id: donationId, status: "network_error",
           error_description: String(e),
         });
         failed++;
+        releaseBillingKey = true;
         continue;
       }
 
       const data = await ykResp.json().catch(() => ({}));
 
       if (!ykResp.ok) {
-        log("payment_create_fail", sub.id, {
-          http: ykResp.status,
-          code: data?.code ?? "n/a",
-          desc: data?.description ?? "n/a",
+        structuredLog("payment_create_fail", {
+          sub: sub.id, http: ykResp.status, code: data?.code ?? "n/a", desc: data?.description ?? "n/a",
         });
         await supabase.from("donations").update({ status: "failed" }).eq("id", donationId);
         await supabase.from("subscription_charge_attempts").insert({
-          subscription_id: sub.id,
-          donation_id: donationId,
-          status: "create_failed",
-          error_code: data?.code ?? String(ykResp.status),
-          error_description: data?.description ?? null,
+          subscription_id: sub.id, donation_id: donationId, status: "create_failed",
+          error_code: data?.code ?? String(ykResp.status), error_description: data?.description ?? null,
         });
-
         if (typeof data?.description === "string" && /saved payment method/i.test(data.description)) {
-          log("payment_create_fail", sub.id, { hint: "shop_recurring_disabled" });
+          structuredLog("payment_create_fail", { sub: sub.id, hint: "shop_recurring_disabled" });
         }
         failed++;
+        releaseBillingKey = true;
         continue;
       }
 
-      // 5. Persist yookassa_payment_id; log the attempt. Webhook will reconcile.
-      await supabase
-        .from("donations")
-        .update({ yookassa_payment_id: data.id })
-        .eq("id", donationId);
-
+      // 5. Payment created — webhook will reconcile + clear billing_key.
+      await supabase.from("donations").update({ yookassa_payment_id: data.id }).eq("id", donationId);
       await supabase.from("subscription_charge_attempts").insert({
-        subscription_id: sub.id,
-        donation_id: donationId,
-        yookassa_payment_id: data.id,
-        status: `created:${data.status ?? "unknown"}`,
-        metadata: { idempotence_key: idemKey },
+        subscription_id: sub.id, donation_id: donationId, yookassa_payment_id: data.id,
+        status: `created:${data.status ?? "unknown"}`, metadata: { billing_key: billingKey },
+      });
+      await supabase.from("subscription_events").insert({
+        subscription_id: sub.id, event_type: "payment_created",
+        metadata: { donation_id: donationId, payment_id: data.id, billing_key: billingKey, yk_status: data.status },
       });
 
-      log("payment_created", sub.id, {
-        donation_id: donationId,
-        payment_id: data.id,
-        yk_status: data.status,
+      structuredLog("payment_created", {
+        sub: sub.id, donation_id: donationId, payment_id: data.id, yk_status: data.status,
       });
-      // We don't increment `succeeded` here — the webhook is the source of truth.
-      succeeded++;
+      payments_created++;
     } finally {
-      // Release lock regardless of outcome.
-      const { error: unlockErr } = await supabase
-        .from("donor_subscriptions")
-        .update({ processing_at: null })
-        .eq("id", sub.id);
-      if (unlockErr) log("lock_release_error", sub.id, { msg: unlockErr.message });
-      else log("lock_release", sub.id);
+      // Always release the short execution lock; release billing key only if no payment exists.
+      const patch: Record<string, unknown> = { processing_at: null };
+      if (releaseBillingKey) patch.current_billing_key = null;
+      const { error: unlockErr } = await supabase.from("donor_subscriptions").update(patch).eq("id", sub.id);
+      if (unlockErr) structuredLog("lock_release_error", { sub: sub.id, msg: unlockErr.message });
+      else structuredLog("lock_release", { sub: sub.id, billing_key_released: releaseBillingKey });
     }
   }
 
   const ms = Date.now() - startedAt;
-  log("cron_end", null, { due: subs.length, created: succeeded, failed, skipped, duration_ms: ms });
+  structuredLog("cron_end", {
+    due: subs.length, payments_created, failed, skipped, duration_ms: ms,
+  });
 
   return new Response(
     JSON.stringify({
-      ok: true,
-      dry_run: dryRun,
-      due: subs.length,
-      created: succeeded,
-      failed,
-      skipped,
-      duration_ms: ms,
+      ok: true, dry_run: dryRun, due: subs.length, payments_created, failed, skipped, duration_ms: ms,
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );

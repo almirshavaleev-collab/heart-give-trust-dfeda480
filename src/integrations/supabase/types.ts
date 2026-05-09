@@ -243,6 +243,7 @@ export type Database = {
           card_type: string | null
           created_at: string
           currency: string
+          current_billing_key: string | null
           external_subscription_id: string | null
           id: string
           interval: string
@@ -252,6 +253,7 @@ export type Database = {
           last_retry_at: string | null
           next_payment_at: string | null
           paused_at: string | null
+          paused_reason: string | null
           payment_method_id: string | null
           payment_method_saved_at: string | null
           payment_method_type: string | null
@@ -270,6 +272,7 @@ export type Database = {
           card_type?: string | null
           created_at?: string
           currency?: string
+          current_billing_key?: string | null
           external_subscription_id?: string | null
           id?: string
           interval?: string
@@ -279,6 +282,7 @@ export type Database = {
           last_retry_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
+          paused_reason?: string | null
           payment_method_id?: string | null
           payment_method_saved_at?: string | null
           payment_method_type?: string | null
@@ -297,6 +301,7 @@ export type Database = {
           card_type?: string | null
           created_at?: string
           currency?: string
+          current_billing_key?: string | null
           external_subscription_id?: string | null
           id?: string
           interval?: string
@@ -306,6 +311,7 @@ export type Database = {
           last_retry_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
+          paused_reason?: string | null
           payment_method_id?: string | null
           payment_method_saved_at?: string | null
           payment_method_type?: string | null
@@ -568,6 +574,30 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          subscription_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          subscription_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          subscription_id?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -725,6 +755,7 @@ export type Database = {
     }
     Functions: {
       _hash_link_code: { Args: { _code: string }; Returns: string }
+      admin_recurring_metrics: { Args: never; Returns: Json }
       confirm_link_donations: {
         Args: { _code: string; _user_id: string }
         Returns: number
