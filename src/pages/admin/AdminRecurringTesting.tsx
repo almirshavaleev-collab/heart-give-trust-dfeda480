@@ -271,6 +271,12 @@ export default function AdminRecurringTesting() {
                       ? <Badge className="bg-amber-500 hover:bg-amber-500 text-white">SANDBOX</Badge>
                       : <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white">PROD</Badge>}
                     <Badge variant="outline">{s.status}</Badge>
+                    {s.is_test && (
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        onClick={(e) => { e.stopPropagation(); run("sim_cycle", () => call("simulate", { subscription_id: s.id, kind: "success" })); }}>
+                        ▶ Cycle
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
