@@ -10,7 +10,14 @@ export interface TemplateEntry {
 }
 
 import { template as donationLinkCode } from './donation-link-code.tsx'
+import {
+  succeededTemplate, retryTemplate, pausedTemplate, recoveredTemplate,
+} from './recurring-events.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'donation-link-code': donationLinkCode,
+  'recurring-payment-succeeded': succeededTemplate,
+  'recurring-retry-scheduled': retryTemplate,
+  'recurring-paused': pausedTemplate,
+  'recurring-recovered': recoveredTemplate,
 }
