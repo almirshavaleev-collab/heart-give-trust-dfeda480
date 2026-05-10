@@ -145,31 +145,51 @@ export async function simulateAction(
 
   switch (kind) {
     case "success": {
+      await insertSimEvent(supabase, sub.id, "charge_started" as SimulationKind, { ...evtMeta, phase: "start" });
       const r = await simulateChargeCycle(supabase, sub, { ...cfg, forceSuccess: true, forceFailure: false });
+      await insertSimEvent(supabase, sub.id, "charge_succeeded" as SimulationKind, { ...evtMeta, donation_id: r.donationId });
+      await insertSimEvent(supabase, sub.id, "next_cycle_scheduled" as SimulationKind, { ...evtMeta });
       await insertSimEvent(supabase, sub.id, kind, { ...evtMeta, donation_id: r.donationId });
       return { ok: true, ...r };
     }
+    case "fail":
     case "failure": {
+      await insertSimEvent(supabase, sub.id, "charge_started" as SimulationKind, { ...evtMeta, phase: "start" });
       const r = await simulateChargeCycle(supabase, sub, { ...cfg, forceSuccess: false, forceFailure: true });
+      await supabase.from("donor_subscriptions").update({
+        status: "past_due",
+        last_failure_reason: "insufficient_funds",
+        last_failure_code: "insufficient_funds",
+      }).eq("id", sub.id);
+      await insertSimEvent(supabase, sub.id, "charge_failed" as SimulationKind, { ...evtMeta, reason: "insufficient_funds", donation_id: r.donationId });
+      await insertSimEvent(supabase, sub.id, "retry_scheduled" as SimulationKind, { ...evtMeta });
       await insertSimEvent(supabase, sub.id, kind, { ...evtMeta, donation_id: r.donationId });
       return { ok: true, ...r };
+    }
+    case "cancel": {
+      await supabase.from("donor_subscriptions").update({
+        status: "canceled",
+        canceled_at: new Date().toISOString(),
+        next_payment_at: null,
+        processing_at: null,
+        current_billing_key: null,
+      }).eq("id", sub.id);
+      await insertSimEvent(supabase, sub.id, "subscription_canceled" as SimulationKind, evtMeta);
+      await insertSimEvent(supabase, sub.id, kind, evtMeta);
+      return { ok: true };
     }
     case "timeout": {
+      await insertSimEvent(supabase, sub.id, "charge_started" as SimulationKind, { ...evtMeta, phase: "start" });
       // Just log + simulate retry scheduling. Sleep is bounded.
       await new Promise((r) => setTimeout(r, Math.min(2000, cfg.simulateTimeoutMs)));
+      // Pending attempt — webhook never arrived
       await supabase.from("subscription_charge_attempts").insert({
-        subscription_id: sub.id, status: "test_failed",
-        error_code: "simulated_timeout", error_description: "Simulated timeout",
+        subscription_id: sub.id, status: "pending",
+        error_code: "simulated_timeout", error_description: "Simulated timeout (no webhook)",
         is_test: true,
-        metadata: { ...SANDBOX_META, kind },
+        metadata: { ...SANDBOX_META, kind, provider_status: "timeout" },
       });
-      await supabase.from("donor_subscriptions").update({
-        retry_count: sub.retry_count + 1,
-        last_retry_at: new Date().toISOString(),
-        next_payment_at: retryAfterAt(cfg).toISOString(),
-        processing_at: null, current_billing_key: null,
-        last_failure_code: "simulated_timeout",
-      }).eq("id", sub.id);
+      await insertSimEvent(supabase, sub.id, "charge_timeout" as SimulationKind, { ...evtMeta, provider_status: "timeout" });
       await insertSimEvent(supabase, sub.id, kind, evtMeta);
       return { ok: true };
     }
