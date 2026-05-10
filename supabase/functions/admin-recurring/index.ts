@@ -190,6 +190,83 @@ Deno.serve(async (req) => {
         if (error) return bad(error.message, 500);
         return ok({ scan: data });
       }
+      case "check_invariants": {
+        const issues: { kind: string; severity: "error" | "warning"; subscription_id?: string; detail: string }[] = [];
+        const maxRetries = Math.max(1, Number(cfg.maxRetries ?? 5));
+
+        // 1. Pending attempts per subscription > 1
+        const { data: pendingAttempts } = await supabase
+          .from("subscription_charge_attempts")
+          .select("subscription_id")
+          .eq("status", "pending");
+        const pendingMap = new Map<string, number>();
+        for (const a of pendingAttempts ?? []) {
+          if (!a.subscription_id) continue;
+          pendingMap.set(a.subscription_id, (pendingMap.get(a.subscription_id) ?? 0) + 1);
+        }
+        for (const [sid, n] of pendingMap) {
+          if (n > 1) issues.push({ kind: "multiple_pending_attempts", severity: "error", subscription_id: sid, detail: `Subscription ${sid} has ${n} pending attempts` });
+        }
+
+        // 2. Canceled invariants + 5/6. retry_count, next_payment_at
+        const { data: subs } = await supabase
+          .from("donor_subscriptions")
+          .select("id, status, next_payment_at, retry_count, is_test, canceled_at");
+        const longAgo = Date.now() - 365 * 86400e3;
+        for (const s of subs ?? []) {
+          if (s.status === "canceled") {
+            if (s.next_payment_at) issues.push({ kind: "canceled_with_next_payment", severity: "error", subscription_id: s.id, detail: `Canceled subscription ${s.id} still has next_payment_at` });
+            if (pendingMap.get(s.id)) issues.push({ kind: "canceled_with_pending_attempt", severity: "error", subscription_id: s.id, detail: `Canceled subscription ${s.id} has pending attempt` });
+          }
+          if ((s.retry_count ?? 0) < 0) issues.push({ kind: "negative_retry_count", severity: "error", subscription_id: s.id, detail: `retry_count is negative` });
+          if ((s.retry_count ?? 0) > maxRetries) issues.push({ kind: "retry_count_exceeds_max", severity: "warning", subscription_id: s.id, detail: `retry_count=${s.retry_count} > max=${maxRetries}` });
+          if (s.next_payment_at && new Date(s.next_payment_at).getTime() < longAgo) {
+            issues.push({ kind: "next_payment_far_past", severity: "warning", subscription_id: s.id, detail: `next_payment_at far in the past: ${s.next_payment_at}` });
+          }
+        }
+
+        // 3. Test subscriptions must not affect campaigns: test succeeded donations with campaign_id
+        const { data: leak } = await supabase
+          .from("donations")
+          .select("id, campaign_id")
+          .eq("is_test", true).eq("status", "succeeded")
+          .not("campaign_id", "is", null);
+        // It's allowed to have campaign_id reference, but increment_campaign_collected must NOT have run.
+        // We detect leakage if a donation's campaign_id matches and triggers increment — we just warn here.
+        for (const d of leak ?? []) {
+          issues.push({ kind: "test_donation_with_campaign", severity: "warning", detail: `Test donation ${d.id} references campaign ${d.campaign_id}` });
+        }
+
+        // 4. Succeeded attempts must have paid_at on linked donation
+        const { data: succAttempts } = await supabase
+          .from("subscription_charge_attempts")
+          .select("id, donation_id, status")
+          .in("status", ["succeeded", "test_succeeded"])
+          .not("donation_id", "is", null)
+          .limit(500);
+        const dIds = (succAttempts ?? []).map((a: any) => a.donation_id).filter(Boolean);
+        if (dIds.length > 0) {
+          const { data: dons } = await supabase
+            .from("donations").select("id, paid_at, status").in("id", dIds);
+          const paidMap = new Map((dons ?? []).map((d: any) => [d.id, d]));
+          for (const a of succAttempts ?? []) {
+            const d: any = paidMap.get(a.donation_id);
+            if (d && d.status === "succeeded" && !d.paid_at) {
+              issues.push({ kind: "succeeded_without_paid_at", severity: "error", detail: `Donation ${d.id} succeeded but missing paid_at` });
+            }
+          }
+        }
+
+        return ok({
+          ok_invariants: issues.length === 0,
+          checked_at: new Date().toISOString(),
+          issues,
+          summary: {
+            errors: issues.filter(i => i.severity === "error").length,
+            warnings: issues.filter(i => i.severity === "warning").length,
+          },
+        });
+      }
       case "destroy_sandbox": {
         if (body?.confirm !== "DESTROY") return bad("confirm token required");
         const { data, error } = await userClient.rpc("admin_destroy_sandbox_data");
