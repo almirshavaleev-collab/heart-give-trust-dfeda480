@@ -272,10 +272,17 @@ export default function AdminRecurringTesting() {
                       : <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white">PROD</Badge>}
                     <Badge variant="outline">{s.status}</Badge>
                     {s.is_test && (
-                      <Button size="sm" variant="outline" disabled={!!busy}
-                        onClick={(e) => { e.stopPropagation(); run("sim_cycle", () => call("simulate", { subscription_id: s.id, kind: "success" })); }}>
-                        ▶ Cycle
-                      </Button>
+                      <>
+                        <Button size="sm" variant="outline" disabled={!!busy}
+                          onClick={(e) => { e.stopPropagation(); run("sim_cycle", () => call("simulate", { subscription_id: s.id, kind: "success" })); }}>
+                          ▶ Cycle
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={!!busy}
+                          className="border-destructive text-destructive hover:bg-destructive/10"
+                          onClick={(e) => { e.stopPropagation(); run("sim_cycle_fail", () => call("simulate", { subscription_id: s.id, kind: "failure" })); }}>
+                          ✕ Fail
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -302,6 +309,15 @@ export default function AdminRecurringTesting() {
                           return r;
                         })}>
                         ▶ Запустить charge cycle
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        className="border-destructive text-destructive hover:bg-destructive/10"
+                        onClick={() => run("sim_cycle_fail", async () => {
+                          const r = await call("simulate", { subscription_id: selected, kind: "failure" });
+                          await openInspector(selected);
+                          return r;
+                        })}>
+                        ✕ Charge cycle (failure)
                       </Button>
                       <Button size="sm" disabled={!!busy}
                         onClick={() => run("ff60", () => call("fast_forward", { subscription_id: selected, seconds: 60 }))}>
