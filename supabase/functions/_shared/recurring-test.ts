@@ -16,6 +16,8 @@ type SB = any;
 export type SimulationKind =
   | "success"
   | "failure"
+  | "fail"
+  | "cancel"
   | "timeout"
   | "network_error"
   | "expired_card"
