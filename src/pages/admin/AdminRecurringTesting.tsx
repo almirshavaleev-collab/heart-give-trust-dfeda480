@@ -308,16 +308,34 @@ export default function AdminRecurringTesting() {
                           await openInspector(selected);
                           return r;
                         })}>
-                        ▶ Запустить charge cycle
+                        ▶ Success cycle
                       </Button>
                       <Button size="sm" variant="outline" disabled={!!busy}
                         className="border-destructive text-destructive hover:bg-destructive/10"
                         onClick={() => run("sim_cycle_fail", async () => {
-                          const r = await call("simulate", { subscription_id: selected, kind: "failure" });
+                          const r = await call("simulate", { subscription_id: selected, kind: "fail" });
                           await openInspector(selected);
                           return r;
                         })}>
-                        ✕ Charge cycle (failure)
+                        ❌ Fail cycle
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        className="border-amber-500 text-amber-700 hover:bg-amber-50"
+                        onClick={() => run("sim_timeout", async () => {
+                          const r = await call("simulate", { subscription_id: selected, kind: "timeout" });
+                          await openInspector(selected);
+                          return r;
+                        })}>
+                        ⏳ Timeout cycle
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        className="border-zinc-400 text-zinc-700 hover:bg-zinc-100"
+                        onClick={() => run("sim_cancel", async () => {
+                          const r = await call("simulate", { subscription_id: selected, kind: "cancel" });
+                          await openInspector(selected);
+                          return r;
+                        })}>
+                        🚫 Cancel subscription
                       </Button>
                       <Button size="sm" disabled={!!busy}
                         onClick={() => run("ff60", () => call("fast_forward", { subscription_id: selected, seconds: 60 }))}>
@@ -331,7 +349,51 @@ export default function AdminRecurringTesting() {
                         onClick={() => run("clear_locks", () => call("clear_locks", { subscription_id: selected }))}>
                         Clear locks
                       </Button>
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        onClick={() => run("invariants", async () => {
+                          const r = await call("check_invariants");
+                          if ((r?.summary?.errors ?? 0) === 0 && (r?.summary?.warnings ?? 0) === 0) {
+                            toast({ title: "✅ Все инварианты соблюдены" });
+                          } else {
+                            toast({
+                              title: `❌ ${r?.summary?.errors ?? 0} ошибок · ⚠ ${r?.summary?.warnings ?? 0} предупреждений`,
+                              description: (r?.issues ?? []).slice(0, 5).map((i: any) => `${i.severity === "error" ? "❌" : "⚠"} ${i.detail}`).join("\n"),
+                            });
+                          }
+                          return r;
+                        })}>
+                        🛡 Проверить инварианты
+                      </Button>
                     </div>
+                  )}
+                  {Array.isArray(inspector.events) && inspector.events.length > 0 && (
+                    <Section title="Timeline">
+                      <div className="space-y-1 text-xs">
+                        {[...(inspector.events as EventRow[])]
+                          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                          .slice(-12)
+                          .map((e, i, arr) => {
+                            const t = e.event_type;
+                            const icon = t.includes("succeeded") ? "✅"
+                              : t.includes("failed") ? "❌"
+                              : t.includes("timeout") ? "⏳"
+                              : t.includes("canceled") ? "🚫"
+                              : t.includes("started") ? "▶"
+                              : t.includes("scheduled") ? "🔁"
+                              : "•";
+                            return (
+                              <div key={e.id}>
+                                <div className="flex items-center gap-2">
+                                  <span className="w-4 text-center">{icon}</span>
+                                  <span className="font-mono">{t}</span>
+                                  <span className="text-muted-foreground">· {new Date(e.created_at).toLocaleTimeString()}</span>
+                                </div>
+                                {i < arr.length - 1 && <div className="ml-2 text-muted-foreground">↓</div>}
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </Section>
                   )}
                   <Section title={`Attempts (${inspector.attempts?.length ?? 0})`}>
                     <ScrollArea className="h-48">
