@@ -257,6 +257,34 @@ Deno.serve(async (req) => {
           }
         }
 
+        // 7. duplicate succeeded attempts sharing the same donation_id per subscription
+        {
+          const { data: dupRows } = await supabase
+            .from("subscription_charge_attempts")
+            .select("subscription_id, donation_id, status")
+            .in("status", ["succeeded", "test_succeeded"])
+            .not("donation_id", "is", null)
+            .limit(2000);
+          const counts = new Map<string, { sub: string; donation: string; n: number }>();
+          for (const a of dupRows ?? []) {
+            if (!a.subscription_id || !a.donation_id) continue;
+            const key = `${a.subscription_id}::${a.donation_id}`;
+            const cur = counts.get(key) ?? { sub: a.subscription_id, donation: a.donation_id, n: 0 };
+            cur.n += 1;
+            counts.set(key, cur);
+          }
+          for (const v of counts.values()) {
+            if (v.n > 1) {
+              issues.push({
+                kind: "duplicate_succeeded_attempts",
+                severity: "warning",
+                subscription_id: v.sub,
+                detail: `Subscription ${v.sub} has ${v.n} succeeded attempts sharing donation_id ${v.donation}`,
+              });
+            }
+          }
+        }
+
         return ok({
           ok_invariants: issues.length === 0,
           checked_at: new Date().toISOString(),
