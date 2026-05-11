@@ -138,6 +138,7 @@ export async function simulateAction(
   kind: SimulationKind,
   sub: SimSubscription,
   cfg: RecurringConfig,
+  opts: { dryRun?: boolean } = {},
 ): Promise<Record<string, unknown>> {
   if (!cfg.testMode) throw new Error("testMode disabled");
 
@@ -260,6 +261,10 @@ export async function simulateAction(
       return { ok: true, stale_at: stale };
     }
     case "webhook_replay": {
+      // Sandbox-only safety guard.
+      if (!sub.is_test) {
+        return { ok: false, error: "sandbox_only" };
+      }
       // Idempotency probe: emit a timeline event ONLY.
       // No new donation, no new attempt, no campaign mutation, no email,
       // no retry_count / next_payment_at change.
@@ -271,10 +276,20 @@ export async function simulateAction(
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (opts.dryRun) {
+        return {
+          ok: true,
+          dry_run: true,
+          would_replay_attempt_id: lastAttempt?.id ?? null,
+          would_replay_donation_id: lastAttempt?.donation_id ?? null,
+          idempotent: true,
+        };
+      }
       const meta = {
         ...SANDBOX_META,
         kind,
         idempotent: true,
+        replay_mode: "sandbox" as const,
         replayed_attempt_id: lastAttempt?.id ?? null,
         replayed_donation_id: lastAttempt?.donation_id ?? null,
         replayed_payment_id: lastAttempt?.yookassa_payment_id ?? null,
