@@ -412,7 +412,8 @@ Deno.serve(async (req) => {
         if (!subId) return bad("subscription_id required");
         const sub = await loadSimSub(subId);
         if (!sub) return bad("subscription not found", 404);
-        const result = await simulateAction(supabase, kind, sub, cfg);
+        const dryRun = body?.dry_run === true;
+        const result = await simulateAction(supabase, kind, sub, cfg, { dryRun });
         return ok({ kind, subscription_id: subId, ...result });
       }
 
