@@ -337,6 +337,15 @@ export default function AdminRecurringTesting() {
                         })}>
                         🚫 Cancel subscription
                       </Button>
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        className="border-blue-500 text-blue-700 hover:bg-blue-50"
+                        onClick={() => run("sim_webhook_replay", async () => {
+                          const r = await call("simulate", { subscription_id: selected, kind: "webhook_replay" });
+                          await openInspector(selected);
+                          return r;
+                        })}>
+                        🔁 Replay webhook
+                      </Button>
                       <Button size="sm" disabled={!!busy}
                         onClick={() => run("ff60", () => call("fast_forward", { subscription_id: selected, seconds: 60 }))}>
                         Fast-forward 60s
@@ -378,6 +387,7 @@ export default function AdminRecurringTesting() {
                               : t.includes("failed") ? "❌"
                               : t.includes("timeout") ? "⏳"
                               : t.includes("canceled") ? "🚫"
+                              : t.includes("replayed") ? "🔁"
                               : t.includes("started") ? "▶"
                               : t.includes("scheduled") ? "🔁"
                               : "•";
