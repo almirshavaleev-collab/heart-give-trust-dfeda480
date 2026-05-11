@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
         // 1. Pending attempts per subscription > 1
         const { data: pendingAttempts } = await supabase
           .from("subscription_charge_attempts")
-          .select("subscription_id")
+          .select("id, subscription_id, created_at")
           .eq("status", "pending");
         const pendingMap = new Map<string, number>();
         for (const a of pendingAttempts ?? []) {
@@ -212,6 +212,19 @@ Deno.serve(async (req) => {
         const { data: subs } = await supabase
           .from("donor_subscriptions")
           .select("id, status, next_payment_at, retry_count, is_test, canceled_at");
+        const subStatusMap = new Map<string, string>((subs ?? []).map((s: any) => [s.id, s.status]));
+        const stalePendingCutoff = Date.now() - 30 * 60_000;
+        for (const a of pendingAttempts ?? []) {
+          if (!a.subscription_id || !a.created_at) continue;
+          if (new Date(a.created_at).getTime() >= stalePendingCutoff) continue;
+          if (subStatusMap.get(a.subscription_id) === "canceled") continue;
+          issues.push({
+            kind: "stale_pending_attempt",
+            severity: "warning",
+            subscription_id: a.subscription_id,
+            detail: `Pending attempt is stale and may require recovery (attempt ${a.id})`,
+          });
+        }
         const longAgo = Date.now() - 365 * 86400e3;
         for (const s of subs ?? []) {
           if (s.status === "canceled") {

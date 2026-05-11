@@ -24,7 +24,8 @@ export type SimulationKind =
   | "duplicate_webhook"
   | "reconcile_delay"
   | "stale_lock"
-  | "webhook_replay";
+  | "webhook_replay"
+  | "recover_timeout";
 
 export interface SimSubscription {
   id: string;
@@ -300,6 +301,86 @@ export async function simulateAction(
         metadata: meta,
       });
       return { ok: true, replayed_attempt_id: lastAttempt?.id ?? null, replayed_donation_id: lastAttempt?.donation_id ?? null, idempotent: true };
+    }
+    case "recover_timeout": {
+      if (!sub.is_test) {
+        return { ok: false, error: "sandbox_only" };
+      }
+      const { data: pending } = await supabase
+        .from("subscription_charge_attempts")
+        .select("id, donation_id, yookassa_payment_id, created_at")
+        .eq("subscription_id", sub.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!pending) {
+        return { ok: false, error: "no_pending_attempt" };
+      }
+
+      await insertSimEvent(supabase, sub.id, "charge_recovery_started" as SimulationKind, {
+        ...evtMeta, recovered_attempt_id: pending.id,
+      });
+
+      // Ensure donation exists (sandbox-only, no campaign side-effects).
+      let donationId: string | null = pending.donation_id ?? null;
+      if (!donationId) {
+        const { data: donation } = await supabase
+          .from("donations")
+          .insert({
+            amount: sub.amount,
+            currency: sub.currency,
+            campaign_id: sub.campaign_id,
+            user_id: sub.user_id,
+            payment_type: "recurring",
+            is_recurring: true,
+            is_anonymous: false,
+            payment_method_type: sub.payment_method_type,
+            status: "succeeded",
+            paid_at: new Date().toISOString(),
+            is_test: true,
+            payment_provider: "sandbox",
+          })
+          .select("id")
+          .single();
+        donationId = donation?.id ?? null;
+      }
+
+      await supabase
+        .from("subscription_charge_attempts")
+        .update({
+          status: "test_succeeded",
+          donation_id: donationId,
+          error_code: null,
+          error_description: null,
+        })
+        .eq("id", pending.id);
+
+      const nowIso = new Date().toISOString();
+      await supabase.from("donor_subscriptions").update({
+        status: "active",
+        retry_count: 0,
+        processing_at: null,
+        current_billing_key: null,
+        last_failure_code: null,
+        last_failure_reason: null,
+        last_charge_at: nowIso,
+        next_payment_at: nextRunAtFor(sub.interval, cfg).toISOString(),
+      }).eq("id", sub.id);
+
+      await insertSimEvent(supabase, sub.id, "charge_recovered" as SimulationKind, {
+        ...SANDBOX_META,
+        kind,
+        recovered_from: "timeout",
+        recovered_attempt_id: pending.id,
+        idempotent: true,
+        donation_id: donationId,
+      });
+      await insertSimEvent(supabase, sub.id, "next_cycle_scheduled" as SimulationKind, {
+        ...evtMeta, after: "recover_timeout",
+      });
+
+      return { ok: true, recovered_attempt_id: pending.id, donation_id: donationId };
     }
   }
 }

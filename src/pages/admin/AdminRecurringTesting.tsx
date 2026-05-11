@@ -366,6 +366,18 @@ export default function AdminRecurringTesting() {
                         })}>
                         🧪 Dry replay
                       </Button>
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        className="border-emerald-500 text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => run("sim_recover_timeout", async () => {
+                          const r: any = await call("simulate", { subscription_id: selected, kind: "recover_timeout" });
+                          await openInspector(selected);
+                          if (r?.ok === false) {
+                            toast({ title: "Recovery failed", description: r?.error ?? "unknown", variant: "destructive" as any });
+                          }
+                          return r;
+                        })}>
+                        🛠 Recover timeout
+                      </Button>
                       <Button size="sm" disabled={!!busy}
                         onClick={() => run("ff60", () => call("fast_forward", { subscription_id: selected, seconds: 60 }))}>
                         Fast-forward 60s
@@ -408,6 +420,7 @@ export default function AdminRecurringTesting() {
                               : t.includes("timeout") ? "⏳"
                               : t.includes("canceled") ? "🚫"
                               : t.includes("replayed") ? "🔁"
+                              : t.includes("recovered") ? "🛠"
                               : t.includes("started") ? "▶"
                               : t.includes("scheduled") ? "🔁"
                               : "•";
