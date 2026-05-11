@@ -346,6 +346,26 @@ export default function AdminRecurringTesting() {
                         })}>
                         🔁 Replay webhook
                       </Button>
+                      <Button size="sm" variant="outline" disabled={!!busy}
+                        className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                        onClick={() => run("sim_webhook_replay_dry", async () => {
+                          const r: any = await call("simulate", { subscription_id: selected, kind: "webhook_replay", dry_run: true });
+                          if (r?.ok) {
+                            toast({
+                              title: "🧪 Dry replay OK",
+                              description: [
+                                `Attempt: ${r.would_replay_attempt_id ?? "—"}`,
+                                `Donation: ${r.would_replay_donation_id ?? "—"}`,
+                                `Idempotent: ${r.idempotent ? "true" : "false"}`,
+                              ].join("\n"),
+                            });
+                          } else {
+                            toast({ title: "Dry replay failed", description: r?.error ?? "unknown", variant: "destructive" as any });
+                          }
+                          return r;
+                        })}>
+                        🧪 Dry replay
+                      </Button>
                       <Button size="sm" disabled={!!busy}
                         onClick={() => run("ff60", () => call("fast_forward", { subscription_id: selected, seconds: 60 }))}>
                         Fast-forward 60s
@@ -396,6 +416,9 @@ export default function AdminRecurringTesting() {
                                 <div className="flex items-center gap-2">
                                   <span className="w-4 text-center">{icon}</span>
                                   <span className="font-mono">{t}</span>
+                                  {(e.metadata as any)?.idempotent === true && (
+                                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-medium">idempotent</span>
+                                  )}
                                   <span className="text-muted-foreground">· {new Date(e.created_at).toLocaleTimeString()}</span>
                                 </div>
                                 {i < arr.length - 1 && <div className="ml-2 text-muted-foreground">↓</div>}
