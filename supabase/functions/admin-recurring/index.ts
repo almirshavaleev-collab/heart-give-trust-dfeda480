@@ -261,13 +261,21 @@ Deno.serve(async (req) => {
         {
           const { data: dupRows } = await supabase
             .from("subscription_charge_attempts")
-            .select("subscription_id, donation_id, status")
+            .select("id, subscription_id, donation_id, status")
             .in("status", ["succeeded", "test_succeeded"])
-            .not("donation_id", "is", null)
             .limit(2000);
           const counts = new Map<string, { sub: string; donation: string; n: number }>();
           for (const a of dupRows ?? []) {
-            if (!a.subscription_id || !a.donation_id) continue;
+            if (!a.subscription_id) continue;
+            if (!a.donation_id) {
+              issues.push({
+                kind: "succeeded_attempt_without_donation",
+                severity: "error",
+                subscription_id: a.subscription_id,
+                detail: `Succeeded attempt without donation_id (attempt ${a.id})`,
+              });
+              continue;
+            }
             const key = `${a.subscription_id}::${a.donation_id}`;
             const cur = counts.get(key) ?? { sub: a.subscription_id, donation: a.donation_id, n: 0 };
             cur.n += 1;
