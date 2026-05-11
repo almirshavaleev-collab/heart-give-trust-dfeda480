@@ -416,6 +416,9 @@ export default function AdminRecurringTesting() {
                                 <div className="flex items-center gap-2">
                                   <span className="w-4 text-center">{icon}</span>
                                   <span className="font-mono">{t}</span>
+                                  {(e.metadata as any)?.idempotent === true && (
+                                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-medium">idempotent</span>
+                                  )}
                                   <span className="text-muted-foreground">· {new Date(e.created_at).toLocaleTimeString()}</span>
                                 </div>
                                 {i < arr.length - 1 && <div className="ml-2 text-muted-foreground">↓</div>}
