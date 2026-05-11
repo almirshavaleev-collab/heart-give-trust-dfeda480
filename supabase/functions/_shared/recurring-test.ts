@@ -23,7 +23,8 @@ export type SimulationKind =
   | "expired_card"
   | "duplicate_webhook"
   | "reconcile_delay"
-  | "stale_lock";
+  | "stale_lock"
+  | "webhook_replay";
 
 export interface SimSubscription {
   id: string;
@@ -257,6 +258,33 @@ export async function simulateAction(
       }).eq("id", sub.id);
       await insertSimEvent(supabase, sub.id, kind, { ...evtMeta, stale_at: stale });
       return { ok: true, stale_at: stale };
+    }
+    case "webhook_replay": {
+      // Idempotency probe: emit a timeline event ONLY.
+      // No new donation, no new attempt, no campaign mutation, no email,
+      // no retry_count / next_payment_at change.
+      const { data: lastAttempt } = await supabase
+        .from("subscription_charge_attempts")
+        .select("id, donation_id, yookassa_payment_id, created_at, status")
+        .eq("subscription_id", sub.id)
+        .in("status", ["succeeded", "test_succeeded"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const meta = {
+        ...SANDBOX_META,
+        kind,
+        idempotent: true,
+        replayed_attempt_id: lastAttempt?.id ?? null,
+        replayed_donation_id: lastAttempt?.donation_id ?? null,
+        replayed_payment_id: lastAttempt?.yookassa_payment_id ?? null,
+      };
+      await supabase.from("subscription_events").insert({
+        subscription_id: sub.id,
+        event_type: "charge_webhook_replayed",
+        metadata: meta,
+      });
+      return { ok: true, replayed_attempt_id: lastAttempt?.id ?? null, replayed_donation_id: lastAttempt?.donation_id ?? null, idempotent: true };
     }
   }
 }
