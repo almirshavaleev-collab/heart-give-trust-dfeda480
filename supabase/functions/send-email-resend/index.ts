@@ -50,13 +50,20 @@ Deno.serve(async (req) => {
   const html = body?.html;
   const text = body?.text;
 
-  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+  const emailOk =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) &&
+    to.length < 320;
+  if (!to || !emailOk) {
     return json(400, { ok: false, error: "invalid_to" });
   }
   if (!subject) return json(400, { ok: false, error: "subject_required" });
+  if (subject.length > 200) {
+    return json(400, { ok: false, error: "subject_too_long" });
+  }
   if (!html && !text) return json(400, { ok: false, error: "html_or_text_required" });
 
   try {
+    console.log("[send-email-resend] sending", { to, subject });
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -80,6 +87,7 @@ Deno.serve(async (req) => {
       /* keep id undefined */
     }
 
+    console.log("[send-email-resend] success", { id, to });
     return json(200, { ok: true, id });
   } catch (err) {
     console.error("[send-email-resend] network_error", err);
