@@ -386,6 +386,20 @@ Deno.serve(async (req) => {
       case "run_cleanup_now":     return ok({ result: await invokeFn("cleanup-recurring-artifacts") });
       case "run_health_check_now":return ok({ result: await invokeFn("recurring-health-check") });
 
+      // ─── Resend test email (additive, independent of Lovable email infra) ─
+      case "send_test_email": {
+        const to = String(body?.to ?? "").trim();
+        const subject = String(body?.subject ?? "Ligafund test email");
+        if (!to) return bad("to required");
+        const result = await invokeFn("send-email-resend", {
+          to,
+          subject,
+          html: `<p>Это тестовое письмо от Ligafund (Resend).</p><p>Время: ${new Date().toISOString()}</p>`,
+          text: `Это тестовое письмо от Ligafund (Resend). Время: ${new Date().toISOString()}`,
+        });
+        return ok({ result });
+      }
+
       // ─── Test sandbox config ─────────────────────────────────────────────
       case "test_config":
         return ok({
