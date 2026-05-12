@@ -239,6 +239,27 @@ export default function AdminRecurringTesting() {
                 Run integrity scan
               </Button>
               <DestroyButton busy={!!busy} onConfirm={() => run("destroy_sandbox", () => call("destroy_sandbox", { confirm: "DESTROY" }))} />
+              <Button variant="outline" disabled={!!busy} onClick={() => run("send_test_email", async () => {
+                const { data: u } = await supabase.auth.getUser();
+                const adminEmail = u?.user?.email;
+                if (!adminEmail) {
+                  toast({ title: "❌ Email send failed", description: "no admin email", variant: "destructive" as any });
+                  return;
+                }
+                const r: any = await call("send_test_email", { to: adminEmail });
+                if (r?.ok === true) {
+                  toast({ title: "✅ Test email sent", description: "Resend message accepted successfully" });
+                } else {
+                  toast({
+                    title: "❌ Email send failed",
+                    description: String(r?.error ?? r?.status ?? "unknown"),
+                    variant: "destructive" as any,
+                  });
+                }
+                return r;
+              })}>
+                📧 Send test email
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
