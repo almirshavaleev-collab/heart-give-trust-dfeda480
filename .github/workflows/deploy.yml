@@ -1,0 +1,20 @@
+name: VPS Deploy
+
+on:
+  push:
+    branches:
+      - production-vps
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: 185.207.65.14
+          username: root
+          password: qkBMGG^Kaf3rGt
+          script: |
+            /var/www/deploy.sh

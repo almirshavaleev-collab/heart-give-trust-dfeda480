@@ -44,6 +44,27 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           beneficiary: string | null
@@ -110,6 +131,7 @@ export type Database = {
       donations: {
         Row: {
           amount: number
+          billing_cycle_key: string | null
           campaign_id: string | null
           created_at: string
           currency: string
@@ -119,6 +141,7 @@ export type Database = {
           id: string
           is_anonymous: boolean
           is_recurring: boolean
+          is_test: boolean
           paid_at: string | null
           payment_id: string | null
           payment_method_type: string | null
@@ -130,6 +153,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          billing_cycle_key?: string | null
           campaign_id?: string | null
           created_at?: string
           currency?: string
@@ -139,6 +163,7 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_recurring?: boolean
+          is_test?: boolean
           paid_at?: string | null
           payment_id?: string | null
           payment_method_type?: string | null
@@ -150,6 +175,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          billing_cycle_key?: string | null
           campaign_id?: string | null
           created_at?: string
           currency?: string
@@ -159,6 +185,7 @@ export type Database = {
           id?: string
           is_anonymous?: boolean
           is_recurring?: boolean
+          is_test?: boolean
           paid_at?: string | null
           payment_id?: string | null
           payment_method_type?: string | null
@@ -238,49 +265,91 @@ export type Database = {
           amount: number
           campaign_id: string | null
           canceled_at: string | null
+          card_expiry: string | null
+          card_last4: string | null
+          card_type: string | null
           created_at: string
           currency: string
+          current_billing_key: string | null
           external_subscription_id: string | null
           id: string
           interval: string
+          is_test: boolean
+          last_charge_at: string | null
+          last_failure_code: string | null
+          last_failure_reason: string | null
+          last_retry_at: string | null
           next_payment_at: string | null
           paused_at: string | null
+          paused_reason: string | null
           payment_method_id: string | null
+          payment_method_saved_at: string | null
+          payment_method_type: string | null
+          processing_at: string | null
+          retry_count: number
           status: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           amount: number
           campaign_id?: string | null
           canceled_at?: string | null
+          card_expiry?: string | null
+          card_last4?: string | null
+          card_type?: string | null
           created_at?: string
           currency?: string
+          current_billing_key?: string | null
           external_subscription_id?: string | null
           id?: string
           interval?: string
+          is_test?: boolean
+          last_charge_at?: string | null
+          last_failure_code?: string | null
+          last_failure_reason?: string | null
+          last_retry_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
+          paused_reason?: string | null
           payment_method_id?: string | null
+          payment_method_saved_at?: string | null
+          payment_method_type?: string | null
+          processing_at?: string | null
+          retry_count?: number
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           amount?: number
           campaign_id?: string | null
           canceled_at?: string | null
+          card_expiry?: string | null
+          card_last4?: string | null
+          card_type?: string | null
           created_at?: string
           currency?: string
+          current_billing_key?: string | null
           external_subscription_id?: string | null
           id?: string
           interval?: string
+          is_test?: boolean
+          last_charge_at?: string | null
+          last_failure_code?: string | null
+          last_failure_reason?: string | null
+          last_retry_at?: string | null
           next_payment_at?: string | null
           paused_at?: string | null
+          paused_reason?: string | null
           payment_method_id?: string | null
+          payment_method_saved_at?: string | null
+          payment_method_type?: string | null
+          processing_at?: string | null
+          retry_count?: number
           status?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -469,6 +538,27 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_cron_heartbeats: {
+        Row: {
+          job: string
+          last_payload: Json | null
+          last_run_at: string
+          last_status: string | null
+        }
+        Insert: {
+          job: string
+          last_payload?: Json | null
+          last_run_at?: string
+          last_status?: string | null
+        }
+        Update: {
+          job?: string
+          last_payload?: Json | null
+          last_run_at?: string
+          last_status?: string | null
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           category: string | null
@@ -496,6 +586,96 @@ export type Database = {
           title?: string
           updated_at?: string
           year?: number | null
+        }
+        Relationships: []
+      }
+      sandbox_audit_log: {
+        Row: {
+          action: string
+          actor: string | null
+          created_at: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: []
+      }
+      subscription_charge_attempts: {
+        Row: {
+          billing_cycle_key: string | null
+          created_at: string
+          donation_id: string | null
+          error_code: string | null
+          error_description: string | null
+          id: string
+          is_test: boolean
+          metadata: Json | null
+          status: string
+          subscription_id: string
+          yookassa_payment_id: string | null
+        }
+        Insert: {
+          billing_cycle_key?: string | null
+          created_at?: string
+          donation_id?: string | null
+          error_code?: string | null
+          error_description?: string | null
+          id?: string
+          is_test?: boolean
+          metadata?: Json | null
+          status: string
+          subscription_id: string
+          yookassa_payment_id?: string | null
+        }
+        Update: {
+          billing_cycle_key?: string | null
+          created_at?: string
+          donation_id?: string | null
+          error_code?: string | null
+          error_description?: string | null
+          id?: string
+          is_test?: boolean
+          metadata?: Json | null
+          status?: string
+          subscription_id?: string
+          yookassa_payment_id?: string | null
+        }
+        Relationships: []
+      }
+      subscription_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          subscription_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          subscription_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          subscription_id?: string
         }
         Relationships: []
       }
@@ -656,6 +836,53 @@ export type Database = {
     }
     Functions: {
       _hash_link_code: { Args: { _code: string }; Returns: string }
+      admin_create_sandbox_subscription: {
+        Args: {
+          _amount: number
+          _campaign_id?: string
+          _interval: string
+          _next_in_seconds?: number
+        }
+        Returns: string
+      }
+      admin_destroy_sandbox_data: { Args: never; Returns: Json }
+      admin_fast_forward_subscription: {
+        Args: { _id: string; _seconds: number }
+        Returns: undefined
+      }
+      admin_get_settings: { Args: never; Returns: Json }
+      admin_log_sandbox_action: {
+        Args: { _action: string; _payload: Json }
+        Returns: undefined
+      }
+      admin_recent_test_events: {
+        Args: { _limit?: number }
+        Returns: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          subscription_id: string
+        }[]
+      }
+      admin_recurring_integrity_scan: { Args: never; Returns: Json }
+      admin_recurring_metrics: { Args: never; Returns: Json }
+      admin_recurring_metrics_extended: { Args: never; Returns: Json }
+      admin_recurring_readiness: { Args: never; Returns: Json }
+      admin_recurring_timeseries: {
+        Args: { _days?: number }
+        Returns: {
+          attempts: number
+          day: string
+          failed: number
+          succeeded: number
+        }[]
+      }
+      admin_set_setting: {
+        Args: { _key: string; _value: Json }
+        Returns: undefined
+      }
+      admin_subscription_inspector: { Args: { _id: string }; Returns: Json }
       confirm_link_donations: {
         Args: { _code: string; _user_id: string }
         Returns: number
@@ -663,6 +890,44 @@ export type Database = {
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
+      }
+      donor_cancel_subscription: { Args: { _id: string }; Returns: undefined }
+      donor_my_charge_attempts: {
+        Args: { _limit?: number; _subscription_id: string }
+        Returns: {
+          created_at: string
+          donation_id: string
+          error_code: string
+          error_description: string
+          id: string
+          metadata: Json
+          status: string
+          yookassa_payment_id: string
+        }[]
+      }
+      donor_my_subscriptions: {
+        Args: never
+        Returns: {
+          amount: number
+          campaign_id: string
+          card_expiry: string
+          card_last4: string
+          card_type: string
+          created_at: string
+          currency: string
+          frequency: string
+          id: string
+          last_charge_at: string
+          next_payment_at: string
+          paused_reason: string
+          status: string
+        }[]
+      }
+      donor_pause_subscription: { Args: { _id: string }; Returns: undefined }
+      donor_resume_subscription: { Args: { _id: string }; Returns: undefined }
+      donor_retry_subscription_now: {
+        Args: { _id: string }
+        Returns: undefined
       }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -704,6 +969,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string
       }
+      reset_test_data: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "user"

@@ -1,5 +1,13 @@
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
+import {
+  handleRecurringSuccess,
+  handleRecurringFailure,
+  structuredLog,
+  billingCycleKey,
+  getRecurringConfig,
+  type Frequency,
+} from "../_shared/recurring.ts";
 
 // Webhook от ЮKassa. Должен ВСЕГДА возвращать 200, иначе ЮKassa будет ретраить.
 // URL для настройки в личном кабинете ЮKassa:
@@ -116,11 +124,15 @@ Deno.serve(async (req) => {
 
   const writeLog = async (result: string, donationId?: string | null) => {
     try {
-      await supabase.from("webhook_logs").insert({
+      // Best-effort: if (provider,event,object_id) duplicate, swallow — webhook is idempotent.
+      const { error } = await supabase.from("webhook_logs").insert({
         ...baseLog,
         donation_id: donationId ?? baseLog.donation_id,
         result,
       });
+      if (error && /duplicate key/i.test(String(error.message))) {
+        structuredLog("webhook_dedup", { event, payment_id: paymentId });
+      }
     } catch (e) {
       console.error("webhook_logs insert error:", e);
     }
@@ -197,21 +209,23 @@ Deno.serve(async (req) => {
 
       const { data: byPayment } = await supabase
         .from("donations")
-        .select("id, status, campaign_id, amount, user_id")
+        .select("id, status, campaign_id, amount, user_id, is_test")
         .eq("yookassa_payment_id", paymentId)
         .maybeSingle();
 
       let donationUserId: string | null = null;
+      let donationIsTest = false;
       if (byPayment?.id) {
         donationId = byPayment.id;
         currentStatus = byPayment.status;
         donationCampaignId = byPayment.campaign_id ?? null;
         donationAmount = Number(byPayment.amount);
         donationUserId = byPayment.user_id ?? null;
+        donationIsTest = !!byPayment.is_test;
       } else if (donationIdFromMeta) {
         const { data: byMeta } = await supabase
           .from("donations")
-          .select("id, status, campaign_id, amount, user_id")
+          .select("id, status, campaign_id, amount, user_id, is_test")
           .eq("id", donationIdFromMeta)
           .maybeSingle();
         donationId = byMeta?.id ?? null;
@@ -219,6 +233,7 @@ Deno.serve(async (req) => {
         donationCampaignId = byMeta?.campaign_id ?? null;
         donationAmount = byMeta?.amount != null ? Number(byMeta.amount) : null;
         donationUserId = byMeta?.user_id ?? null;
+        donationIsTest = !!byMeta?.is_test;
       }
 
       if (!donationId) {
@@ -264,7 +279,11 @@ Deno.serve(async (req) => {
         console.log(
           `[yookassa-webhook] donation updated donation_id=${donationId} payment_id=${paymentId} rows=${updatedRows?.length ?? 0}`,
         );
-        if (wasUpdated && donationCampaignId && donationAmount && donationAmount > 0) {
+        if (wasUpdated && donationIsTest) {
+          // Sandbox guardrail: NEVER touch campaign collected for test donations.
+          console.log(`[yookassa-webhook] sandbox donation, skip campaign increment donation_id=${donationId}`);
+          await writeLog("accepted_sandbox_skip_increment", donationId);
+        } else if (wasUpdated && donationCampaignId && donationAmount && donationAmount > 0) {
           const { error: rpcErr } = await supabase.rpc("increment_campaign_collected", {
             _campaign_id: donationCampaignId,
             _amount: donationAmount,
@@ -292,6 +311,32 @@ Deno.serve(async (req) => {
           });
           if (achErr) console.error("evaluate_user_achievements error:", achErr);
         }
+
+        // 7. Если это регулярная поддержка — создаём/обновляем donor_subscription.
+        if (wasUpdated) {
+          const meta = object?.metadata ?? {};
+          const isRecurring = meta?.payment_type === "recurring" || meta?.type === "recurring";
+          const freqRaw = String(meta?.frequency ?? "monthly");
+          const frequency = (["weekly","biweekly","monthly"].includes(freqRaw) ? freqRaw : "monthly") as
+            "weekly" | "biweekly" | "monthly";
+          if (isRecurring) {
+            const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
+            const cfg = getRecurringConfig();
+            const cycleKey = subscriptionIdFromMeta
+              ? billingCycleKey(subscriptionIdFromMeta, null, cfg.cycleBucketHours)
+              : null;
+            await handleRecurringSuccess(supabase, {
+              subscriptionId: subscriptionIdFromMeta,
+              donationId: donationId!,
+              donationAmount,
+              donationCampaignId,
+              donationUserId,
+              frequency: frequency as Frequency,
+              paymentObject: object,
+              billingCycleKey: cycleKey,
+            });
+          }
+        }
       }
     } else if (event === "payment.canceled" && paymentId) {
       let donationId: string | null = null;
@@ -299,7 +344,7 @@ Deno.serve(async (req) => {
 
       const { data: byPayment } = await supabase
         .from("donations")
-        .select("id, status")
+        .select("id, status, payment_type")
         .eq("yookassa_payment_id", paymentId)
         .maybeSingle();
 
@@ -309,7 +354,7 @@ Deno.serve(async (req) => {
       } else if (donationIdFromMeta) {
         const { data: byMeta } = await supabase
           .from("donations")
-          .select("id, status")
+          .select("id, status, payment_type")
           .eq("id", donationIdFromMeta)
           .maybeSingle();
         donationId = byMeta?.id ?? null;
@@ -327,6 +372,22 @@ Deno.serve(async (req) => {
           .update({ status: "canceled" })
           .eq("id", donationId)
           .neq("status", "succeeded");
+
+        const meta = object?.metadata ?? {};
+        const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
+        const isAutopay =
+          (meta?.autopay === "true" || meta?.autopay === true) &&
+          (meta?.payment_type === "recurring" || meta?.type === "recurring");
+
+        if (isAutopay && subscriptionIdFromMeta) {
+          await handleRecurringFailure(supabase, {
+            subscriptionId: subscriptionIdFromMeta,
+            donationId,
+            paymentId,
+            paymentObject: object,
+          });
+        }
+
         await writeLog("accepted", donationId);
       }
     } else {

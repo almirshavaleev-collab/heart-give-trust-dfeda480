@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 const DonationsCharts = lazy(() => import("./DonationsCharts"));
+import EmailTestingCard from "@/components/admin/EmailTestingCard";
 
 type DonationRow = {
   id: string;
@@ -258,6 +259,9 @@ export default function AdminDashboard() {
           sub="canceled + failed"
         />
       </div>
+
+      {/* Email testing */}
+      <EmailTestingCard />
 
     </div>
   );

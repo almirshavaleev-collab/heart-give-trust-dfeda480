@@ -16,8 +16,12 @@ Deno.serve(async (req) => {
     const campaignId: string | null = body?.campaign_id ?? null;
     const isAnonymous: boolean = Boolean(body?.is_anonymous);
     const rawPaymentType: string = body?.payment_type ?? "one_time";
-    const paymentType: "one_time" | "monthly" =
-      rawPaymentType === "monthly" ? "monthly" : "one_time";
+    const paymentType: "one_time" | "recurring" =
+      rawPaymentType === "recurring" || rawPaymentType === "monthly" ? "recurring" : "one_time";
+    const rawFrequency: string = body?.frequency ?? "monthly";
+    const frequency: "weekly" | "biweekly" | "monthly" =
+      rawFrequency === "weekly" || rawFrequency === "biweekly" ? rawFrequency : "monthly";
+    const isRecurring = paymentType === "recurring";
 
     // Маппинг выбранного на фронте метода в формат ЮKassa payment_method_data.type
     const paymentMethodMap: Record<string, string> = {
@@ -53,9 +57,21 @@ Deno.serve(async (req) => {
     const defaultReturnUrl = mode === "production"
       ? "https://ligafund.ru/payment-success"
       : "https://ligafund.ru/thank-you";
-    const returnUrl: string = body?.return_url || defaultReturnUrl;
+    let returnUrl: string = body?.return_url || defaultReturnUrl;
+    // Для recurring добавляем mode=recurring к return_url, чтобы фронт мог различить flow.
+    if (isRecurring) {
+      try {
+        const u = new URL(returnUrl);
+        if (!u.searchParams.has("mode")) u.searchParams.set("mode", "recurring");
+        returnUrl = u.toString();
+      } catch {
+        returnUrl = returnUrl + (returnUrl.includes("?") ? "&" : "?") + "mode=recurring";
+      }
+    }
 
-    console.log(`[create-payment] mode=${mode} amount=${amount} campaign_id=${campaignId ?? "general"}`);
+    console.log(
+      `[create-payment] mode=${mode} amount=${amount} campaign_id=${campaignId ?? "general"} recurring=${isRecurring} frequency=${isRecurring ? frequency : "n/a"}`,
+    );
 
     if (!shopId || !secretKey) {
       console.error(`[create-payment] missing keys for mode=${mode}`);
@@ -136,7 +152,7 @@ Deno.serve(async (req) => {
         is_anonymous: isAnonymous,
         payment_type: paymentType,
         user_id: userId,
-        is_recurring: paymentType === "monthly",
+        is_recurring: isRecurring,
       })
       .select("id")
       .single();
@@ -152,7 +168,13 @@ Deno.serve(async (req) => {
     const donationId = donation.id;
     const auth = btoa(`${shopId}:${secretKey}`);
 
-    // 2. Создаём платёж в ЮKassa с metadata
+    // 2. Создаём платёж в ЮKassa с metadata.
+    //    Для recurring добавляем save_payment_method=true — после успешной оплаты
+    //    YooKassa вернёт payment_method.id, который мы сохраним в donor_subscriptions
+    //    и используем для off-session автоплатежей.
+    console.log(
+      `[create-payment] sending YK request donation_id=${donationId} save_payment_method=${isRecurring}`,
+    );
     const ykResp = await fetch("https://api.yookassa.ru/v3/payments", {
       method: "POST",
       headers: {
@@ -166,9 +188,14 @@ Deno.serve(async (req) => {
         capture: true,
         description,
         payment_method_data: { type: ykPaymentMethodType },
+        save_payment_method: isRecurring,
         metadata: {
           donation_id: donationId,
           campaign_id: campaignId ?? "general",
+          payment_type: paymentType,
+          user_id: userId ?? "",
+          type: isRecurring ? "recurring" : "one_time",
+          frequency: paymentType === "recurring" ? frequency : "",
         },
       }),
     });
@@ -188,7 +215,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[create-payment] success mode=${mode} payment_id=${data.id} status=${data.status} confirmation_type=${data?.confirmation?.type ?? "n/a"} test=${data?.test ?? false}`,
+      `[create-payment] success mode=${mode} payment_id=${data.id} status=${data.status} confirmation_type=${data?.confirmation?.type ?? "n/a"} test=${data?.test ?? false} recurring=${isRecurring}`,
     );
 
     // 3. Сохраняем yookassa_payment_id
@@ -196,6 +223,8 @@ Deno.serve(async (req) => {
       .from("donations")
       .update({ yookassa_payment_id: data.id })
       .eq("id", donationId);
+
+    // Подписка donor_subscriptions создаётся в webhook после успешной оплаты.
 
     return new Response(
       JSON.stringify({
