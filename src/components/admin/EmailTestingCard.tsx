@@ -16,6 +16,16 @@ type HistoryEntry = {
   timestamp: string;
 };
 
+type AuthEmailLogRow = {
+  id: string;
+  created_at: string;
+  email: string;
+  email_action_type: string;
+  status: string;
+  resend_id: string | null;
+  error: string | null;
+};
+
 const RUSSIAN_SUBJECT = "Тестовое письмо";
 const RUSSIAN_HTML = "Почта работает 🚀Фонд Лига";
 
@@ -31,6 +41,9 @@ export default function EmailTestingCard() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [lastResponse, setLastResponse] = useState<unknown>(null);
   const [lastStatus, setLastStatus] = useState<"idle" | "ok" | "error">("idle");
+  const [authLog, setAuthLog] = useState<AuthEmailLogRow[]>([]);
+  const [authLogLoading, setAuthLogLoading] = useState(false);
+  const [authLogFilter, setAuthLogFilter] = useState<string>("all");
 
   useEffect(() => {
     // Prefill admin email if available
@@ -43,8 +56,20 @@ export default function EmailTestingCard() {
     } catch {
       /* ignore */
     }
+    void loadAuthLog();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadAuthLog = async () => {
+    setAuthLogLoading(true);
+    const { data, error } = await supabase
+      .from("auth_email_log")
+      .select("id, created_at, email, email_action_type, status, resend_id, error")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!error && data) setAuthLog(data as AuthEmailLogRow[]);
+    setAuthLogLoading(false);
+  };
 
   const pushHistory = (entry: HistoryEntry) => {
     setHistory((prev) => {
@@ -255,6 +280,71 @@ export default function EmailTestingCard() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Auth email logs (auth-email-resend hook) */}
+      <div className="space-y-2 pt-2 border-t">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="text-sm font-semibold">Auth email logs (Supabase Auth → Resend)</h3>
+          <div className="flex items-center gap-2">
+            <select
+              value={authLogFilter}
+              onChange={(e) => setAuthLogFilter(e.target.value)}
+              className="text-xs border rounded px-2 py-1 bg-background"
+            >
+              <option value="all">все типы</option>
+              <option value="signup">signup</option>
+              <option value="recovery">recovery</option>
+              <option value="magiclink">magiclink</option>
+              <option value="invite">invite</option>
+              <option value="email_change">email_change</option>
+              <option value="reauthentication">reauthentication</option>
+            </select>
+            <button
+              type="button"
+              onClick={loadAuthLog}
+              disabled={authLogLoading}
+              className="text-xs underline text-muted-foreground hover:text-foreground"
+            >
+              {authLogLoading ? "обновляю…" : "обновить"}
+            </button>
+          </div>
+        </div>
+        {authLog.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Журнал пуст. Записи появятся, когда Supabase Auth начнёт слать события в auth-email-resend.
+          </p>
+        ) : (
+          <div className="rounded-lg border divide-y max-h-80 overflow-auto">
+            {authLog
+              .filter((r) => authLogFilter === "all" || r.email_action_type === authLogFilter)
+              .map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {r.status === "sent" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                    )}
+                    <span className="font-mono shrink-0 text-muted-foreground">
+                      {r.email_action_type}
+                    </span>
+                    <span className="font-medium truncate">{r.email}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 text-muted-foreground">
+                    <span>{r.status}</span>
+                    {r.resend_id && <span className="font-mono">{r.resend_id.slice(0, 8)}…</span>}
+                    {r.error && (
+                      <span className="text-destructive truncate max-w-[180px]" title={r.error}>
+                        {r.error}
+                      </span>
+                    )}
+                    <span>{new Date(r.created_at).toLocaleTimeString("ru-RU")}</span>
+                  </div>
+                </div>
+              ))}
           </div>
         )}
       </div>
