@@ -33,3 +33,5 @@ project_id = "uqiggzylreezigjumxmf"
     verify_jwt = false
   [functions.send-email-resend]
     verify_jwt = false
+  [functions.auth-email-resend]
+    verify_jwt = false
