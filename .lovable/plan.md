@@ -1,98 +1,94 @@
-# Recurring QA / Sandbox Center
 
-Превращение `/admin/recurring/testing` из monitoring panel в полноценную тестовую лабораторию. Всё additive, за feature flags, **production logic не трогаем**.
+# План: Аналитика фонда вместо ecommerce-дашборда
 
-## Sandbox isolation guarantees (закрепляем в коде)
+Переделать `src/pages/admin/AdminDashboard.tsx` и `src/pages/admin/DonationsCharts.tsx`. Технические метрики (конверсия, кол-во успешных платежей, pending/canceled) убрать с главной — позже могут быть перенесены в отдельный technical-раздел.
 
-1. `donor_subscriptions.is_test = true` → cron pipeline пропускает реальный YooKassa charge (используем существующий `simulateChargeCycle`).
-2. Sandbox donations создаются с `payment_provider='sandbox'` и `metadata.simulated=true` → `increment_campaign_collected` НЕ вызывается ни в webhook, ни в reconcile (добавим guard).
-3. Sandbox emails не отправляются: `send-transactional-email` skip при `metadata.simulated=true`.
-4. Все sandbox actions admin-gated + требуют `RECURRING_TEST_MODE=true` в DB-конфиге.
+## Структура страницы
 
-## 1. Schema (одна additive миграция)
-
-```sql
--- Flags теперь живут в DB (env остаётся fallback)
-create table public.admin_settings (
-  key text primary key,
-  value jsonb not null,
-  updated_at timestamptz not null default now(),
-  updated_by uuid
-);
--- seed: recurring_enabled, recurring_test_mode, recurring_dry_run,
---       recurring_force_success, recurring_force_failure
-
--- is_test флаг на ключевых таблицах
-alter table public.donor_subscriptions add column is_test boolean not null default false;
-alter table public.donations            add column is_test boolean not null default false;
-alter table public.subscription_charge_attempts add column is_test boolean not null default false;
-
--- Index для быстрого фильтра sandbox
-create index idx_donor_subs_is_test on public.donor_subscriptions(is_test) where is_test = true;
+```
+┌─ Заголовок «Аналитика фонда» ─────────────────────┐
+│                                                    │
+│ Секция 1 — Основные KPI (5 карточек)              │
+│  Сегодня · Неделя · Месяц · Подписок · MRR        │
+│                                                    │
+│ Секция 2 — Метрики доноров (3 карточки, тоньше)   │
+│  Активных за месяц · Новых за месяц · Средний чек │
+│                                                    │
+│ Секция 3 — Динамика поступлений                   │
+│  [Дни] [Недели] [Месяцы]     один график          │
+│                                                    │
+│ Секция 4 — Insights (2 карточки)                  │
+│  Лидер месяца · Ожидается списаний                │
+└────────────────────────────────────────────────────┘
 ```
 
-RPC (admin-only, security definer):
-- `admin_get_settings()` / `admin_set_setting(key, value)` — runtime flags.
-- `admin_create_sandbox_subscription(amount, interval, campaign_id, donor_email, donor_name)`.
-- `admin_fast_forward_subscription(id, seconds)` — двигает `next_payment_at` / `last_retry_at`.
-- `admin_subscription_inspector(id)` — JSON: sub + последние attempts + events + webhook_logs.
-- `admin_recurring_integrity_scan()` — возвращает массив issues `{kind, severity, count, sample_ids}`.
-- `admin_recurring_metrics_extended()` — avg processing, retry success rate, dedupe count, stale-lock recoveries, shadow/simulated counts.
+## Секция 1 — Основные KPI
 
-## 2. Edge function changes (минимально)
+Пять карточек одного размера (grid 1/2/5). Одна акцентная — «Собрано за месяц».
 
-- `supabase/functions/_shared/recurring-config.ts` — `loadConfig()` сначала тянет из `admin_settings`, env как fallback.
-- `process-recurring-payments` — если `sub.is_test=true` ИЛИ `dryRun` → ВСЕГДА `simulateChargeCycle`, никаких HTTP к YooKassa.
-- `yookassa-webhook` + `reconcile-recurring-payments` — guard: если donation `is_test=true` → не вызывать `increment_campaign_collected`.
-- `send-transactional-email` — skip при `payload.simulated === true`.
-- `admin-recurring` — новые actions: `create_sandbox_subscription`, `fast_forward`, `inspector`, `integrity_scan`, `metrics_extended`, `chaos_run`, `cron_tick` (последовательно вызывает три cron функции через service role).
+1. Собрано сегодня — succeeded, `paid_at|created_at` ≥ начало дня
+2. Собрано за неделю — за последние 7 дней
+3. Собрано за месяц — с 1-го числа текущего месяца (акцент)
+4. Регулярных подписок — `donor_subscriptions.status='active'` (не is_test)
+5. MRR — сумма активных подписок, приведённая к месяцу:
+   - `monthly` → amount
+   - `biweekly` → amount × 2.1725
+   - `weekly` → amount × 4.345
 
-## 3. Frontend — `src/pages/admin/AdminRecurringTesting.tsx` (rewrite)
+## Секция 2 — Метрики доноров
 
-Раскладка через `Tabs`:
+Три тонкие карточки (меньше типографика, менее выраженные, чем Секция 1).
 
-- **Overview** — sticky banner (SHADOW/PRODUCTION), extended metrics cards, кнопки `Run cron tick`, `Run integrity scan`, `Run chaos test`.
-- **Subscriptions** — table (только `is_test=true` по умолчанию + toggle "show production"), realtime подписка на `donor_subscriptions`. Клик → Sheet inspector с табами Attempts / Events / Webhooks / Raw.
-- **Create** — форма sandbox subscription creator.
-- **Failures** — preset кнопки (8 штук) с выбором target sub.
-- **Replay** — выбор payment_id, кнопки replay success/canceled/duplicate, таблица результатов.
-- **Console** — live processing console (auto-refresh 2s, объединяет `subscription_events` + `webhook_logs` + `recurring_cron_heartbeats`).
-- **Flags** — runtime feature flags panel, switches, persist через `admin_set_setting`.
-- **Integrity** — таблица последнего scan с severity badges.
+6. Активных доноров за месяц — уникальные ключи доноров среди succeeded за текущий месяц.
+   Ключ = `user_id ?? lower(donor_email) ?? donor_phone ?? id`.
+7. Новых доноров за месяц — доноры, у которых самое раннее succeeded попадает в текущий месяц.
+8. Средний размер пожертвования — avg succeeded amount (по всей истории).
 
-Новые компоненты:
-- `src/components/admin/recurring/SandboxBanner.tsx`
-- `src/components/admin/recurring/SubscriptionInspector.tsx` (Sheet + Tabs)
-- `src/components/admin/recurring/EventTimeline.tsx` (vertical timeline с icons/colors)
-- `src/components/admin/recurring/FastForwardButtons.tsx`
-- `src/components/admin/recurring/LiveConsole.tsx`
-- `src/components/admin/recurring/FlagsPanel.tsx`
-- `src/components/admin/recurring/IntegrityTable.tsx`
-- `src/components/admin/recurring/ChaosRunner.tsx`
-- `src/components/admin/recurring/SandboxCreator.tsx`
-- `src/lib/recurring-sandbox.ts` — клиентские helpers + типы.
+## Секция 3 — Главный график
 
-Дизайн: shadcn (Card/Tabs/Sheet/Badge/Switch/ScrollArea), семантические токены, Stripe-like spacing, skeleton loaders, empty states.
+Заменить `DonationsCharts` на один блок `DonationsTrendChart` с табами `Дни | Недели | Месяцы` (shadcn Tabs или ToggleGroup).
 
-## 4. Chaos testing
+- Дни: последние 30 дней, BarChart
+- Недели: последние 12 недель (ISO-неделя, понедельник как начало), BarChart
+- Месяцы: последние 12 месяцев, LineChart
+- Только succeeded; ось Y — рубли, формат «12к», тултип в рублях
+- Один `ChartContainer`, мобильный layout, без второй карточки рядом
 
-`admin-recurring` action `chaos_run` создаёт 100 sandbox subs, каждая получает рандомный preset (success/fail/timeout/duplicate/stale_lock), затем вызывает `process-recurring-payments` несколько раз. Возвращает summary `{succeeded, failed, recovered, stuck, dedupe_prevented}`.
+## Секция 4 — Insights
 
-## 5. Routes
+Две карточки в grid 1/2.
 
-`/admin/recurring/testing` остаётся; внутри tabs. Sidebar пункт переименуем на "QA Sandbox".
+**Лидер месяца**
+- Среди succeeded текущего месяца сгруппировать по `campaign_id` (не null), взять кампанию с максимальной суммой.
+- Подгрузить из `campaigns` `title`, `target_amount`, `collected_amount`.
+- Показать: название, сумма за месяц, прогресс `collected_amount / target_amount` с `<Progress/>`.
+- Если кампаний с пожертвованиями за месяц нет — пустое состояние «Нет данных за месяц».
 
-## 6. Что НЕ делаем
+**Ожидается списаний**
+- Запрос `donor_subscriptions` где `status='active'` и `is_test=false`.
+- Сегодня: `next_payment_at` между началом и концом дня — кол-во и сумма.
+- 7 дней: `next_payment_at` в пределах now…now+7d — кол-во и сумма.
+- Две строки внутри одной карточки.
 
-- Не трогаем `create-payment`, one-time flow, `sync-yookassa-payment`.
-- Не меняем production schema колонок (только additive).
-- Не включаем realtime broadcast для production subs (только sandbox + admin view).
-- Не отправляем real emails / charges ни при каких action.
+## Что удаляем с главной
 
-## Deliverables в финальном ответе
+- Карточки: Средний чек (переезжает в Секцию 2), Конверсия оплат, Успешных платежей, В ожидании оплаты, Отменено/не прошло, Крупнейшее пожертвование, Последнее успешное.
+- `SummaryCard`-сетка целиком.
+- Двойной chart-grid.
 
-- Список новых routes/tabs.
-- Список новых tables / RPC / edge actions.
-- Список feature flags (DB).
-- Изменённые edge functions.
-- Sandbox isolation guarantees (5 пунктов выше).
+`EmailTestingCard` оставляем внизу как и было.
+
+## Технические детали
+
+- Файлы: переписать `src/pages/admin/AdminDashboard.tsx`, заменить `src/pages/admin/DonationsCharts.tsx` на `DonationsTrendChart.tsx` (lazy), добавить компонент `MonthLeaderCard.tsx` и `UpcomingChargesCard.tsx` в `src/components/admin/`.
+- Данные:
+  - donations и campaigns — уже грузятся/доступны через supabase client; добавить отдельный fetch активных кампаний для «Лидера» (`select id,title,target_amount,collected_amount`).
+  - `donor_subscriptions` — новый fetch для подписок и прогноза (`status=active`, `is_test=false`, поля `amount, interval, next_payment_at`). Realtime подписка опциональна — пока polling вместе с общим refresh.
+- Все вычисления KPI/доноров — `useMemo` над `donations`.
+- Russian-only тексты, дизайн-токены (никаких прямых цветов), shadcn Card/Tabs/Progress, lucide-иконки. Сохранить премиальный белый стиль (rounded 16–20, тонкие границы, без тяжёлых теней).
+- Mobile-first: KPI grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5`, доноры `grid-cols-1 sm:grid-cols-3`, insights `grid-cols-1 lg:grid-cols-2`.
+
+## Вне scope
+
+- Технический раздел system/ops метрик (конверсии, pending/failed) — отдельной задачей.
+- Изменения схемы БД и RPC — не требуются, всё считается на клиенте из существующих данных.
