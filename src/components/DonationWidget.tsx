@@ -345,7 +345,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           </p>
         </div>
       )}
-      {/* Тип платежа — segmented toggle */}
+      {/* Тип платежа — segmented toggle. Скрыт на страницах сборов: там только разовый платёж. */}
+      {allowRecurring && (
       <div
         role="tablist"
         aria-label="Тип пожертвования"
@@ -376,9 +377,10 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           );
         })}
       </div>
+      )}
 
       {/* Периодичность — только для регулярной поддержки */}
-      {recurring && (
+      {allowRecurring && recurring && (
         <div className="mb-5 animate-fade-in">
           <p className="text-sm font-medium text-foreground mb-2.5 px-0.5">Как часто помогать?</p>
           <div className="grid grid-cols-3 gap-2">
@@ -621,7 +623,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
         </div>
       </div>
 
-      {recurring && !authUser ? (
+      {allowRecurring && recurring && !authUser ? (
         <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-50/40 p-5 space-y-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 ring-1 ring-amber-200/70">
