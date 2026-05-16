@@ -63,6 +63,9 @@ interface DonationWidgetProps {
 
 const DonationWidget = ({ mode = "general", campaign = null, embedded = false }: DonationWidgetProps) => {
   const isCampaign = mode === "campaign" && campaign;
+  // Регулярные пожертвования доступны ТОЛЬКО в главном виджете фонда.
+  // В виджетах на страницах сборов оставляем только разовые платежи.
+  const allowRecurring = !isCampaign;
   const [campaignClosed, setCampaignClosed] = useState(false);
 
   const [amount, setAmount] = useState<number | null>(1000);
@@ -138,7 +141,16 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anonymous]);
 
-  const presets = useMemo(() => (recurring ? presetsRecurring : presetsOneTime), [recurring]);
+  const effectiveRecurring = allowRecurring && recurring;
+  const presets = useMemo(
+    () => (effectiveRecurring ? presetsRecurring : presetsOneTime),
+    [effectiveRecurring],
+  );
+
+  // Если виджет переключился в campaign-режим — гарантированно сбрасываем recurring.
+  useEffect(() => {
+    if (!allowRecurring && recurring) setRecurring(false);
+  }, [allowRecurring, recurring]);
 
   // При переключении режима подкручиваем сумму к разумному дефолту режима
   useEffect(() => {
@@ -225,8 +237,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           donor_phone: finalPhone,
           campaign_id: isCampaign ? campaign!.id : null,
           is_anonymous: anonymous,
-          payment_type: recurring ? "recurring" : "one_time",
-          frequency: recurring ? frequency : undefined,
+          payment_type: effectiveRecurring ? "recurring" : "one_time",
+          frequency: effectiveRecurring ? frequency : undefined,
           payment_method: selectedPaymentMethod,
         },
       });
@@ -261,12 +273,12 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             donation_id: data?.donation_id ?? null,
             payment_id: data?.id ?? null,
             created_at: new Date().toISOString(),
-            payment_type: recurring ? "recurring" : "one_time",
-            frequency: recurring ? frequency : null,
+            payment_type: effectiveRecurring ? "recurring" : "one_time",
+            frequency: effectiveRecurring ? frequency : null,
           }));
         } catch { /* ignore */ }
         // Mock subscription persistence (localStorage). Easily swappable for Supabase later.
-        if (recurring && authUser) {
+        if (effectiveRecurring && authUser) {
           try {
             await getSubscriptionsRepo().create({
               user_id: authUser.id,
