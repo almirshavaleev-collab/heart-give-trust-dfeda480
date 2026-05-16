@@ -65,6 +65,42 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_email_log: {
+        Row: {
+          created_at: string
+          email: string
+          email_action_type: string
+          error: string | null
+          id: string
+          resend_id: string | null
+          status: string
+          token_hash: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_action_type: string
+          error?: string | null
+          id?: string
+          resend_id?: string | null
+          status: string
+          token_hash?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_action_type?: string
+          error?: string | null
+          id?: string
+          resend_id?: string | null
+          status?: string
+          token_hash?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           beneficiary: string | null
