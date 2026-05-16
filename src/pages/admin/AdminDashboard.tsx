@@ -5,19 +5,18 @@ import {
   Wallet,
   Calendar,
   CalendarDays,
-  CheckCircle2,
-  Activity,
-  Percent,
-  Trophy,
-  Clock,
-  XCircle,
+  CalendarRange,
   Repeat,
   HeartHandshake,
   Users,
+  UserPlus,
+  Activity,
 } from "lucide-react";
 
-const DonationsCharts = lazy(() => import("./DonationsCharts"));
+const DonationsTrendChart = lazy(() => import("./DonationsTrendChart"));
 import EmailTestingCard from "@/components/admin/EmailTestingCard";
+import MonthLeaderCard from "@/components/admin/MonthLeaderCard";
+import UpcomingChargesCard from "@/components/admin/UpcomingChargesCard";
 
 type DonationRow = {
   id: string;
@@ -26,6 +25,7 @@ type DonationRow = {
   donor_name: string | null;
   donor_email: string | null;
   donor_phone: string | null;
+  user_id: string | null;
   campaign_id: string | null;
   is_anonymous: boolean;
   payment_type: string;
@@ -34,35 +34,56 @@ type DonationRow = {
   yookassa_payment_id: string | null;
 };
 
+type SubscriptionRow = {
+  id: string;
+  amount: number;
+  interval: string;
+  status: string;
+  is_test: boolean;
+  next_payment_at: string | null;
+};
+
 const formatRub = (n: number) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Math.round(n)) + " ₽";
-const fmtDateTime = (s: string) => new Date(s).toLocaleString("ru-RU");
 
 export default function AdminDashboard() {
   const [donations, setDonations] = useState<DonationRow[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const syncRecentPendingPayments = async () => {
-    const { data, error } = await supabase.functions.invoke("sync-yookassa-payment", {
+    const { error } = await supabase.functions.invoke("sync-yookassa-payment", {
       body: { scope: "recent_pending", limit: 20 },
     });
-    if (error) {
-      console.error("dashboard payment sync error:", error);
-    } else {
-      console.log("dashboard payment sync result:", data);
-    }
+    if (error) console.error("dashboard payment sync error:", error);
   };
 
   const refresh = async () => {
-    const { data, error } = await (supabase as any)
-      .from("donations")
-      .select(
-        "id, amount, status, donor_name, donor_email, donor_phone, campaign_id, is_anonymous, payment_type, created_at, paid_at, yookassa_payment_id",
-      )
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    if (error) console.error(error);
-    setDonations((data ?? []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
+    const [donRes, subRes] = await Promise.all([
+      (supabase as any)
+        .from("donations")
+        .select(
+          "id, amount, status, donor_name, donor_email, donor_phone, user_id, campaign_id, is_anonymous, payment_type, created_at, paid_at, yookassa_payment_id",
+        )
+        .order("created_at", { ascending: false })
+        .limit(1000),
+      (supabase as any)
+        .from("donor_subscriptions")
+        .select("id, amount, interval, status, is_test, next_payment_at"),
+    ]);
+    if (donRes.error) console.error(donRes.error);
+    if (subRes.error) console.error(subRes.error);
+    setDonations((donRes.data ?? []).map((r: any) => ({ ...r, amount: Number(r.amount) })));
+    setSubscriptions(
+      (subRes.data ?? []).map((s: any) => ({
+        id: s.id,
+        amount: Number(s.amount ?? 0),
+        interval: s.interval,
+        status: s.status,
+        is_test: !!s.is_test,
+        next_payment_at: s.next_payment_at,
+      })),
+    );
   };
 
   useEffect(() => {
@@ -74,9 +95,10 @@ export default function AdminDashboard() {
 
     const channel = supabase
       .channel("admin-dashboard-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "donations" }, () => refresh())
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "donations" },
+        { event: "*", schema: "public", table: "donor_subscriptions" },
         () => refresh(),
       )
       .subscribe();
@@ -88,76 +110,75 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     const succeeded = donations.filter((d) => d.status === "succeeded");
-    const pending = donations.filter((d) => d.status === "pending");
-    const canceled = donations.filter((d) => d.status === "canceled" || d.status === "failed");
-
-    const total = succeeded.reduce((s, d) => s + d.amount, 0);
-
-    const now = new Date();
-    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const ref = (d: DonationRow) => new Date(d.paid_at ?? d.created_at);
 
-    const monthSum = succeeded
-      .filter((d) => ref(d) >= startMonth)
-      .reduce((s, d) => s + d.amount, 0);
-    const todaySum = succeeded
-      .filter((d) => ref(d) >= startDay)
-      .reduce((s, d) => s + d.amount, 0);
+    const now = new Date();
+    const startDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const avg = succeeded.length ? total / succeeded.length : 0;
-    const conversion = donations.length ? (succeeded.length / donations.length) * 100 : 0;
+    const todaySum = succeeded.filter((d) => ref(d) >= startDay).reduce((s, d) => s + d.amount, 0);
+    const weekSum = succeeded.filter((d) => ref(d) >= startWeek).reduce((s, d) => s + d.amount, 0);
+    const monthSum = succeeded.filter((d) => ref(d) >= startMonth).reduce((s, d) => s + d.amount, 0);
 
-    const isRecurring = (d: DonationRow) =>
-      d.payment_type === "recurring" || d.payment_type === "monthly";
-    const recurringSucceeded = succeeded.filter(isRecurring);
+    // Регулярные подписки (active, не тест)
+    const activeSubs = subscriptions.filter((s) => s.status === "active" && !s.is_test);
+    const activeSubsCount = activeSubs.length;
+    const mrr = activeSubs.reduce((sum, s) => {
+      const a = s.amount;
+      switch (s.interval) {
+        case "weekly":
+        case "week":
+          return sum + a * 4.345;
+        case "biweekly":
+          return sum + a * 2.1725;
+        case "monthly":
+        case "month":
+        default:
+          return sum + a;
+      }
+    }, 0);
 
-    // Уникальные подписчики по email/phone/user_id-like
-    const subscriberKeys = new Set<string>();
-    for (const d of recurringSucceeded) {
-      const key = (d.donor_email || d.donor_phone || d.id).toLowerCase();
-      subscriberKeys.add(key);
+    // Уникальный ключ донора
+    const donorKey = (d: DonationRow) =>
+      d.user_id ??
+      (d.donor_email ? d.donor_email.toLowerCase() : null) ??
+      d.donor_phone ??
+      d.id;
+
+    const monthSucceeded = succeeded.filter((d) => ref(d) >= startMonth);
+    const activeDonorsMonth = new Set(monthSucceeded.map(donorKey)).size;
+
+    // Новые доноры месяца — первое успешное в этом месяце
+    const firstByKey = new Map<string, Date>();
+    for (const d of succeeded) {
+      const k = donorKey(d);
+      const dt = ref(d);
+      const prev = firstByKey.get(k);
+      if (!prev || dt < prev) firstByKey.set(k, dt);
     }
+    let newDonorsMonth = 0;
+    for (const dt of firstByKey.values()) if (dt >= startMonth) newDonorsMonth += 1;
 
-    // MRR — сумма уникальных подписок (по последнему платежу каждого ключа)
-    const lastByKey = new Map<string, DonationRow>();
-    for (const d of recurringSucceeded) {
-      const key = (d.donor_email || d.donor_phone || d.id).toLowerCase();
-      const prev = lastByKey.get(key);
-      if (!prev || ref(d) > ref(prev)) lastByKey.set(key, d);
-    }
-    const mrr = Array.from(lastByKey.values()).reduce((s, d) => s + d.amount, 0);
-
-    const largest = succeeded.reduce<DonationRow | null>(
-      (best, d) => (!best || d.amount > best.amount ? d : best),
-      null,
-    );
-    const lastSucceeded = succeeded[0] ?? null;
+    const avg = succeeded.length ? succeeded.reduce((s, d) => s + d.amount, 0) / succeeded.length : 0;
 
     return {
-      succeeded,
-      total,
-      monthSum,
       todaySum,
-      avg,
-      conversion,
-      pendingCount: pending.length,
-      canceledCount: canceled.length,
-      recurringCount: recurringSucceeded.length,
-      activeSubscribers: subscriberKeys.size,
+      weekSum,
+      monthSum,
+      activeSubsCount,
       mrr,
-      largest,
-      lastSucceeded,
-      successCount: succeeded.length,
-      totalCount: donations.length,
+      activeDonorsMonth,
+      newDonorsMonth,
+      avg,
     };
-  }, [donations]);
+  }, [donations, subscriptions]);
 
   if (loading) {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Дашборд</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Аналитика фонда</h1>
           <p className="text-sm text-muted-foreground mt-1">Загрузка данных...</p>
         </div>
       </div>
@@ -167,102 +188,82 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 max-w-7xl">
       <div>
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Дашборд</h1>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Аналитика фонда</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Аналитика поступлений, подписки и ключевые показатели
+          Здоровье фонда, рост поддержки и стабильность регулярных пожертвований
         </p>
       </div>
 
-      {/* Основные метрики */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Секция 1 — Основные KPI */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
           icon={<CalendarDays className="h-5 w-5" />}
           label="Собрано сегодня"
           value={formatRub(stats.todaySum)}
         />
         <KpiCard
+          icon={<CalendarRange className="h-5 w-5" />}
+          label="Собрано за неделю"
+          value={formatRub(stats.weekSum)}
+        />
+        <KpiCard
           icon={<Calendar className="h-5 w-5" />}
           label="Собрано за месяц"
           value={formatRub(stats.monthSum)}
-        />
-        <KpiCard
-          icon={<Wallet className="h-5 w-5" />}
-          label="Собрано всего"
-          value={formatRub(stats.total)}
           accent
         />
         <KpiCard
           icon={<Repeat className="h-5 w-5" />}
-          label="Оформлено регулярных платежей"
-          value={stats.activeSubscribers.toLocaleString("ru-RU")}
-          hint="доноров с хотя бы одним регулярным платежом"
+          label="Регулярных подписок"
+          value={stats.activeSubsCount.toLocaleString("ru-RU")}
+          hint="активных доноров с recurring"
         />
         <KpiCard
           icon={<HeartHandshake className="h-5 w-5" />}
-          label="MRR (ориентир)"
+          label="Ежемесячный доход (MRR)"
           value={formatRub(stats.mrr)}
-          hint="ежемесячный регулярный доход"
-        />
-        <KpiCard
-          icon={<Activity className="h-5 w-5" />}
-          label="Средний чек"
-          value={formatRub(stats.avg)}
-        />
-        <KpiCard
-          icon={<Percent className="h-5 w-5" />}
-          label="Конверсия оплат"
-          value={`${stats.conversion.toFixed(1)}%`}
-          hint={`${stats.successCount} из ${stats.totalCount}`}
-        />
-        <KpiCard
-          icon={<Users className="h-5 w-5" />}
-          label="Успешных платежей"
-          value={stats.successCount.toLocaleString("ru-RU")}
+          hint="по активным подпискам"
         />
       </div>
 
-      {/* Графики */}
+      {/* Секция 2 — Метрики доноров */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <DonorMetric
+          icon={<Users className="h-4 w-4" />}
+          label="Активных доноров за месяц"
+          value={stats.activeDonorsMonth.toLocaleString("ru-RU")}
+        />
+        <DonorMetric
+          icon={<UserPlus className="h-4 w-4" />}
+          label="Новых доноров за месяц"
+          value={stats.newDonorsMonth.toLocaleString("ru-RU")}
+        />
+        <DonorMetric
+          icon={<Activity className="h-4 w-4" />}
+          label="Средний размер пожертвования"
+          value={formatRub(stats.avg)}
+        />
+      </div>
+
+      {/* Секция 3 — Главный график */}
       <Suspense
         fallback={
           <Card className="p-6">
-            <p className="text-sm text-muted-foreground">Загрузка графиков...</p>
+            <p className="text-sm text-muted-foreground">Загрузка графика...</p>
           </Card>
         }
       >
-        <DonationsCharts donations={donations} />
+        <DonationsTrendChart donations={donations} />
       </Suspense>
 
-      {/* Сводка */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard
-          icon={<Trophy className="h-5 w-5 text-primary" />}
-          label="Крупнейшее пожертвование"
-          value={stats.largest ? formatRub(stats.largest.amount) : "—"}
-          sub={stats.largest ? (stats.largest.donor_name || stats.largest.donor_email || "Аноним") : undefined}
-        />
-        <SummaryCard
-          icon={<CheckCircle2 className="h-5 w-5 text-primary" />}
-          label="Последнее успешное"
-          value={stats.lastSucceeded ? formatRub(stats.lastSucceeded.amount) : "—"}
-          sub={stats.lastSucceeded ? fmtDateTime(stats.lastSucceeded.paid_at ?? stats.lastSucceeded.created_at) : undefined}
-        />
-        <SummaryCard
-          icon={<Clock className="h-5 w-5 text-muted-foreground" />}
-          label="В ожидании оплаты"
-          value={stats.pendingCount.toLocaleString("ru-RU")}
-          sub="платежей в pending"
-        />
-        <SummaryCard
-          icon={<XCircle className="h-5 w-5 text-destructive" />}
-          label="Отменено / не прошло"
-          value={stats.canceledCount.toLocaleString("ru-RU")}
-          sub="canceled + failed"
-        />
+      {/* Секция 4 — Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MonthLeaderCard donations={donations} />
+        <UpcomingChargesCard />
       </div>
 
       {/* Email testing */}
       <EmailTestingCard />
-
     </div>
   );
 }
@@ -283,14 +284,22 @@ function KpiCard({
   return (
     <Card className={`p-6 ${accent ? "bg-primary text-primary-foreground border-primary" : ""}`}>
       <div className="flex items-center justify-between">
-        <span className={`text-xs uppercase tracking-wide font-medium ${accent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+        <span
+          className={`text-xs uppercase tracking-wide font-medium ${
+            accent ? "text-primary-foreground/80" : "text-muted-foreground"
+          }`}
+        >
           {label}
         </span>
         <span className={accent ? "text-primary-foreground/80" : "text-muted-foreground"}>{icon}</span>
       </div>
-      <div className="mt-3 text-3xl font-bold tracking-tight">{value}</div>
+      <div className="mt-3 text-2xl lg:text-3xl font-bold tracking-tight">{value}</div>
       {hint && (
-        <div className={`mt-1 text-xs ${accent ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+        <div
+          className={`mt-1 text-xs ${
+            accent ? "text-primary-foreground/70" : "text-muted-foreground"
+          }`}
+        >
           {hint}
         </div>
       )}
@@ -298,27 +307,22 @@ function KpiCard({
   );
 }
 
-function SummaryCard({
+function DonorMetric({
   icon,
   label,
   value,
-  sub,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  sub?: string;
 }) {
   return (
     <Card className="p-5">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5">{icon}</div>
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</div>
-          <div className="mt-1 text-xl font-bold truncate">{value}</div>
-          {sub && <div className="mt-0.5 text-xs text-muted-foreground truncate">{sub}</div>}
-        </div>
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <span className="text-xs uppercase tracking-wide font-medium">{label}</span>
       </div>
+      <div className="mt-2 text-xl font-semibold tracking-tight">{value}</div>
     </Card>
   );
 }
