@@ -341,12 +341,12 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           }));
         } catch { /* ignore */ }
         // Mock subscription persistence (localStorage). Easily swappable for Supabase later.
-        if (effectiveRecurring && authUser) {
+        if (effectiveRecurring && authUser && !isTestFrequency(frequency)) {
           try {
             await getSubscriptionsRepo().create({
               user_id: authUser.id,
               amount: activeAmount,
-              frequency,
+              frequency: frequency as "weekly" | "biweekly" | "monthly",
               campaign_id: isCampaign ? campaign!.id : null,
               campaign_title: isCampaign ? campaign!.title : null,
             });
