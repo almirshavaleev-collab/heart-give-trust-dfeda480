@@ -168,7 +168,11 @@ Deno.serve(async (req) => {
         reason: "stale_lock_reclaimed", prev_key: sub.current_billing_key,
       });
     }
-    structuredLog("lock_acquire", { sub: sub.id, billing_key: billingKey });
+    structuredLog("lock_acquire", {
+      sub: sub.id, billing_key: billingKey,
+      interval: sub.interval, is_test_recurring: isTestRecurring,
+      pm_id: sub.payment_method_id ? "set" : "missing",
+    });
 
     let releaseBillingKey = false; // only if we never created a payment
     try {
