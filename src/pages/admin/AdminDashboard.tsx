@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const DonationsTrendChart = lazy(() => import("./DonationsTrendChart"));
-import EmailTestingCard from "@/components/admin/EmailTestingCard";
+
 import MonthLeaderCard from "@/components/admin/MonthLeaderCard";
 import UpcomingChargesCard from "@/components/admin/UpcomingChargesCard";
 
@@ -262,8 +262,6 @@ export default function AdminDashboard() {
         <UpcomingChargesCard />
       </div>
 
-      {/* Email testing */}
-      <EmailTestingCard />
     </div>
   );
 }
