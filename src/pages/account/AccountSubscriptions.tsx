@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Pause, Play, X, RotateCw, HeartHandshake, ArrowRight, Calendar, Clock,
-  CreditCard, History, AlertCircle, CheckCircle2, Info,
+  CreditCard, History, AlertCircle, CheckCircle2, Info, ChevronDown,
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,7 @@ export default function AccountSubscriptions() {
   const [confirmCancel, setConfirmCancel] = useState<RecurringSubscription | null>(null);
   const [historyOf, setHistoryOf] = useState<RecurringSubscription | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [showHistory, setShowHistory] = useState(false);
 
   // tick every minute for countdown UI
   useEffect(() => {
@@ -54,6 +56,9 @@ export default function AccountSubscriptions() {
     }
   };
 
+  const activeSubs = data.filter((s) => s.status !== "canceled");
+  const canceledSubs = data.filter((s) => s.status === "canceled");
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -63,7 +68,7 @@ export default function AccountSubscriptions() {
             Управляйте своими подписками: ставьте на паузу, возобновляйте или отменяйте.
           </p>
         </div>
-        {data.length > 0 && (
+        {activeSubs.length > 0 && (
           <Button asChild variant="outline" className="rounded-full">
             <Link to="/#donate"><HeartHandshake className="w-4 h-4" /> Оформить ещё</Link>
           </Button>
@@ -75,11 +80,11 @@ export default function AccountSubscriptions() {
           <Skeleton className="h-44 rounded-2xl" />
           <Skeleton className="h-44 rounded-2xl" />
         </div>
-      ) : data.length === 0 ? (
+      ) : activeSubs.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="grid gap-4">
-          {data.map((s) => (
+          {activeSubs.map((s) => (
             <SubscriptionCard
               key={s.id}
               s={s}
@@ -93,6 +98,33 @@ export default function AccountSubscriptions() {
             />
           ))}
         </div>
+      )}
+
+      {canceledSubs.length > 0 && (
+        <Collapsible open={showHistory} onOpenChange={setShowHistory} className="pt-2">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+              <History className="w-4 h-4" />
+              История подписок ({canceledSubs.length})
+              <ChevronDown className={cn("w-4 h-4 transition-transform", showHistory && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="grid gap-4 mt-4">
+            {canceledSubs.map((s) => (
+              <SubscriptionCard
+                key={s.id}
+                s={s}
+                busy={busyId === s.id}
+                now={now}
+                onPause={() => {}}
+                onResume={() => {}}
+                onRetry={() => {}}
+                onCancel={() => {}}
+                onHistory={() => setHistoryOf(s)}
+              />
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       <AlertDialog open={!!confirmCancel} onOpenChange={(o) => !o && setConfirmCancel(null)}>
