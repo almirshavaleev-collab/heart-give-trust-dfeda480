@@ -305,6 +305,7 @@ export type Database = {
           card_last4: string | null
           card_type: string | null
           created_at: string
+          created_via: string
           currency: string
           current_billing_key: string | null
           external_subscription_id: string | null
@@ -335,6 +336,7 @@ export type Database = {
           card_last4?: string | null
           card_type?: string | null
           created_at?: string
+          created_via?: string
           currency?: string
           current_billing_key?: string | null
           external_subscription_id?: string | null
@@ -365,6 +367,7 @@ export type Database = {
           card_last4?: string | null
           card_type?: string | null
           created_at?: string
+          created_via?: string
           currency?: string
           current_billing_key?: string | null
           external_subscription_id?: string | null
@@ -953,6 +956,7 @@ export type Database = {
           card_last4: string
           card_type: string
           created_at: string
+          created_via: string
           currency: string
           frequency: string
           id: string
@@ -960,6 +964,7 @@ export type Database = {
           last_charge_at: string
           next_payment_at: string
           paused_reason: string
+          payment_method_type: string
           status: string
         }[]
       }
