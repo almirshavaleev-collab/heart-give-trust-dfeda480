@@ -38,7 +38,7 @@ type Subscription = {
   campaign_id: string | null;
   amount: number;
   currency: string;
-  interval: "weekly" | "biweekly" | "monthly" | "test_5min" | "test_20min" | "test_60min";
+  interval: "weekly" | "biweekly" | "monthly";
   status: string;
   payment_method_id: string | null;
   payment_method_type: string | null;
@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
   const cfg = getRecurringConfig();
   const dryRun = cfg.dryRun;
-  const shadowMode = cfg.testMode && cfg.dryRun;
+  const shadowMode = false;
   if (!cfg.enabled) {
     structuredLog("cron_disabled");
     await recordHeartbeat(supabase, "process-recurring-payments", "disabled", {});
