@@ -79,7 +79,6 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [mockSuccess, setMockSuccess] = useState(false);
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(() => {
     if (typeof window === "undefined") return "card";
@@ -98,7 +97,6 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   // Авторизованный пользователь: автозаполнение из профиля
   const [authUser, setAuthUser] = useState<{ id: string; email: string | null } | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
-  const [isTestEligible, setIsTestEligible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,14 +120,6 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       setName((prev) => (prev ? prev : fullName ?? ""));
       setPhone((prev) => (prev ? prev : profilePhone ?? ""));
       setEmail((prev) => (prev ? prev : user.email ?? ""));
-
-      // Test/admin eligibility for DEV recurring intervals (server-validated too).
-      try {
-        const { data: eligible } = await (supabase as any).rpc("is_test_user_or_admin");
-        if (!cancelled) setIsTestEligible(!!eligible);
-      } catch (e) {
-        console.warn("[donation-widget] is_test_user_or_admin check failed", e);
-      }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -338,41 +328,6 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
     );
   }
 
-  // Mock success state — регулярная подписка создана локально, без оплаты
-  if (mockSuccess) {
-    const intervalLabel =
-      frequency === "weekly" ? "раз в неделю"
-      : frequency === "biweekly" ? "раз в 2 недели"
-      : frequency === "test_5min" ? "каждые 5 минут (TEST)"
-      : frequency === "test_20min" ? "каждые 20 минут (TEST)"
-      : frequency === "test_60min" ? "каждый час (TEST)"
-      : "раз в месяц";
-    return (
-      <div className={cn("card-light w-full text-center space-y-5", embedded ? "p-6" : "p-8 md:p-10")}>
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/15">
-          <Check className="w-7 h-7 text-primary" />
-        </div>
-        <div className="space-y-2 max-w-md mx-auto">
-          <h3 className="font-semibold text-foreground text-xl">Регулярная поддержка оформлена</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {activeAmount.toLocaleString("ru-RU")} ₽ · {intervalLabel}. Управлять подпиской можно в личном кабинете.
-          </p>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800">
-            Тестовый режим — без реального списания
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 justify-center">
-          <Button asChild size="lg" className="rounded-full">
-            <Link to="/account/subscriptions">Перейти в кабинет</Link>
-          </Button>
-          <Button variant="outline" size="lg" className="rounded-full" onClick={() => setMockSuccess(false)}>
-            Оформить ещё одну
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const Card = (
     <div className={cn("card-light w-full", embedded ? "p-5 sm:p-6" : "p-8 md:p-10")}>
       {authUser && (
@@ -455,41 +410,6 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed px-0.5">
             Регулярная поддержка пока работает через напоминания о повторном платеже и не является автоматическим списанием.
           </p>
-
-          {isTestEligible && (
-            <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/70 p-3">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
-                  DEV / TEST INTERVALS
-                </span>
-                <span className="text-[10px] text-amber-700">Только admin / test users</span>
-              </div>
-              <p className="text-[11px] text-amber-800/90 leading-relaxed mb-2.5">
-                Только для тестирования recurring payments через YooKassa. Реальные деньги списываются — используйте 1 ₽.
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {testFrequencyOptions.map(({ id, label }) => {
-                  const active = frequency === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setFrequency(id)}
-                      aria-pressed={active}
-                      className={cn(
-                        "h-11 rounded-lg text-[11px] font-medium border transition-all px-1.5",
-                        active
-                          ? "bg-amber-600 text-white border-amber-600 shadow-sm"
-                          : "bg-white border-amber-300 text-amber-900 hover:border-amber-500"
-                      )}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
