@@ -164,7 +164,7 @@ function EmptyState() {
           <HeartHandshake className="w-7 h-7 text-primary" />
         </div>
         <div className="space-y-1.5 max-w-md mx-auto">
-          <p className="font-semibold text-lg">У вас пока нет регулярной поддержки</p>
+          <p className="font-semibold text-lg">У вас пока нет активных регулярных пожертвований</p>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Оформите подписку — это поможет фонду планировать программы и помогать стабильно.
           </p>
