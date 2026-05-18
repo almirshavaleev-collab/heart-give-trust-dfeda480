@@ -20,6 +20,14 @@ const RECURRING_POPULAR = 500;
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
 
+/**
+ * MVP/Mock-режим оформления регулярных подписок.
+ * 'mock' — создаём подписку в БД БЕЗ оплаты (для демо/MVP).
+ * 'live' — реальный YooKassa-поток создания платёжного метода и автосписаний.
+ * Когда вернёмся к боевой оплате — просто меняем значение на 'live'.
+ */
+const RECURRING_MODE: "mock" | "live" = "mock";
+
 type Frequency = "weekly" | "biweekly" | "monthly";
 const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
   { id: "weekly", label: "Раз в неделю" },
@@ -80,6 +88,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mockSuccess, setMockSuccess] = useState(false);
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(() => {
     if (typeof window === "undefined") return "card";
@@ -222,6 +231,38 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       const finalName = anonymous ? "Аноним" : name.trim();
       const finalPhone = anonymous ? null : (phone.trim() || null);
       const finalEmail = email.trim() || null;
+
+      // === MVP MOCK FLOW для регулярных подписок ===
+      // Никакой реальной оплаты: создаём запись подписки в БД и показываем success.
+      if (effectiveRecurring && RECURRING_MODE === "mock") {
+        if (!authUser) {
+          toast({
+            title: "Войдите в кабинет",
+            description: "Регулярная поддержка доступна авторизованным пользователям.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        const intervalDays = frequency === "weekly" ? 7 : frequency === "biweekly" ? 14 : 30;
+        const nextAt = new Date(Date.now() + intervalDays * 86400000).toISOString();
+        const { error: subError } = await supabase.from("donor_subscriptions").insert({
+          user_id: authUser.id,
+          amount: activeAmount,
+          currency: "RUB",
+          interval: frequency,
+          status: "active",
+          payment_method_type: "mock",
+          payment_method_id: `mock-${crypto.randomUUID()}`,
+          next_payment_at: nextAt,
+          campaign_id: isCampaign ? campaign!.id : null,
+          is_test: true,
+        });
+        if (subError) throw new Error(subError.message);
+        setMockSuccess(true);
+        setLoading(false);
+        return;
+      }
 
       const description = isCampaign
         ? `Пожертвование в сбор: ${campaign!.title} — ${activeAmount} ₽`
