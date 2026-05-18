@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Loader2, LogOut } from "lucide-react";
+import { Info } from "lucide-react";
 import { z } from "zod";
 import { evaluatePassword, STRENGTH_LABEL, type PasswordStrength } from "@/lib/password-strength";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ export default function AccountSettings() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useDonorProfile();
   const update = useUpdateProfile();
+  const isDemo = !!profile?.is_demo;
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -115,6 +117,18 @@ export default function AccountSettings() {
         <p className="text-muted-foreground mt-1 text-sm">Профиль, приватность и безопасность.</p>
       </div>
 
+      {isDemo && (
+        <div className="flex items-start gap-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
+          <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium">Демо-аккаунт</p>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              Это ознакомительный аккаунт. Смена email, пароля и удаление аккаунта отключены.
+            </p>
+          </div>
+        </div>
+      )}
+
       <Card className="border-border">
         <CardHeader><CardTitle className="text-lg">Профиль</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -148,13 +162,13 @@ export default function AccountSettings() {
             </div>
             <Switch checked={wantsNotif} onCheckedChange={setWantsNotif} />
           </div>
-          <Button onClick={handleSave} disabled={update.isPending}>
+          <Button onClick={handleSave} disabled={update.isPending || isDemo}>
             {update.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Сохранить"}
           </Button>
         </CardContent>
       </Card>
 
-      <Card className="border-border">
+      {!isDemo && <Card className="border-border">
         <CardHeader><CardTitle className="text-lg">Безопасность</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -205,7 +219,7 @@ export default function AccountSettings() {
             {pwdLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Сменить пароль"}
           </Button>
         </CardContent>
-      </Card>
+      </Card>}
 
       <Card className="border-border">
         <CardContent className="p-5">
