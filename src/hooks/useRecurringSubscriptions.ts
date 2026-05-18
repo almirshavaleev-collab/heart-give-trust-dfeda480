@@ -19,8 +19,7 @@ export type RecurringSubscription = {
   paused_reason: string | null;
   campaign_id: string | null;
   created_at: string;
-  is_test?: boolean;
-  created_via?: "mock" | "yookassa" | "admin" | string | null;
+  created_via?: "yookassa" | "admin" | string | null;
   payment_method_type?: string | null;
 };
 
