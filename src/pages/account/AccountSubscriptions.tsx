@@ -15,7 +15,6 @@ import {
   CreditCard, History, AlertCircle, CheckCircle2, Info, ChevronDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
