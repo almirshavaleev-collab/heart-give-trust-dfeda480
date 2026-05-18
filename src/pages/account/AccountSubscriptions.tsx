@@ -218,6 +218,11 @@ function SubscriptionCard({
           <Badge variant="outline" className={cn("rounded-full px-3 py-1 text-xs font-medium", meta.tone)}>
             {meta.label}
           </Badge>
+          {s.is_test && (
+            <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[10px] font-medium border-amber-300 bg-amber-50 text-amber-800">
+              Тестовый режим
+            </Badge>
+          )}
         </div>
 
         {/* Explainer */}

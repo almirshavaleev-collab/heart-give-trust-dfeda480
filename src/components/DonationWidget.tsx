@@ -20,6 +20,14 @@ const RECURRING_POPULAR = 500;
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
 
+/**
+ * MVP/Mock-режим оформления регулярных подписок.
+ * 'mock' — создаём подписку в БД БЕЗ оплаты (для демо/MVP).
+ * 'live' — реальный YooKassa-поток создания платёжного метода и автосписаний.
+ * Когда вернёмся к боевой оплате — просто меняем значение на 'live'.
+ */
+const RECURRING_MODE: "mock" | "live" = "mock";
+
 type Frequency = "weekly" | "biweekly" | "monthly";
 const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
   { id: "weekly", label: "Раз в неделю" },
@@ -80,6 +88,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mockSuccess, setMockSuccess] = useState(false);
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(() => {
     if (typeof window === "undefined") return "card";
@@ -223,6 +232,38 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       const finalPhone = anonymous ? null : (phone.trim() || null);
       const finalEmail = email.trim() || null;
 
+      // === MVP MOCK FLOW для регулярных подписок ===
+      // Никакой реальной оплаты: создаём запись подписки в БД и показываем success.
+      if (effectiveRecurring && RECURRING_MODE === "mock") {
+        if (!authUser) {
+          toast({
+            title: "Войдите в кабинет",
+            description: "Регулярная поддержка доступна авторизованным пользователям.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        const intervalDays = frequency === "weekly" ? 7 : frequency === "biweekly" ? 14 : 30;
+        const nextAt = new Date(Date.now() + intervalDays * 86400000).toISOString();
+        const { error: subError } = await supabase.from("donor_subscriptions").insert({
+          user_id: authUser.id,
+          amount: activeAmount,
+          currency: "RUB",
+          interval: frequency,
+          status: "active",
+          payment_method_type: "mock",
+          payment_method_id: `mock-${crypto.randomUUID()}`,
+          next_payment_at: nextAt,
+          campaign_id: isCampaign ? campaign!.id : null,
+          is_test: true,
+        });
+        if (subError) throw new Error(subError.message);
+        setMockSuccess(true);
+        setLoading(false);
+        return;
+      }
+
       const description = isCampaign
         ? `Пожертвование в сбор: ${campaign!.title} — ${activeAmount} ₽`
         : `Пожертвование в Фонд «Выпускники Лицея «Лига» — ${activeAmount} ₽`;
@@ -327,6 +368,35 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             Поддержать фонд
           </a>
         </Button>
+      </div>
+    );
+  }
+
+  // Mock success state — регулярная подписка создана локально, без оплаты
+  if (mockSuccess) {
+    const intervalLabel = frequency === "weekly" ? "раз в неделю" : frequency === "biweekly" ? "раз в 2 недели" : "раз в месяц";
+    return (
+      <div className={cn("card-light w-full text-center space-y-5", embedded ? "p-6" : "p-8 md:p-10")}>
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/15">
+          <Check className="w-7 h-7 text-primary" />
+        </div>
+        <div className="space-y-2 max-w-md mx-auto">
+          <h3 className="font-semibold text-foreground text-xl">Регулярная поддержка оформлена</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {activeAmount.toLocaleString("ru-RU")} ₽ · {intervalLabel}. Управлять подпиской можно в личном кабинете.
+          </p>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800">
+            Тестовый режим — без реального списания
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <Button asChild size="lg" className="rounded-full">
+            <Link to="/account/subscriptions">Перейти в кабинет</Link>
+          </Button>
+          <Button variant="outline" size="lg" className="rounded-full" onClick={() => setMockSuccess(false)}>
+            Оформить ещё одну
+          </Button>
+        </div>
       </div>
     );
   }

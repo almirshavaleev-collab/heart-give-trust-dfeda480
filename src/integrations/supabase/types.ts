@@ -956,6 +956,7 @@ export type Database = {
           currency: string
           frequency: string
           id: string
+          is_test: boolean
           last_charge_at: string
           next_payment_at: string
           paused_reason: string

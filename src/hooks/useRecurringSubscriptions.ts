@@ -19,6 +19,7 @@ export type RecurringSubscription = {
   paused_reason: string | null;
   campaign_id: string | null;
   created_at: string;
+  is_test?: boolean;
 };
 
 export function useRecurringSubscriptions(pollMs: number = 30000) {
