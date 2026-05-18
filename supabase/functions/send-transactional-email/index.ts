@@ -106,15 +106,6 @@ Deno.serve(async (req) => {
     )
   }
 
-  // Sandbox guardrail: never send real emails for simulated/test data.
-  if (templateData?.simulated === true || templateData?.is_test === true) {
-    console.log('[send-transactional-email] sandbox payload, skip', { templateName })
-    return new Response(
-      JSON.stringify({ ok: true, skipped: 'sandbox' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
-  }
-
   // Resolve effective recipient: template-level `to` takes precedence over
   // the caller-provided recipientEmail. This allows notification templates
   // to always send to a fixed address (e.g., site owner from env var).
