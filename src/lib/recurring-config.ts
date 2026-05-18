@@ -10,7 +10,6 @@ export const recurringFlags = {
   realtimeDonor: v("VITE_RECURRING_REALTIME_DONOR", false),
   realtimeAdminDetail: v("VITE_RECURRING_REALTIME_ADMIN_DETAIL", false),
   realtimeAdminOverview: v("VITE_RECURRING_REALTIME_ADMIN_OVERVIEW", false),
-  testMode: v("VITE_RECURRING_TEST_MODE", false),
   dryRun: v("VITE_RECURRING_DRY_RUN", false),
 };
 
