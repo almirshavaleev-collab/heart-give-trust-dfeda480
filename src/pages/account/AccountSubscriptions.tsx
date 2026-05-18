@@ -15,7 +15,6 @@ import {
   CreditCard, History, AlertCircle, CheckCircle2, Info, ChevronDown,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -220,23 +219,6 @@ function SubscriptionCard({
           <Badge variant="outline" className={cn("rounded-full px-3 py-1 text-xs font-medium", meta.tone)}>
             {meta.label}
           </Badge>
-          {(s.is_test || s.payment_method_type === "mock" || s.created_via === "mock") && (
-            <TooltipProvider delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    className="rounded-full px-2.5 py-0.5 text-[10px] font-medium border-amber-300 bg-amber-50 text-amber-800 cursor-help"
-                  >
-                    Тестовая подписка
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  Списание средств не производится
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
         </div>
 
         {/* Explainer */}
