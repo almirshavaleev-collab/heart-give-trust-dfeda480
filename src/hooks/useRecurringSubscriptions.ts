@@ -20,6 +20,8 @@ export type RecurringSubscription = {
   campaign_id: string | null;
   created_at: string;
   is_test?: boolean;
+  created_via?: "mock" | "yookassa" | "admin" | string | null;
+  payment_method_type?: string | null;
 };
 
 export function useRecurringSubscriptions(pollMs: number = 30000) {

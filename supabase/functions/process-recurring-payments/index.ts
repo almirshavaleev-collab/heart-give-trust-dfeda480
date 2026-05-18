@@ -98,6 +98,8 @@ Deno.serve(async (req) => {
     .lte("next_payment_at", nowIso)
     .not("payment_method_id", "is", null)
     .is("current_billing_key", null)
+    // Hard guard: mock/MVP subscriptions never go through the real-charge cron.
+    .neq("payment_method_type", "mock")
     .or(`processing_at.is.null,processing_at.lt.${execLockHorizon}`)
     .limit(50);
 
@@ -117,6 +119,13 @@ Deno.serve(async (req) => {
 
   for (const sub of subs) {
     if (!sub.payment_method_id) { skipped++; continue; }
+
+    // Defensive: never process mock subs even if filter missed them.
+    if (sub.payment_method_type === "mock") {
+      structuredLog("mock_skip", { sub: sub.id });
+      skipped++;
+      continue;
+    }
 
     // Hard guardrail: sandbox subscriptions OR shadow mode → always simulate, never call YooKassa.
     if (shadowMode || sub.is_test) {

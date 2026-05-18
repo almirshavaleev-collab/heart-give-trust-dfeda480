@@ -257,6 +257,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           next_payment_at: nextAt,
           campaign_id: isCampaign ? campaign!.id : null,
           is_test: true,
+          created_via: "mock",
         });
         if (subError) throw new Error(subError.message);
         setMockSuccess(true);
