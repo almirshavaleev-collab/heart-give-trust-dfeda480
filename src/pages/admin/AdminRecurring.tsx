@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Repeat, TrendingUp, AlertTriangle, CheckCircle2, PauseCircle,
-  Wallet, RefreshCw, Activity, Clock, ExternalLink,
+  Wallet, RefreshCw, Activity, Clock, ExternalLink, FlaskConical,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip,
@@ -22,6 +22,7 @@ type Metrics = {
   mrr_rub: number;
   attempts_30d: number; failed_30d: number; failed_rate_30d: number;
   recovered_30d: number; avg_lifetime_days: number;
+  mock_count?: number; mock_active?: number; mock_mrr_rub?: number;
 };
 type Overview = {
   metrics: Metrics;
@@ -170,6 +171,14 @@ function KpiGrid({ m }: { m: Metrics }) {
     { label: "Ошибки 30д", value: `${m.failed_30d} / ${m.attempts_30d}`,
       sub: `${m.failed_rate_30d}% сбойных`, icon: TrendingUp, tone: "text-rose-600" },
     { label: "Восстановлено 30д", value: m.recovered_30d, icon: Repeat, tone: "text-emerald-600" },
+    { label: "Mock подписок",
+      value: `${m.mock_active ?? 0} / ${m.mock_count ?? 0}`,
+      sub: "активных / всего",
+      icon: FlaskConical, tone: "text-amber-600" },
+    { label: "Mock MRR",
+      value: formatRub(m.mock_mrr_rub ?? 0),
+      sub: "не учитывается в реальном MRR",
+      icon: FlaskConical, tone: "text-amber-600" },
   ];
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
