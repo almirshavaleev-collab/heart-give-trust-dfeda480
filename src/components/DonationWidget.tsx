@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { getSubscriptionsRepo } from "@/lib/subscriptions-repo";
 import { Link } from "react-router-dom";
 
 const presetsOneTime = [500, 1000, 3000, 5000];
@@ -20,32 +19,12 @@ const RECURRING_POPULAR = 500;
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
 
-/**
- * MVP/Mock-режим оформления регулярных подписок.
- * 'mock' — создаём подписку в БД БЕЗ оплаты (для демо/MVP).
- * 'live' — реальный YooKassa-поток создания платёжного метода и автосписаний.
- * Когда вернёмся к боевой оплате — просто меняем значение на 'live'.
- */
-const RECURRING_MODE: "mock" | "live" = "mock";
-
-type Frequency =
-  | "weekly"
-  | "biweekly"
-  | "monthly"
-  | "test_5min"
-  | "test_20min"
-  | "test_60min";
+type Frequency = "weekly" | "biweekly" | "monthly";
 const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
   { id: "weekly", label: "Раз в неделю" },
   { id: "biweekly", label: "Раз в 2 недели" },
   { id: "monthly", label: "Раз в месяц", popular: true },
 ];
-const testFrequencyOptions: { id: Frequency; label: string }[] = [
-  { id: "test_5min", label: "Каждые 5 минут" },
-  { id: "test_20min", label: "Каждые 20 минут" },
-  { id: "test_60min", label: "Каждый час" },
-];
-const isTestFrequency = (f: Frequency) => f.startsWith("test_");
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
 const PAYMENT_METHOD_KEY = "ligafund:payment_method";
