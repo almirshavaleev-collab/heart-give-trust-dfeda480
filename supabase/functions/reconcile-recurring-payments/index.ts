@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
         frequency,
         paymentObject: obj,
         billingCycleKey: subscriptionId
-          ? billingCycleKey(subscriptionId, null, getRecurringConfig().cycleBucketHours)
+          ? billingCycleKey(subscriptionId, null, getRecurringConfig().cycleBucketHours, frequency)
           : null,
       });
       resolved_succeeded++;
