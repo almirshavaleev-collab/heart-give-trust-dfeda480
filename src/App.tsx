@@ -32,7 +32,6 @@ import AdminDonors from "./pages/admin/AdminDonors.tsx";
 import AdminRecurring from "./pages/admin/AdminRecurring.tsx";
 import AdminRecurringDetail from "./pages/admin/AdminRecurringDetail.tsx";
 import AdminRecurringReadiness from "./pages/admin/AdminRecurringReadiness.tsx";
-import AdminRecurringTesting from "./pages/admin/AdminRecurringTesting.tsx";
 import ScrollToTop from "./components/ScrollToTop.tsx";
 import { ProtectedRoute } from "./components/ProtectedRoute.tsx";
 import { useCampaignsRealtime } from "./hooks/useCampaigns";
@@ -99,7 +98,6 @@ const App = () => (
             <Route path="donors" element={<AdminDonors />} />
             <Route path="recurring" element={<AdminRecurring />} />
             <Route path="recurring/readiness" element={<AdminRecurringReadiness />} />
-            <Route path="recurring/testing" element={<AdminRecurringTesting />} />
             <Route path="recurring/:id" element={<AdminRecurringDetail />} />
           </Route>
           <Route path="*" element={<NotFound />} />
