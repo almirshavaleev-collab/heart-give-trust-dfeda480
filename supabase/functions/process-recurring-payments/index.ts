@@ -9,7 +9,6 @@ import {
   logDuplicatePrevention,
   PG_UNIQUE_VIOLATION,
 } from "../_shared/recurring.ts";
-import { simulateChargeCycle, type SimSubscription } from "../_shared/recurring-test.ts";
 
 /**
  * Recurring autopay engine.
@@ -44,8 +43,6 @@ type Subscription = {
   payment_method_type: string | null;
   next_payment_at: string | null;
   current_billing_key: string | null;
-  is_test?: boolean;
-  created_via?: string | null;
 };
 
 Deno.serve(async (req) => {
@@ -61,7 +58,6 @@ Deno.serve(async (req) => {
 
   const cfg = getRecurringConfig();
   const dryRun = cfg.dryRun;
-  const shadowMode = false;
   if (!cfg.enabled) {
     structuredLog("cron_disabled");
     await recordHeartbeat(supabase, "process-recurring-payments", "disabled", {});
@@ -93,14 +89,12 @@ Deno.serve(async (req) => {
   const { data: due, error: dueErr } = await supabase
     .from("donor_subscriptions")
     .select(
-      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at, current_billing_key, is_test, created_via",
+      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at, current_billing_key",
     )
     .eq("status", "active")
     .lte("next_payment_at", nowIso)
     .not("payment_method_id", "is", null)
     .is("current_billing_key", null)
-    // Hard guard: mock/MVP subscriptions never go through the real-charge cron.
-    .neq("payment_method_type", "mock")
     .or(`processing_at.is.null,processing_at.lt.${execLockHorizon}`)
     .limit(50);
 
@@ -112,7 +106,7 @@ Deno.serve(async (req) => {
   }
 
   const subs = (due ?? []) as Subscription[];
-  structuredLog("cron_selected", { mode, dry_run: dryRun, shadow: shadowMode, due_count: subs.length });
+  structuredLog("cron_selected", { mode, dry_run: dryRun, due_count: subs.length });
 
   let payments_created = 0;
   let failed = 0;
@@ -120,30 +114,6 @@ Deno.serve(async (req) => {
 
   for (const sub of subs) {
     if (!sub.payment_method_id) { skipped++; continue; }
-
-    // Defensive: never process mock subs even if filter missed them.
-    if (sub.payment_method_type === "mock") {
-      structuredLog("mock_skip", { sub: sub.id });
-      skipped++;
-      continue;
-    }
-
-    // Test-recurring subscriptions (interval starts with "test_") go through the REAL
-    // YooKassa autopay path to validate the production flow end-to-end. Only sandbox
-    // subs (created via admin sandbox tooling) and shadow mode are simulated.
-    const isTestRecurring = sub.created_via === "test_recurring" || (sub.interval as string).startsWith("test_");
-    if (shadowMode || (sub.is_test && !isTestRecurring)) {
-      const simSub: SimSubscription = {
-        id: sub.id, user_id: sub.user_id, campaign_id: sub.campaign_id,
-        amount: Number(sub.amount), currency: sub.currency,
-        interval: sub.interval as "weekly" | "biweekly" | "monthly",
-        retry_count: 0, status: sub.status,
-        payment_method_type: sub.payment_method_type, is_test: !!sub.is_test,
-      };
-      const r = await simulateChargeCycle(supabase, simSub, cfg);
-      if (r.outcome === "succeeded") payments_created++; else failed++;
-      continue;
-    }
 
     const billingKey = billingCycleKey(sub.id, sub.next_payment_at, cfg.cycleBucketHours, sub.interval);
 
@@ -170,7 +140,7 @@ Deno.serve(async (req) => {
     }
     structuredLog("lock_acquire", {
       sub: sub.id, billing_key: billingKey,
-      interval: sub.interval, is_test_recurring: isTestRecurring,
+      interval: sub.interval,
       pm_id: sub.payment_method_id ? "set" : "missing",
     });
 
@@ -256,7 +226,6 @@ Deno.serve(async (req) => {
               subscription_id: sub.id,
               autopay: "true",
               billing_key: billingKey,
-              is_test_recurring: isTestRecurring ? "true" : "false",
             },
           }),
         });
