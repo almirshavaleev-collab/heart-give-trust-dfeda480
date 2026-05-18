@@ -12,6 +12,7 @@ export type DonorProfile = {
   public_display_name: string | null;
   is_public_donor: boolean;
   wants_notifications: boolean;
+  is_demo?: boolean;
 };
 
 export type DonorDonation = {
@@ -66,7 +67,7 @@ export function useDonorProfile() {
     queryFn: async (): Promise<DonorProfile | null> => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, user_id, email, full_name, phone, display_name, public_display_name, is_public_donor, wants_notifications")
+        .select("id, user_id, email, full_name, phone, display_name, public_display_name, is_public_donor, wants_notifications, is_demo")
         .eq("user_id", user!.id)
         .maybeSingle();
       if (error) throw error;
