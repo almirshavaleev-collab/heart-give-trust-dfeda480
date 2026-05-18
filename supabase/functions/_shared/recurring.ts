@@ -67,11 +67,6 @@ export function notifyDonor(
   templateData: Record<string, unknown>,
 ) {
   if (!recipientEmail) return;
-  // Sandbox guardrail: never send real emails for simulated/test data.
-  if (templateData?.simulated === true || templateData?.is_test === true) {
-    structuredLog("notify_skipped_sandbox", { template: templateName });
-    return;
-  }
   // Don't await — this must be non-blocking.
   void (async () => {
     try {
