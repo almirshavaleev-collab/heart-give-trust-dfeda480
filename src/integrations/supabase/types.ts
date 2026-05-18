@@ -532,6 +532,7 @@ export type Database = {
           id: string
           is_demo: boolean
           is_public_donor: boolean
+          is_test_user: boolean
           link_email_attempts: number
           link_email_code_hash: string | null
           link_email_expires_at: string | null
@@ -550,6 +551,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           is_public_donor?: boolean
+          is_test_user?: boolean
           link_email_attempts?: number
           link_email_code_hash?: string | null
           link_email_expires_at?: string | null
@@ -568,6 +570,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           is_public_donor?: boolean
+          is_test_user?: boolean
           link_email_attempts?: number
           link_email_code_hash?: string | null
           link_email_expires_at?: string | null
@@ -993,6 +996,7 @@ export type Database = {
         Args: { _amount: number; _campaign_id: string }
         Returns: undefined
       }
+      is_test_user_or_admin: { Args: never; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string

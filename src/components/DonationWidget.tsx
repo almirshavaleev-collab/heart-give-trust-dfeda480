@@ -28,12 +28,24 @@ const MIN_AMOUNT = 1;
  */
 const RECURRING_MODE: "mock" | "live" = "mock";
 
-type Frequency = "weekly" | "biweekly" | "monthly";
+type Frequency =
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "test_5min"
+  | "test_20min"
+  | "test_60min";
 const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
   { id: "weekly", label: "Раз в неделю" },
   { id: "biweekly", label: "Раз в 2 недели" },
   { id: "monthly", label: "Раз в месяц", popular: true },
 ];
+const testFrequencyOptions: { id: Frequency; label: string }[] = [
+  { id: "test_5min", label: "Каждые 5 минут" },
+  { id: "test_20min", label: "Каждые 20 минут" },
+  { id: "test_60min", label: "Каждый час" },
+];
+const isTestFrequency = (f: Frequency) => f.startsWith("test_");
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
 const PAYMENT_METHOD_KEY = "ligafund:payment_method";
@@ -107,6 +119,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   // Авторизованный пользователь: автозаполнение из профиля
   const [authUser, setAuthUser] = useState<{ id: string; email: string | null } | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [isTestEligible, setIsTestEligible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +143,14 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       setName((prev) => (prev ? prev : fullName ?? ""));
       setPhone((prev) => (prev ? prev : profilePhone ?? ""));
       setEmail((prev) => (prev ? prev : user.email ?? ""));
+
+      // Test/admin eligibility for DEV recurring intervals (server-validated too).
+      try {
+        const { data: eligible } = await (supabase as any).rpc("is_test_user_or_admin");
+        if (!cancelled) setIsTestEligible(!!eligible);
+      } catch (e) {
+        console.warn("[donation-widget] is_test_user_or_admin check failed", e);
+      }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -234,7 +255,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
       // === MVP MOCK FLOW для регулярных подписок ===
       // Никакой реальной оплаты: создаём запись подписки в БД и показываем success.
-      if (effectiveRecurring && RECURRING_MODE === "mock") {
+      // Test-recurring интервалы (test_*) идут через реальный YooKassa, минуя mock.
+      if (effectiveRecurring && RECURRING_MODE === "mock" && !isTestFrequency(frequency)) {
         if (!authUser) {
           toast({
             title: "Войдите в кабинет",
@@ -320,12 +342,12 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           }));
         } catch { /* ignore */ }
         // Mock subscription persistence (localStorage). Easily swappable for Supabase later.
-        if (effectiveRecurring && authUser) {
+        if (effectiveRecurring && authUser && !isTestFrequency(frequency)) {
           try {
             await getSubscriptionsRepo().create({
               user_id: authUser.id,
               amount: activeAmount,
-              frequency,
+              frequency: frequency as "weekly" | "biweekly" | "monthly",
               campaign_id: isCampaign ? campaign!.id : null,
               campaign_title: isCampaign ? campaign!.title : null,
             });
@@ -375,7 +397,13 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
   // Mock success state — регулярная подписка создана локально, без оплаты
   if (mockSuccess) {
-    const intervalLabel = frequency === "weekly" ? "раз в неделю" : frequency === "biweekly" ? "раз в 2 недели" : "раз в месяц";
+    const intervalLabel =
+      frequency === "weekly" ? "раз в неделю"
+      : frequency === "biweekly" ? "раз в 2 недели"
+      : frequency === "test_5min" ? "каждые 5 минут (TEST)"
+      : frequency === "test_20min" ? "каждые 20 минут (TEST)"
+      : frequency === "test_60min" ? "каждый час (TEST)"
+      : "раз в месяц";
     return (
       <div className={cn("card-light w-full text-center space-y-5", embedded ? "p-6" : "p-8 md:p-10")}>
         <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/15">
@@ -484,6 +512,41 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed px-0.5">
             Регулярная поддержка пока работает через напоминания о повторном платеже и не является автоматическим списанием.
           </p>
+
+          {isTestEligible && (
+            <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/70 p-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                  DEV / TEST INTERVALS
+                </span>
+                <span className="text-[10px] text-amber-700">Только admin / test users</span>
+              </div>
+              <p className="text-[11px] text-amber-800/90 leading-relaxed mb-2.5">
+                Только для тестирования recurring payments через YooKassa. Реальные деньги списываются — используйте 1 ₽.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {testFrequencyOptions.map(({ id, label }) => {
+                  const active = frequency === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setFrequency(id)}
+                      aria-pressed={active}
+                      className={cn(
+                        "h-11 rounded-lg text-[11px] font-medium border transition-all px-1.5",
+                        active
+                          ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                          : "bg-white border-amber-300 text-amber-900 hover:border-amber-500"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

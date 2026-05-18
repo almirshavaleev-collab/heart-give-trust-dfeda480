@@ -9,7 +9,17 @@
 // deno-lint-ignore no-explicit-any
 type SB = any;
 
-export type Frequency = "weekly" | "biweekly" | "monthly";
+export type Frequency =
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "test_5min"
+  | "test_20min"
+  | "test_60min";
+
+export function isTestFrequency(freq: string | null | undefined): boolean {
+  return !!freq && freq.startsWith("test_");
+}
 export type ChargeAttemptStatus =
   | "created_pending"
   | "created_waiting_capture"
@@ -90,6 +100,9 @@ export function bumpNextPaymentAt(from: Date, freq: Frequency): string {
   const d = new Date(from);
   if (freq === "weekly") d.setDate(d.getDate() + 7);
   else if (freq === "biweekly") d.setDate(d.getDate() + 14);
+  else if (freq === "test_5min") d.setTime(d.getTime() + 5 * 60_000);
+  else if (freq === "test_20min") d.setTime(d.getTime() + 20 * 60_000);
+  else if (freq === "test_60min") d.setTime(d.getTime() + 60 * 60_000);
   else d.setMonth(d.getMonth() + 1);
   return d.toISOString();
 }
@@ -307,6 +320,8 @@ export async function handleRecurringSuccess(
       card_type: cardType,
       card_expiry: cardExpiry,
       payment_method_saved_at: pmSaved ? nowIso : null,
+      is_test: isTestFrequency(frequency) ? true : false,
+      created_via: isTestFrequency(frequency) ? "test_recurring" : "yookassa",
     })
     .select("id")
     .single();

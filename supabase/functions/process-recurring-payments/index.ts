@@ -38,13 +38,14 @@ type Subscription = {
   campaign_id: string | null;
   amount: number;
   currency: string;
-  interval: "weekly" | "biweekly" | "monthly";
+  interval: "weekly" | "biweekly" | "monthly" | "test_5min" | "test_20min" | "test_60min";
   status: string;
   payment_method_id: string | null;
   payment_method_type: string | null;
   next_payment_at: string | null;
   current_billing_key: string | null;
   is_test?: boolean;
+  created_via?: string | null;
 };
 
 Deno.serve(async (req) => {
@@ -92,7 +93,7 @@ Deno.serve(async (req) => {
   const { data: due, error: dueErr } = await supabase
     .from("donor_subscriptions")
     .select(
-      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at, current_billing_key, is_test",
+      "id, user_id, campaign_id, amount, currency, interval, status, payment_method_id, payment_method_type, next_payment_at, current_billing_key, is_test, created_via",
     )
     .eq("status", "active")
     .lte("next_payment_at", nowIso)
@@ -127,12 +128,16 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // Hard guardrail: sandbox subscriptions OR shadow mode → always simulate, never call YooKassa.
-    if (shadowMode || sub.is_test) {
+    // Test-recurring subscriptions (interval starts with "test_") go through the REAL
+    // YooKassa autopay path to validate the production flow end-to-end. Only sandbox
+    // subs (created via admin sandbox tooling) and shadow mode are simulated.
+    const isTestRecurring = sub.created_via === "test_recurring" || (sub.interval as string).startsWith("test_");
+    if (shadowMode || (sub.is_test && !isTestRecurring)) {
       const simSub: SimSubscription = {
         id: sub.id, user_id: sub.user_id, campaign_id: sub.campaign_id,
         amount: Number(sub.amount), currency: sub.currency,
-        interval: sub.interval, retry_count: 0, status: sub.status,
+        interval: sub.interval as "weekly" | "biweekly" | "monthly",
+        retry_count: 0, status: sub.status,
         payment_method_type: sub.payment_method_type, is_test: !!sub.is_test,
       };
       const r = await simulateChargeCycle(supabase, simSub, cfg);
@@ -163,7 +168,11 @@ Deno.serve(async (req) => {
         reason: "stale_lock_reclaimed", prev_key: sub.current_billing_key,
       });
     }
-    structuredLog("lock_acquire", { sub: sub.id, billing_key: billingKey });
+    structuredLog("lock_acquire", {
+      sub: sub.id, billing_key: billingKey,
+      interval: sub.interval, is_test_recurring: isTestRecurring,
+      pm_id: sub.payment_method_id ? "set" : "missing",
+    });
 
     let releaseBillingKey = false; // only if we never created a payment
     try {
@@ -247,6 +256,7 @@ Deno.serve(async (req) => {
               subscription_id: sub.id,
               autopay: "true",
               billing_key: billingKey,
+              is_test_recurring: isTestRecurring ? "true" : "false",
             },
           }),
         });

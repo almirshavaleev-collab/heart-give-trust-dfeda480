@@ -317,8 +317,8 @@ Deno.serve(async (req) => {
           const meta = object?.metadata ?? {};
           const isRecurring = meta?.payment_type === "recurring" || meta?.type === "recurring";
           const freqRaw = String(meta?.frequency ?? "monthly");
-          const frequency = (["weekly","biweekly","monthly"].includes(freqRaw) ? freqRaw : "monthly") as
-            "weekly" | "biweekly" | "monthly";
+          const allowedFreq = ["weekly","biweekly","monthly","test_5min","test_20min","test_60min"];
+          const frequency = (allowedFreq.includes(freqRaw) ? freqRaw : "monthly") as Frequency;
           if (isRecurring) {
             const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
             const cfg = getRecurringConfig();
