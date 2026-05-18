@@ -31,7 +31,5 @@ project_id = "uqiggzylreezigjumxmf"
     verify_jwt = false
   [functions.recurring-readiness]
     verify_jwt = false
-  [functions.send-email-resend]
-    verify_jwt = false
   [functions.ensure-demo-user]
     verify_jwt = false
