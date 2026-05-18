@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
             const subscriptionIdFromMeta: string | null = meta?.subscription_id ?? null;
             const cfg = getRecurringConfig();
             const cycleKey = subscriptionIdFromMeta
-              ? billingCycleKey(subscriptionIdFromMeta, null, cfg.cycleBucketHours)
+              ? billingCycleKey(subscriptionIdFromMeta, null, cfg.cycleBucketHours, frequency)
               : null;
             await handleRecurringSuccess(supabase, {
               subscriptionId: subscriptionIdFromMeta,
