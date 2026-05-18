@@ -255,7 +255,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
       // === MVP MOCK FLOW для регулярных подписок ===
       // Никакой реальной оплаты: создаём запись подписки в БД и показываем success.
-      if (effectiveRecurring && RECURRING_MODE === "mock") {
+      // Test-recurring интервалы (test_*) идут через реальный YooKassa, минуя mock.
+      if (effectiveRecurring && RECURRING_MODE === "mock" && !isTestFrequency(frequency)) {
         if (!authUser) {
           toast({
             title: "Войдите в кабинет",
