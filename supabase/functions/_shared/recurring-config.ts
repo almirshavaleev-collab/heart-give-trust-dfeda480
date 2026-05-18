@@ -99,16 +99,40 @@ export function retryAfterAt(cfg: RecurringConfig, from: Date = new Date()): Dat
  *   - YooKassa Idempotence-Key
  *
  * Bucket size is configurable; default 1 hour. Tolerates small clock skew.
+ *
+ * When `interval` is supplied, bucket is clamped to at most `intervalMs / 2` so that
+ * consecutive cycles always produce distinct keys (critical for sub-hour test intervals
+ * like test_5min / test_20min). Without this clamp, two cycles within the same hour
+ * collide on the same key and trigger duplicate_charge_prevented forever.
  */
 export function billingCycleKey(
   subscriptionId: string,
   nextPaymentAt: string | null,
   bucketHours = 1,
+  interval?: string | null,
 ): string {
   const ms = nextPaymentAt ? new Date(nextPaymentAt).getTime() : Date.now();
-  const bucketMs = Math.max(1, bucketHours) * 3600_000;
+  const baseBucketMs = Math.max(1, bucketHours) * 3600_000;
+  const intervalMs = intervalToMs(interval);
+  // Clamp to half the cycle length so each cycle gets a unique bucket while still
+  // tolerating reasonable clock skew. Never go below 30s to avoid pathological keys.
+  const bucketMs = intervalMs
+    ? Math.max(30_000, Math.min(baseBucketMs, Math.floor(intervalMs / 2)))
+    : baseBucketMs;
   const bucket = Math.floor(ms / bucketMs);
   return `cycle-${subscriptionId}-${bucket}`;
+}
+
+function intervalToMs(interval?: string | null): number | null {
+  switch (interval) {
+    case "test_5min": return 5 * 60_000;
+    case "test_20min": return 20 * 60_000;
+    case "test_60min": return 60 * 60_000;
+    case "weekly": return 7 * 86_400_000;
+    case "biweekly": return 14 * 86_400_000;
+    case "monthly": return 30 * 86_400_000;
+    default: return null;
+  }
 }
 
 /** Append heartbeat for cron monitoring. Best-effort. */
