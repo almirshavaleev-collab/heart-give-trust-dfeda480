@@ -232,36 +232,14 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       const finalPhone = anonymous ? null : (phone.trim() || null);
       const finalEmail = email.trim() || null;
 
-      // === MVP MOCK FLOW для регулярных подписок ===
-      // Никакой реальной оплаты: создаём запись подписки в БД и показываем success.
-      // Test-recurring интервалы (test_*) идут через реальный YooKassa, минуя mock.
-      if (effectiveRecurring && RECURRING_MODE === "mock" && !isTestFrequency(frequency)) {
-        if (!authUser) {
-          toast({
-            title: "Войдите в кабинет",
-            description: "Регулярная поддержка доступна авторизованным пользователям.",
-            variant: "destructive",
-          });
-          setLoading(false);
-          return;
-        }
-        const intervalDays = frequency === "weekly" ? 7 : frequency === "biweekly" ? 14 : 30;
-        const nextAt = new Date(Date.now() + intervalDays * 86400000).toISOString();
-        const { error: subError } = await supabase.from("donor_subscriptions").insert({
-          user_id: authUser.id,
-          amount: activeAmount,
-          currency: "RUB",
-          interval: frequency,
-          status: "active",
-          payment_method_type: "mock",
-          payment_method_id: `mock-${crypto.randomUUID()}`,
-          next_payment_at: nextAt,
-          campaign_id: isCampaign ? campaign!.id : null,
-          is_test: true,
-          created_via: "mock",
+      // Регулярные подписки оформляются только через реальный YooKassa flow
+      // с сохранением payment_method для off-session автосписаний.
+      if (effectiveRecurring && !authUser) {
+        toast({
+          title: "Войдите в кабинет",
+          description: "Регулярная поддержка доступна авторизованным пользователям.",
+          variant: "destructive",
         });
-        if (subError) throw new Error(subError.message);
-        setMockSuccess(true);
         setLoading(false);
         return;
       }
@@ -320,20 +298,6 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             frequency: effectiveRecurring ? frequency : null,
           }));
         } catch { /* ignore */ }
-        // Mock subscription persistence (localStorage). Easily swappable for Supabase later.
-        if (effectiveRecurring && authUser && !isTestFrequency(frequency)) {
-          try {
-            await getSubscriptionsRepo().create({
-              user_id: authUser.id,
-              amount: activeAmount,
-              frequency: frequency as "weekly" | "biweekly" | "monthly",
-              campaign_id: isCampaign ? campaign!.id : null,
-              campaign_title: isCampaign ? campaign!.title : null,
-            });
-          } catch (err) {
-            console.error("[subscriptions] failed to persist mock", err);
-          }
-        }
         window.location.href = url;
         return;
       }
