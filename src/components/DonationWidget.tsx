@@ -397,7 +397,13 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
   // Mock success state — регулярная подписка создана локально, без оплаты
   if (mockSuccess) {
-    const intervalLabel = frequency === "weekly" ? "раз в неделю" : frequency === "biweekly" ? "раз в 2 недели" : "раз в месяц";
+    const intervalLabel =
+      frequency === "weekly" ? "раз в неделю"
+      : frequency === "biweekly" ? "раз в 2 недели"
+      : frequency === "test_5min" ? "каждые 5 минут (TEST)"
+      : frequency === "test_20min" ? "каждые 20 минут (TEST)"
+      : frequency === "test_60min" ? "каждый час (TEST)"
+      : "раз в месяц";
     return (
       <div className={cn("card-light w-full text-center space-y-5", embedded ? "p-6" : "p-8 md:p-10")}>
         <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center ring-1 ring-primary/15">
