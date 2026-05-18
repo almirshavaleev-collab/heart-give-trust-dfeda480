@@ -28,12 +28,24 @@ const MIN_AMOUNT = 1;
  */
 const RECURRING_MODE: "mock" | "live" = "mock";
 
-type Frequency = "weekly" | "biweekly" | "monthly";
+type Frequency =
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "test_5min"
+  | "test_20min"
+  | "test_60min";
 const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
   { id: "weekly", label: "Раз в неделю" },
   { id: "biweekly", label: "Раз в 2 недели" },
   { id: "monthly", label: "Раз в месяц", popular: true },
 ];
+const testFrequencyOptions: { id: Frequency; label: string }[] = [
+  { id: "test_5min", label: "Каждые 5 минут" },
+  { id: "test_20min", label: "Каждые 20 минут" },
+  { id: "test_60min", label: "Каждый час" },
+];
+const isTestFrequency = (f: Frequency) => f.startsWith("test_");
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
 const PAYMENT_METHOD_KEY = "ligafund:payment_method";
@@ -107,6 +119,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   // Авторизованный пользователь: автозаполнение из профиля
   const [authUser, setAuthUser] = useState<{ id: string; email: string | null } | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [isTestEligible, setIsTestEligible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +143,14 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       setName((prev) => (prev ? prev : fullName ?? ""));
       setPhone((prev) => (prev ? prev : profilePhone ?? ""));
       setEmail((prev) => (prev ? prev : user.email ?? ""));
+
+      // Test/admin eligibility for DEV recurring intervals (server-validated too).
+      try {
+        const { data: eligible } = await (supabase as any).rpc("is_test_user_or_admin");
+        if (!cancelled) setIsTestEligible(!!eligible);
+      } catch (e) {
+        console.warn("[donation-widget] is_test_user_or_admin check failed", e);
+      }
     })();
     return () => { cancelled = true; };
   }, []);
