@@ -28,10 +28,6 @@ export interface RecurringConfig {
   retryDelayHr: number;
   notifyThrottleHr: number;
   cycleBucketHours: number;
-  testMode: boolean;
-  forceSuccess: boolean;
-  forceFailure: boolean;
-  simulateTimeoutMs: number;
 }
 
 export function getRecurringConfig(): RecurringConfig {
@@ -47,26 +43,10 @@ export function getRecurringConfig(): RecurringConfig {
     retryDelayHr: envInt("RECURRING_RETRY_DELAY_HR", 24),
     notifyThrottleHr: envInt("RECURRING_NOTIFY_THROTTLE_HR", 24),
     cycleBucketHours: envInt("RECURRING_CYCLE_BUCKET_HOURS", 1),
-    testMode: envBool("RECURRING_TEST_MODE", false),
-    forceSuccess: envBool("RECURRING_FORCE_SUCCESS", false),
-    forceFailure: envBool("RECURRING_FORCE_FAILURE", false),
-    simulateTimeoutMs: envInt("RECURRING_SIMULATE_TIMEOUT_MS", 35_000),
   };
 }
 
-/**
- * Effective timings — accelerated when testMode is on.
- * monthly: 2min, biweekly: 1min, weekly: 30sec
- * retry: 1min, exec lock TTL: 2min
- */
 export function getEffectiveTimings(cfg: RecurringConfig) {
-  if (cfg.testMode) {
-    return {
-      execLockTtlMs: 2 * 60_000,
-      retryDelayMs: 60_000,
-      intervalMs: { weekly: 30_000, biweekly: 60_000, monthly: 120_000 },
-    };
-  }
   return {
     execLockTtlMs: cfg.execLockTtlMin * 60_000,
     retryDelayMs: cfg.retryDelayHr * 3_600_000,
@@ -125,9 +105,6 @@ export function billingCycleKey(
 
 function intervalToMs(interval?: string | null): number | null {
   switch (interval) {
-    case "test_5min": return 5 * 60_000;
-    case "test_20min": return 20 * 60_000;
-    case "test_60min": return 60 * 60_000;
     case "weekly": return 7 * 86_400_000;
     case "biweekly": return 14 * 86_400_000;
     case "monthly": return 30 * 86_400_000;
