@@ -22,6 +22,7 @@ import {
   useRecurringSubscriptions, fetchChargeAttempts, donorPause, donorResume, donorCancel, donorRetryNow,
   type RecurringSubscription, type ChargeAttempt,
 } from "@/hooks/useRecurringSubscriptions";
+import { supabase } from "@/integrations/supabase/client";
 import { formatRub, formatDateTime, formatDate } from "@/lib/donor-format";
 import {
   STATUS_META, frequencyLabel, formatCard, formatDistanceToNowRu, attemptMeta,
@@ -319,15 +320,48 @@ function Meta({
 
 function HistoryDialog({ s, onClose }: { s: RecurringSubscription | null; onClose: () => void }) {
   const [items, setItems] = useState<ChargeAttempt[] | null>(null);
+  const [donationMap, setDonationMap] = useState<Record<string, { amount: number; paid_at: string | null; status: string }>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!s) { setItems(null); return; }
-    setLoading(true);
-    fetchChargeAttempts(s.id)
-      .then(setItems)
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
+    if (!s) { setItems(null); setDonationMap({}); setError(null); return; }
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const attempts = await fetchChargeAttempts(s.id);
+        if (cancelled) return;
+        setItems(attempts);
+        const ids = attempts.map((a) => a.donation_id).filter(Boolean) as string[];
+        if (ids.length > 0) {
+          const { data: donations } = await supabase
+            .from("donations")
+            .select("id, amount, paid_at, status")
+            .in("id", ids);
+          if (!cancelled && donations) {
+            const map: Record<string, { amount: number; paid_at: string | null; status: string }> = {};
+            donations.forEach((d: any) => { map[d.id] = { amount: Number(d.amount), paid_at: d.paid_at, status: d.status }; });
+            setDonationMap(map);
+          }
+        } else {
+          setDonationMap({});
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          console.error("[history] load error", e);
+          setError(e?.message || "Не удалось загрузить историю");
+          setItems([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    // Refresh every 20s while dialog is open
+    const t = setInterval(load, 20_000);
+    return () => { cancelled = true; clearInterval(t); };
   }, [s]);
 
   return (
@@ -346,6 +380,11 @@ function HistoryDialog({ s, onClose }: { s: RecurringSubscription | null; onClos
             <Skeleton className="h-14" />
             <Skeleton className="h-14" />
           </div>
+        ) : error ? (
+          <div className="py-8 text-center text-sm text-rose-600">
+            <AlertCircle className="w-5 h-5 mx-auto mb-2" />
+            {error}
+          </div>
         ) : !items || items.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">
             Пока нет попыток списания.
@@ -354,6 +393,7 @@ function HistoryDialog({ s, onClose }: { s: RecurringSubscription | null; onClos
           <ul className="space-y-2">
             {items.map((a) => {
               const m = attemptMeta(a.status);
+              const d = a.donation_id ? donationMap[a.donation_id] : undefined;
               return (
                 <li key={a.id}
                   className="rounded-xl border border-border bg-background p-3 flex items-start justify-between gap-3">
@@ -362,7 +402,7 @@ function HistoryDialog({ s, onClose }: { s: RecurringSubscription | null; onClos
                       <Badge variant="outline" className={cn("rounded-full text-xs border-transparent", m.tone)}>
                         {m.label}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{formatDateTime(a.created_at)}</span>
+                      <span className="text-xs text-muted-foreground">{formatDateTime(d?.paid_at || a.created_at)}</span>
                     </div>
                     {a.error_description && (
                       <p className="mt-1.5 text-xs text-rose-600 flex items-start gap-1.5">
@@ -376,6 +416,11 @@ function HistoryDialog({ s, onClose }: { s: RecurringSubscription | null; onClos
                       </p>
                     )}
                   </div>
+                  {d && (
+                    <div className="text-right shrink-0">
+                      <div className="font-semibold text-foreground">{formatRub(d.amount)}</div>
+                    </div>
+                  )}
                 </li>
               );
             })}
