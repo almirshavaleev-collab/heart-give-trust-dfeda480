@@ -527,6 +527,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_demo: boolean
           is_public_donor: boolean
           link_email_attempts: number
           link_email_code_hash: string | null
@@ -544,6 +545,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_demo?: boolean
           is_public_donor?: boolean
           link_email_attempts?: number
           link_email_code_hash?: string | null
@@ -561,6 +563,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_demo?: boolean
           is_public_donor?: boolean
           link_email_attempts?: number
           link_email_code_hash?: string | null

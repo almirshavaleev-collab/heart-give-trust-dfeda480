@@ -16,6 +16,9 @@ const emailSchema = z.string().trim().email({ message: "Некорректный
 const passwordSchema = z.string().min(8, { message: "Минимум 8 символов" }).max(72);
 const nameSchema = z.string().trim().min(1, { message: "Введите имя" }).max(100);
 
+const DEMO_EMAIL = "test@ligafund.ru";
+const DEMO_PASSWORD = "test123";
+
 export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -42,6 +45,34 @@ export default function AuthPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  const handleDemoLogin = async () => {
+    setDemoLoading(true);
+    try {
+      // 1. Ensure demo user + seed data exist (idempotent)
+      const { error: fnError } = await supabase.functions.invoke("ensure-demo-user");
+      if (fnError) throw new Error(fnError.message);
+      // 2. Standard sign-in
+      const { error } = await supabase.auth.signInWithPassword({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+      });
+      if (error) throw error;
+      setLoginEmail(DEMO_EMAIL);
+      setLoginPassword(DEMO_PASSWORD);
+      toast({ title: "Вход в демо-кабинет" });
+      navigate(redirect, { replace: true });
+    } catch (e) {
+      toast({
+        title: "Не удалось войти в демо",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setDemoLoading(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,6 +253,30 @@ export default function AuthPage() {
                 )}
               </TabsContent>
             </Tabs>
+
+            <div className="mt-6 rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                  Тестовый доступ
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Демо-аккаунт для знакомства с личным кабинетом. Чувствительные действия в нём отключены.
+              </p>
+              <div className="text-xs space-y-1 font-mono bg-background/60 rounded-md p-2 border border-border">
+                <div><span className="text-muted-foreground">email:</span> {DEMO_EMAIL}</div>
+                <div><span className="text-muted-foreground">пароль:</span> {DEMO_PASSWORD}</div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={handleDemoLogin}
+                disabled={demoLoading}
+              >
+                {demoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Войти как тестовый пользователь"}
+              </Button>
+            </div>
 
             <p className="text-xs text-center text-muted-foreground mt-6">
               Регистрируясь, вы принимаете{" "}
