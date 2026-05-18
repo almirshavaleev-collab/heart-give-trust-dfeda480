@@ -19,9 +19,8 @@ export default function UpcomingChargesCard() {
   const load = async () => {
     const { data, error } = await (supabase as any)
       .from("donor_subscriptions")
-      .select("amount, interval, next_payment_at, status, is_test")
-      .eq("status", "active")
-      .eq("is_test", false);
+      .select("amount, interval, next_payment_at, status")
+      .eq("status", "active");
     if (error) {
       console.error("UpcomingChargesCard error:", error);
       setLoading(false);
