@@ -19,8 +19,11 @@ Deno.serve(async (req) => {
     const paymentType: "one_time" | "recurring" =
       rawPaymentType === "recurring" || rawPaymentType === "monthly" ? "recurring" : "one_time";
     const rawFrequency: string = body?.frequency ?? "monthly";
-    const frequency: "weekly" | "biweekly" | "monthly" =
-      rawFrequency === "weekly" || rawFrequency === "biweekly" ? rawFrequency : "monthly";
+    const ALLOWED_FREQ = ["weekly","biweekly","monthly","test_5min","test_20min","test_60min"] as const;
+    type Freq = typeof ALLOWED_FREQ[number];
+    const frequency: Freq = (ALLOWED_FREQ as readonly string[]).includes(rawFrequency)
+      ? (rawFrequency as Freq) : "monthly";
+    const isTestFrequency = frequency.startsWith("test_");
     const isRecurring = paymentType === "recurring";
 
     // Маппинг выбранного на фронте метода в формат ЮKassa payment_method_data.type
@@ -105,6 +108,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Server-side guard: test_* intervals are admin/test-user only.
+    if (isRecurring && isTestFrequency) {
+      if (!userId) {
+        return new Response(
+          JSON.stringify({ error: "Тестовые интервалы доступны только авторизованным test/admin пользователям" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const [{ data: roleRow }, { data: profRow }] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+        supabase.from("profiles").select("is_test_user").eq("user_id", userId).maybeSingle(),
+      ]);
+      const allowed = !!roleRow || profRow?.is_test_user === true;
+      if (!allowed) {
+        console.warn(`[create-payment] reject test_frequency user_id=${userId} freq=${frequency}`);
+        return new Response(
+          JSON.stringify({ error: "Тестовые интервалы недоступны для вашего аккаунта" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // 0. Серверная защита: если донат целевой — проверяем статус сбора.
     //    Платёж в неактивный сбор (completed/draft/archived) запрещён.
     if (campaignId) {
@@ -153,6 +178,7 @@ Deno.serve(async (req) => {
         payment_type: paymentType,
         user_id: userId,
         is_recurring: isRecurring,
+        is_test: isRecurring && isTestFrequency ? true : false,
       })
       .select("id")
       .single();
