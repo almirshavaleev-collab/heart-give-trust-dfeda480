@@ -39,7 +39,6 @@ type SubscriptionRow = {
   amount: number;
   interval: string;
   status: string;
-  is_test: boolean;
   next_payment_at: string | null;
 };
 
@@ -69,7 +68,7 @@ export default function AdminDashboard() {
         .limit(1000),
       (supabase as any)
         .from("donor_subscriptions")
-        .select("id, amount, interval, status, is_test, next_payment_at"),
+        .select("id, amount, interval, status, next_payment_at"),
     ]);
     if (donRes.error) console.error(donRes.error);
     if (subRes.error) console.error(subRes.error);
@@ -80,7 +79,6 @@ export default function AdminDashboard() {
         amount: Number(s.amount ?? 0),
         interval: s.interval,
         status: s.status,
-        is_test: !!s.is_test,
         next_payment_at: s.next_payment_at,
       })),
     );
@@ -121,8 +119,8 @@ export default function AdminDashboard() {
     const weekSum = succeeded.filter((d) => ref(d) >= startWeek).reduce((s, d) => s + d.amount, 0);
     const monthSum = succeeded.filter((d) => ref(d) >= startMonth).reduce((s, d) => s + d.amount, 0);
 
-    // Регулярные подписки (active, не тест)
-    const activeSubs = subscriptions.filter((s) => s.status === "active" && !s.is_test);
+    // Регулярные подписки (active, production-only)
+    const activeSubs = subscriptions.filter((s) => s.status === "active");
     const activeSubsCount = activeSubs.length;
     const mrr = activeSubs.reduce((sum, s) => {
       const a = s.amount;
