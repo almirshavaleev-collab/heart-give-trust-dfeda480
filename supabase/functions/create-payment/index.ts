@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(
-      `[create-payment] mode=${mode} amount=${amount} campaign_id=${campaignId ?? "general"} recurring=${isRecurring} frequency=${isRecurring ? frequency : "n/a"}`,
+      `[create-payment] mode=${mode} amount=${amount} campaign_id=${campaignId ?? "general"} recurring=${isRecurring} frequency=${isRecurring ? frequency : "n/a"} test_recurring=${isRecurring && isTestFrequency}`,
     );
 
     if (!shopId || !secretKey) {
