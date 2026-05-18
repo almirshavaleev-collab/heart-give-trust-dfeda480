@@ -512,6 +512,41 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed px-0.5">
             Регулярная поддержка пока работает через напоминания о повторном платеже и не является автоматическим списанием.
           </p>
+
+          {isTestEligible && (
+            <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50/70 p-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-800">
+                  DEV / TEST INTERVALS
+                </span>
+                <span className="text-[10px] text-amber-700">Только admin / test users</span>
+              </div>
+              <p className="text-[11px] text-amber-800/90 leading-relaxed mb-2.5">
+                Только для тестирования recurring payments через YooKassa. Реальные деньги списываются — используйте 1 ₽.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {testFrequencyOptions.map(({ id, label }) => {
+                  const active = frequency === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setFrequency(id)}
+                      aria-pressed={active}
+                      className={cn(
+                        "h-11 rounded-lg text-[11px] font-medium border transition-all px-1.5",
+                        active
+                          ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                          : "bg-white border-amber-300 text-amber-900 hover:border-amber-500"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
