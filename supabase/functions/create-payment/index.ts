@@ -19,11 +19,11 @@ Deno.serve(async (req) => {
     const paymentType: "one_time" | "recurring" =
       rawPaymentType === "recurring" || rawPaymentType === "monthly" ? "recurring" : "one_time";
     const rawFrequency: string = body?.frequency ?? "monthly";
-    const ALLOWED_FREQ = ["weekly","biweekly","monthly","test_5min","test_20min","test_60min"] as const;
+    const ALLOWED_FREQ = ["weekly","biweekly","monthly"] as const;
     type Freq = typeof ALLOWED_FREQ[number];
     const frequency: Freq = (ALLOWED_FREQ as readonly string[]).includes(rawFrequency)
       ? (rawFrequency as Freq) : "monthly";
-    const isTestFrequency = frequency.startsWith("test_");
+    const isTestFrequency = false;
     const isRecurring = paymentType === "recurring";
 
     // Маппинг выбранного на фронте метода в формат ЮKassa payment_method_data.type
