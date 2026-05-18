@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const billingKey = billingCycleKey(sub.id, sub.next_payment_at, cfg.cycleBucketHours);
+    const billingKey = billingCycleKey(sub.id, sub.next_payment_at, cfg.cycleBucketHours, sub.interval);
 
     // 2+3. Atomic combined lock: short-term processing_at AND long-term billing_key.
     const { data: locked, error: lockErr } = await supabase
