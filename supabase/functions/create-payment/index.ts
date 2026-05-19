@@ -59,9 +59,12 @@ Deno.serve(async (req) => {
     // request host, auto-detected origin, beta/vercel/lovable превью —
     // после оплаты пользователь ВСЕГДА попадает только на ligafund.ru/thank-you.
     const PUBLIC_SITE_URL = "https://ligafund.ru";
-    let returnUrl = `${PUBLIC_SITE_URL}/thank-you`;
+    // Жёстко возвращаем пользователя на главную с маркером успеха.
+    // /thank-you временно убран из flow — на некоторых доменных цепочках
+    // (Lovable → beta.ligafund → VPS → ligafund.ru) он отдавал Vercel 404.
+    let returnUrl = `${PUBLIC_SITE_URL}/?payment=success`;
     if (isRecurring) {
-      returnUrl += "?mode=recurring";
+      returnUrl += "&mode=recurring";
     }
 
     console.log(
