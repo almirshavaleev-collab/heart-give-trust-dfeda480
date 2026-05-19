@@ -90,8 +90,6 @@ const App = () => (
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="campaigns" element={<AdminCampaigns />} />
-            <Route path="news" element={<AdminNews />} />
-            <Route path="reports" element={<AdminReports />} />
             <Route path="donations" element={<AdminDonations />} />
             <Route path="donors" element={<AdminDonors />} />
             <Route path="recurring" element={<AdminRecurring />} />
