@@ -1,15 +1,26 @@
 import { Link } from "react-router-dom";
-import { Heart, ListOrdered, Repeat, Target, Award, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Heart, ListOrdered, Repeat, Target, Award, Sparkles, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { useDonorDonations, useDonorSubscriptions, useUserAchievements, useDonorProfile } from "@/hooks/useDonorData";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useDonorDonations, useUserAchievements, useDonorProfile } from "@/hooks/useDonorData";
+import { useRecurringSubscriptions, type RecurringSubscription } from "@/hooks/useRecurringSubscriptions";
 import { formatRub, formatDate, statusLabel } from "@/lib/donor-format";
+import { frequencyLabel } from "@/lib/recurring-format";
 
-function StatCard({ icon: Icon, label, value, hint }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode; hint?: string }) {
+function StatCard({ icon: Icon, label, value, hint, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode; hint?: string; onClick?: () => void }) {
+  const interactive = !!onClick;
   return (
-    <Card className="border-border">
+    <Card
+      className={`border-border ${interactive ? "cursor-pointer transition-colors hover:bg-secondary/30" : ""}`}
+      onClick={onClick}
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); } } : undefined}
+    >
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1 min-w-0">
@@ -26,17 +37,64 @@ function StatCard({ icon: Icon, label, value, hint }: { icon: React.ComponentTyp
   );
 }
 
+function isTestSub(s: RecurringSubscription): boolean {
+  return !!s.is_test || s.frequency === "hourly";
+}
+
+function monthlyEquivalent(s: RecurringSubscription): number {
+  const a = Number(s.amount) || 0;
+  switch (s.frequency) {
+    case "weekly":
+    case "week":
+      return a * 4.345;
+    case "biweekly":
+      return a * 2.1725;
+    case "monthly":
+    case "month":
+      return a;
+    default:
+      return 0; // exclude hourly/test from estimate
+  }
+}
+
+function pluralActive(n: number): string {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return `${n} активная подписка`;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} активные подписки`;
+  return `${n} активных подписок`;
+}
+
 export default function AccountOverview() {
   const { data: profile } = useDonorProfile();
   const { data: donations, isLoading: dLoading } = useDonorDonations();
-  const { data: subs } = useDonorSubscriptions();
+  const { data: subs } = useRecurringSubscriptions();
   const { data: achievements } = useUserAchievements();
+  const [subsOpen, setSubsOpen] = useState(false);
 
   const succeeded = (donations ?? []).filter((d) => d.status === "succeeded");
   const total = succeeded.reduce((s, d) => s + Number(d.amount), 0);
   const campaigns = new Set(succeeded.map((d) => d.campaign_id).filter(Boolean)).size;
   const last = succeeded[0];
-  const activeSub = (subs ?? []).find((s) => s.status === "active");
+
+  const activeSubs = useMemo(() => (subs ?? []).filter((s) => s.status === "active"), [subs]);
+  const prodActive = activeSubs.filter((s) => !isTestSub(s));
+  const monthlyEst = prodActive.reduce((sum, s) => sum + monthlyEquivalent(s), 0);
+
+  const recurringValue =
+    activeSubs.length === 0
+      ? "Не оформлена"
+      : activeSubs.length === 1
+      ? "Активна"
+      : pluralActive(activeSubs.length);
+
+  const recurringHint =
+    activeSubs.length === 0
+      ? undefined
+      : activeSubs.length === 1
+      ? `${formatRub(activeSubs[0].amount)} / ${frequencyLabel(activeSubs[0].frequency).toLowerCase()}`
+      : monthlyEst > 0
+      ? `≈ ${formatRub(Math.round(monthlyEst))} / мес`
+      : "Тестовые подписки";
 
   return (
     <div className="space-y-6">
@@ -56,9 +114,52 @@ export default function AccountOverview() {
           <StatCard icon={Heart} label="Всего пожертвовано" value={formatRub(total)} />
           <StatCard icon={ListOrdered} label="Количество донатов" value={succeeded.length} />
           <StatCard icon={Target} label="Поддержано сборов" value={campaigns} />
-          <StatCard icon={Repeat} label="Регулярная помощь" value={activeSub ? "Активна" : "Не оформлена"} hint={activeSub ? `${formatRub(activeSub.amount)} / мес` : undefined} />
+          <StatCard
+            icon={Repeat}
+            label="Регулярная помощь"
+            value={recurringValue}
+            hint={recurringHint}
+            onClick={activeSubs.length > 0 ? () => setSubsOpen(true) : undefined}
+          />
         </div>
       )}
+
+      <Dialog open={subsOpen} onOpenChange={setSubsOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Активные регулярные подписки</DialogTitle>
+            <DialogDescription>
+              {activeSubs.length > 0
+                ? `Всего активных: ${activeSubs.length}${monthlyEst > 0 ? ` · ≈ ${formatRub(Math.round(monthlyEst))} / мес` : ""}`
+                : "Пока нет активных подписок"}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="divide-y divide-border">
+            {activeSubs.map((s) => {
+              const test = isTestSub(s);
+              return (
+                <li key={s.id} className={`py-3 flex items-center justify-between gap-3 ${test ? "opacity-70" : ""}`}>
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span className="text-sm font-medium truncate">
+                      {formatRub(s.amount)} / {frequencyLabel(s.frequency).toLowerCase()}
+                    </span>
+                    {test && (
+                      <Badge variant="outline" className="text-[10px] rounded-full">Тестовая</Badge>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="pt-2">
+            <Button asChild variant="outline" className="w-full rounded-full">
+              <Link to="/account/subscriptions" onClick={() => setSubsOpen(false)}>
+                Управлять подписками <ChevronRight className="w-4 h-4" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-border">
