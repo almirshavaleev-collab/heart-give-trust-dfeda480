@@ -24,8 +24,6 @@ import AccountSettings from "./pages/account/AccountSettings.tsx";
 import AdminLogin from "./pages/admin/AdminLogin.tsx";
 import AdminLayout from "./pages/admin/AdminLayout.tsx";
 import AdminCampaigns from "./pages/admin/AdminCampaigns.tsx";
-import AdminNews from "./pages/admin/AdminNews.tsx";
-import AdminReports from "./pages/admin/AdminReports.tsx";
 import AdminDonations from "./pages/admin/AdminDonations.tsx";
 import AdminDashboard from "./pages/admin/AdminDashboard.tsx";
 import AdminDonors from "./pages/admin/AdminDonors.tsx";
