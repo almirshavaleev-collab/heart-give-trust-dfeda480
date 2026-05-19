@@ -21,6 +21,7 @@ export type RecurringSubscription = {
   created_at: string;
   created_via?: "yookassa" | "admin" | string | null;
   payment_method_type?: string | null;
+  is_test?: boolean;
 };
 
 export function useRecurringSubscriptions(pollMs: number = 30000) {
