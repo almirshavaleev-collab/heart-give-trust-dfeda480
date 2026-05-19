@@ -55,20 +55,13 @@ Deno.serve(async (req) => {
       ? Deno.env.get("YOOKASSA_PROD_SECRET_KEY")
       : Deno.env.get("YOOKASSA_SECRET_KEY");
 
-    // В production return_url по умолчанию — боевой домен с success-страницей.
-    const defaultReturnUrl = mode === "production"
-      ? "https://ligafund.ru/payment-success"
-      : "https://ligafund.ru/thank-you";
-    let returnUrl: string = body?.return_url || defaultReturnUrl;
-    // Для recurring добавляем mode=recurring к return_url, чтобы фронт мог различить flow.
+    // Жёстко используем production-домен. Игнорируем body.return_url,
+    // request host, auto-detected origin, beta/vercel/lovable превью —
+    // после оплаты пользователь ВСЕГДА попадает только на ligafund.ru/thank-you.
+    const PUBLIC_SITE_URL = "https://ligafund.ru";
+    let returnUrl = `${PUBLIC_SITE_URL}/thank-you`;
     if (isRecurring) {
-      try {
-        const u = new URL(returnUrl);
-        if (!u.searchParams.has("mode")) u.searchParams.set("mode", "recurring");
-        returnUrl = u.toString();
-      } catch {
-        returnUrl = returnUrl + (returnUrl.includes("?") ? "&" : "?") + "mode=recurring";
-      }
+      returnUrl += "?mode=recurring";
     }
 
     console.log(
