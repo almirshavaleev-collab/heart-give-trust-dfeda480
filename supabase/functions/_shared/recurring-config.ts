@@ -51,6 +51,7 @@ export function getEffectiveTimings(cfg: RecurringConfig) {
     execLockTtlMs: cfg.execLockTtlMin * 60_000,
     retryDelayMs: cfg.retryDelayHr * 3_600_000,
     intervalMs: {
+      hourly: 3_600_000,
       weekly: 7 * 86_400_000,
       biweekly: 14 * 86_400_000,
       monthly: 30 * 86_400_000, // approximate; production path uses bumpNextPaymentAt's calendar math
@@ -59,7 +60,7 @@ export function getEffectiveTimings(cfg: RecurringConfig) {
 }
 
 export function nextRunAtFor(
-  interval: "weekly" | "biweekly" | "monthly",
+  interval: "hourly" | "weekly" | "biweekly" | "monthly",
   cfg: RecurringConfig,
   from: Date = new Date(),
 ): Date {
@@ -105,6 +106,7 @@ export function billingCycleKey(
 
 function intervalToMs(interval?: string | null): number | null {
   switch (interval) {
+    case "hourly": return 3_600_000;
     case "weekly": return 7 * 86_400_000;
     case "biweekly": return 14 * 86_400_000;
     case "monthly": return 30 * 86_400_000;

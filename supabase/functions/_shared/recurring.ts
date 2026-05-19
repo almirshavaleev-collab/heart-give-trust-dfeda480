@@ -9,7 +9,7 @@
 // deno-lint-ignore no-explicit-any
 type SB = any;
 
-export type Frequency = "weekly" | "biweekly" | "monthly";
+export type Frequency = "hourly" | "weekly" | "biweekly" | "monthly";
 
 export function isTestFrequency(_freq: string | null | undefined): boolean {
   return false;
@@ -87,7 +87,8 @@ export function notifyDonor(
 
 export function bumpNextPaymentAt(from: Date, freq: Frequency): string {
   const d = new Date(from);
-  if (freq === "weekly") d.setDate(d.getDate() + 7);
+  if (freq === "hourly") d.setHours(d.getHours() + 1);
+  else if (freq === "weekly") d.setDate(d.getDate() + 7);
   else if (freq === "biweekly") d.setDate(d.getDate() + 14);
   else d.setMonth(d.getMonth() + 1);
   return d.toISOString();

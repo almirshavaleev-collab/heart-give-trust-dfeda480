@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
         const subscriptionId: string | null = meta?.subscription_id ?? null;
         const freqRaw = String(meta?.frequency ?? "monthly");
         const frequency: Frequency =
-          freqRaw === "weekly" || freqRaw === "biweekly" ? freqRaw : "monthly";
+          freqRaw === "hourly" || freqRaw === "weekly" || freqRaw === "biweekly" ? freqRaw : "monthly";
 
         if (obj.status === "succeeded") {
           const { data: upd } = await supabase.from("donations").update({

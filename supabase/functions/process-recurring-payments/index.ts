@@ -37,7 +37,7 @@ type Subscription = {
   campaign_id: string | null;
   amount: number;
   currency: string;
-  interval: "weekly" | "biweekly" | "monthly";
+  interval: "hourly" | "weekly" | "biweekly" | "monthly";
   status: string;
   payment_method_id: string | null;
   payment_method_type: string | null;
