@@ -86,13 +86,19 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
     try {
       const saved = localStorage.getItem(PAYMENT_METHOD_KEY) as PaymentMethod | null;
       if (saved && ["sbp", "card", "sber", "tinkoff"].includes(saved)) return saved;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     return isMobile ? "sbp" : "card";
   });
 
   useEffect(() => {
-    try { localStorage.setItem(PAYMENT_METHOD_KEY, selectedPaymentMethod); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(PAYMENT_METHOD_KEY, selectedPaymentMethod);
+    } catch {
+      /* ignore */
+    }
   }, [selectedPaymentMethod]);
 
   // Авторизованный пользователь: автозаполнение из профиля
@@ -102,7 +108,9 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (cancelled || !user) return;
       setAuthUser({ id: user.id, email: user.email ?? null });
 
@@ -118,11 +126,13 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
       setProfileName(fullName);
       // Заполняем только пустые поля, чтобы не затирать ввод пользователя
-      setName((prev) => (prev ? prev : fullName ?? ""));
-      setPhone((prev) => (prev ? prev : profilePhone ?? ""));
-      setEmail((prev) => (prev ? prev : user.email ?? ""));
+      setName((prev) => (prev ? prev : (fullName ?? "")));
+      setPhone((prev) => (prev ? prev : (profilePhone ?? "")));
+      setEmail((prev) => (prev ? prev : (user.email ?? "")));
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const rawAmount = amount ?? (customAmount ? Math.floor(Number(customAmount)) : 0);
@@ -142,10 +152,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   }, [anonymous]);
 
   const effectiveRecurring = allowRecurring && recurring;
-  const presets = useMemo(
-    () => (effectiveRecurring ? presetsRecurring : presetsOneTime),
-    [effectiveRecurring],
-  );
+  const presets = useMemo(() => (effectiveRecurring ? presetsRecurring : presetsOneTime), [effectiveRecurring]);
 
   // Если виджет переключился в campaign-режим — гарантированно сбрасываем recurring.
   useEffect(() => {
@@ -220,7 +227,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
     setLoading(true);
     try {
       const finalName = anonymous ? "Аноним" : name.trim();
-      const finalPhone = anonymous ? null : (phone.trim() || null);
+      const finalPhone = anonymous ? null : phone.trim() || null;
       const finalEmail = email.trim() || null;
 
       // Регулярные подписки оформляются только через реальный YooKassa flow
@@ -242,7 +249,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       const { data, error } = await supabase.functions.invoke("create-payment", {
         body: {
           amount: activeAmount,
-          return_url: `${window.location.origin}/thank-you`,
+          return_url: `https://ligafund.ru/thank-you`,
           description,
           donor_name: finalName,
           donor_email: finalEmail,
@@ -260,7 +267,11 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       if (error) {
         const ctx = (error as unknown as { context?: Response }).context;
         if (ctx && typeof ctx.json === "function") {
-          try { errBody = await ctx.clone().json(); } catch { /* ignore */ }
+          try {
+            errBody = await ctx.clone().json();
+          } catch {
+            /* ignore */
+          }
         }
       }
       const errCode = errBody?.code ?? (data as { code?: string } | null)?.code;
@@ -281,14 +292,19 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       const url = data?.confirmation?.confirmation_url;
       if (url) {
         try {
-          localStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify({
-            donation_id: data?.donation_id ?? null,
-            payment_id: data?.id ?? null,
-            created_at: new Date().toISOString(),
-            payment_type: effectiveRecurring ? "recurring" : "one_time",
-            frequency: effectiveRecurring ? frequency : null,
-          }));
-        } catch { /* ignore */ }
+          localStorage.setItem(
+            PENDING_PAYMENT_KEY,
+            JSON.stringify({
+              donation_id: data?.donation_id ?? null,
+              payment_id: data?.id ?? null,
+              created_at: new Date().toISOString(),
+              payment_type: effectiveRecurring ? "recurring" : "one_time",
+              frequency: effectiveRecurring ? frequency : null,
+            }),
+          );
+        } catch {
+          /* ignore */
+        }
         window.location.href = url;
         return;
       }
@@ -336,45 +352,43 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
           <UserCheck className="w-4 h-4 mt-0.5 text-primary shrink-0" />
           <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
             Вы вошли как{" "}
-            <span className="text-foreground font-medium">
-              {profileName || authUser.email || "пользователь"}
-            </span>
-            . Пожертвование будет привязано к вашему личному кабинету.
+            <span className="text-foreground font-medium">{profileName || authUser.email || "пользователь"}</span>.
+            Пожертвование будет привязано к вашему личному кабинету.
           </p>
         </div>
       )}
       {/* Тип платежа — segmented toggle. Скрыт на страницах сборов: там только разовый платёж. */}
       {allowRecurring && (
-      <div
-        role="tablist"
-        aria-label="Тип пожертвования"
-        className="relative flex gap-1 rounded-2xl bg-secondary/70 backdrop-blur-sm p-1 mb-5 border border-border/60 shadow-inner"
-      >
-        {[
-          { id: "one_time" as const, label: "Разовое пожертвование", icon: Heart },
-          { id: "recurring" as const, label: "Регулярная поддержка", icon: Repeat },
-        ].map(({ id, label, icon: Icon }) => {
-          const active = (id === "recurring") === recurring;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setRecurring(id === "recurring")}
-              className={cn(
-                "relative flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all duration-300 whitespace-nowrap",
-                active
-                  ? "bg-background text-foreground shadow-md ring-1 ring-border"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Icon className={cn("w-4 h-4 transition-transform duration-300", active && "scale-110")} />
-              <span className="truncate">{label}</span>
-            </button>
-          );
-        })}
-      </div>
+        <div
+          role="tablist"
+          aria-label="Тип пожертвования"
+          className="relative flex gap-1 rounded-2xl bg-secondary/70 backdrop-blur-sm p-1 mb-5 border border-border/60 shadow-inner"
+        >
+          {[
+            { id: "one_time" as const, label: "Разовое пожертвование", icon: Heart },
+            { id: "recurring" as const, label: "Регулярная поддержка", icon: Repeat },
+          ].map(({ id, label, icon: Icon }) => {
+            const active = (id === "recurring") === recurring;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setRecurring(id === "recurring")}
+                className={cn(
+                  "relative flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all duration-300 whitespace-nowrap",
+                  active
+                    ? "bg-background text-foreground shadow-md ring-1 ring-border"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className={cn("w-4 h-4 transition-transform duration-300", active && "scale-110")} />
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {/* Периодичность — только для регулярной поддержки */}
@@ -395,7 +409,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                     "relative h-12 rounded-xl text-xs sm:text-sm font-medium border transition-all duration-200 px-2 flex flex-col items-center justify-center leading-tight",
                     active
                       ? "bg-primary text-primary-foreground border-primary shadow-md"
-                      : "bg-background border-border hover:border-foreground/30 text-foreground"
+                      : "bg-background border-border hover:border-foreground/30 text-foreground",
                   )}
                 >
                   {popular && !active && (
@@ -403,7 +417,12 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                   )}
                   <span>{label}</span>
                   {hint && (
-                    <span className={cn("text-[10px] mt-0.5 opacity-80", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                    <span
+                      className={cn(
+                        "text-[10px] mt-0.5 opacity-80",
+                        active ? "text-primary-foreground/80" : "text-muted-foreground",
+                      )}
+                    >
                       {hint}
                     </span>
                   )}
@@ -415,7 +434,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             Регулярная помощь позволяет фонду планировать программы и помогать стабильно.
           </p>
           <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed px-0.5">
-            Регулярная поддержка пока работает через напоминания о повторном платеже и не является автоматическим списанием.
+            Регулярная поддержка пока работает через напоминания о повторном платеже и не является автоматическим
+            списанием.
           </p>
         </div>
       )}
@@ -424,9 +444,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       <div
         className={cn(
           "grid gap-2 mb-4",
-          recurring
-            ? "grid-cols-3"
-            : embedded ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"
+          recurring ? "grid-cols-3" : embedded ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4",
         )}
       >
         {presets.map((val) => (
@@ -437,7 +455,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
               "relative h-12 rounded-xl text-sm font-semibold transition-all border whitespace-nowrap",
               amount === val
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                : "bg-background border-border hover:border-foreground/20"
+                : "bg-background border-border hover:border-foreground/20",
             )}
           >
             {recurring && val === RECURRING_POPULAR && amount !== val && (
@@ -488,7 +506,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
               <span
                 className={cn(
                   "text-sm transition-colors",
-                  anonymous ? "text-foreground font-medium" : "text-muted-foreground"
+                  anonymous ? "text-foreground font-medium" : "text-muted-foreground",
                 )}
               >
                 Анонимно
@@ -538,7 +556,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                   "group flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all duration-200",
                   active
                     ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border bg-background hover:border-foreground/30 hover:shadow-md hover:scale-[1.02]"
+                    : "border-border bg-background hover:border-foreground/30 hover:shadow-md hover:scale-[1.02]",
                 )}
               >
                 <span className="shrink-0 h-6 w-14 flex items-center justify-center">
@@ -551,9 +569,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                   />
                 </span>
                 <span className="flex-1 min-w-0 self-center">
-                  <span className="block text-sm font-semibold text-foreground leading-tight">
-                    {title}
-                  </span>
+                  <span className="block text-sm font-semibold text-foreground leading-tight">{title}</span>
                   <span className="block text-[11px] text-muted-foreground mt-0.5 leading-tight truncate">
                     {caption}
                   </span>
@@ -574,7 +590,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             onClick={() => setConsentOffer(!consentOffer)}
             className={cn(
               "mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer",
-              consentOffer ? "bg-primary border-primary" : "border-border"
+              consentOffer ? "bg-primary border-primary" : "border-border",
             )}
           >
             {consentOffer && <Check className="w-3 h-3 text-primary-foreground" />}
@@ -604,7 +620,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
             onClick={() => setConsentPrivacy(!consentPrivacy)}
             className={cn(
               "mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer",
-              consentPrivacy ? "bg-primary border-primary" : "border-border"
+              consentPrivacy ? "bg-primary border-primary" : "border-border",
             )}
           >
             {consentPrivacy && <Check className="w-3 h-3 text-primary-foreground" />}
@@ -634,51 +650,52 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
               <ShieldCheck className="w-5 h-5 text-amber-700" />
             </div>
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">
-                Нужен личный кабинет
-              </p>
+              <p className="text-sm font-semibold text-amber-900">Нужен личный кабинет</p>
               <p className="text-[13px] leading-relaxed text-amber-900/80">
-                Регулярная поддержка доступна только зарегистрированным пользователям, чтобы вы могли управлять подпиской, изменять сумму и при необходимости приостанавливать помощь.
+                Регулярная поддержка доступна только зарегистрированным пользователям, чтобы вы могли управлять
+                подпиской, изменять сумму и при необходимости приостанавливать помощь.
               </p>
             </div>
           </div>
           <Button asChild size="lg" className="w-full bg-amber-600 hover:bg-amber-600/90 text-white">
-            <Link to={`/auth?next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname + window.location.hash : "/")}`}>
+            <Link
+              to={`/auth?next=${encodeURIComponent(typeof window !== "undefined" ? window.location.pathname + window.location.hash : "/")}`}
+            >
               <LogIn className="w-4 h-4" />
               Войти или зарегистрироваться
             </Link>
           </Button>
         </div>
       ) : (
-      <Button
-        size="xl"
-        className="w-full min-h-[52px] whitespace-normal text-center leading-tight"
-        disabled={!canSubmit}
-        onClick={handleSubmit}
-      >
-        {loading ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Переход к оплате...
-          </>
-        ) : recurring ? (
-          <>
-            <Repeat className="w-5 h-5 shrink-0" />
-            <span>
-              Поддерживать регулярно
-              {amountValid ? ` · ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
-            </span>
-          </>
-        ) : (
-          <>
-            <Heart className="w-5 h-5 shrink-0" />
-            <span>
-              {isCampaign ? "Поддержать сбор" : "Помочь"}
-              {amountValid ? ` ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
-            </span>
-          </>
-        )}
-      </Button>
+        <Button
+          size="xl"
+          className="w-full min-h-[52px] whitespace-normal text-center leading-tight"
+          disabled={!canSubmit}
+          onClick={handleSubmit}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Переход к оплате...
+            </>
+          ) : recurring ? (
+            <>
+              <Repeat className="w-5 h-5 shrink-0" />
+              <span>
+                Поддерживать регулярно
+                {amountValid ? ` · ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+              </span>
+            </>
+          ) : (
+            <>
+              <Heart className="w-5 h-5 shrink-0" />
+              <span>
+                {isCampaign ? "Поддержать сбор" : "Помочь"}
+                {amountValid ? ` ${activeAmount.toLocaleString("ru-RU")} ₽` : ""}
+              </span>
+            </>
+          )}
+        </Button>
       )}
 
       <p className="text-xs text-center text-muted-foreground mt-4">Безопасная оплата через ЮKassa</p>
@@ -697,19 +714,13 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
 
   return (
     <>
-      <section
-        id="donate"
-        className={cn(
-          "py-24 md:py-32",
-          isCampaign ? "bg-background" : "section-alt"
-        )}
-      >
+      <section id="donate" className={cn("py-24 md:py-32", isCampaign ? "bg-background" : "section-alt")}>
         <div className="container max-w-xl">
           <div className="text-center mb-10">
             <p
               className={cn(
                 "text-sm font-semibold uppercase tracking-wider mb-3 inline-flex items-center gap-2",
-                isCampaign ? "text-primary" : "text-accent"
+                isCampaign ? "text-primary" : "text-accent",
               )}
             >
               {isCampaign ? <Target className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
@@ -723,11 +734,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                 Ваш вклад идёт в общий фонд и направляется туда, где помощь нужна сильнее всего.
               </p>
             )}
-            {isCampaign && campaign && (
-              <p className="mt-3 text-muted-foreground leading-relaxed">
-                {campaign.title}
-              </p>
-            )}
+            {isCampaign && campaign && <p className="mt-3 text-muted-foreground leading-relaxed">{campaign.title}</p>}
           </div>
 
           {Card}
@@ -739,13 +746,7 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
   );
 };
 
-const DonationModal = ({
-  show,
-  onOpenChange,
-}: {
-  show: boolean;
-  onOpenChange: (v: boolean) => void;
-}) => (
+const DonationModal = ({ show, onOpenChange }: { show: boolean; onOpenChange: (v: boolean) => void }) => (
   <Dialog open={show} onOpenChange={onOpenChange}>
     <DialogContent className="rounded-2xl max-w-md border-border">
       <DialogHeader>
