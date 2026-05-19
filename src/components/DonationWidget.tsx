@@ -19,11 +19,12 @@ const RECURRING_POPULAR = 500;
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
 
-type Frequency = "weekly" | "biweekly" | "monthly";
-const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
+type Frequency = "hourly" | "weekly" | "biweekly" | "monthly";
+const frequencyOptions: { id: Frequency; label: string; popular?: boolean; hint?: string }[] = [
   { id: "weekly", label: "Раз в неделю" },
   { id: "biweekly", label: "Раз в 2 недели" },
   { id: "monthly", label: "Раз в месяц", popular: true },
+  { id: "hourly", label: "Каждый час", hint: "Тестирование автосписаний" },
 ];
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";

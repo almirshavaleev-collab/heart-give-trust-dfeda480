@@ -1,6 +1,7 @@
 import type { RecurringFrequency, RecurringStatus } from "@/hooks/useRecurringSubscriptions";
 
 export const FREQUENCY_LABEL_RU: Record<string, string> = {
+  hourly: "Каждый час",
   weekly: "Каждую неделю",
   biweekly: "Раз в две недели",
   monthly: "Каждый месяц",
