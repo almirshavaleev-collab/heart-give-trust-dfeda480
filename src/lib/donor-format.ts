@@ -43,6 +43,7 @@ export function paymentMethodLabel(t: string | null): string {
 
 export function intervalLabel(i: string): string {
   switch (i) {
+    case "hourly": return "Каждый час";
     case "weekly": return "Раз в неделю";
     case "biweekly": return "Раз в 2 недели";
     case "monthly": return "Раз в месяц";

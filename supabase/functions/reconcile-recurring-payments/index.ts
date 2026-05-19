@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
     const subscriptionId: string | null = meta?.subscription_id ?? null;
     const freqRaw = String(meta?.frequency ?? "monthly");
     const frequency: Frequency =
-      freqRaw === "weekly" || freqRaw === "biweekly" ? freqRaw : "monthly";
+      freqRaw === "hourly" || freqRaw === "weekly" || freqRaw === "biweekly" ? freqRaw : "monthly";
 
     structuredLog("reconcile_payment", {
       donation_id: d.id, payment_id: obj?.id, yk_status: status, sub: subscriptionId,

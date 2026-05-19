@@ -125,6 +125,8 @@ export default function AdminDashboard() {
     const mrr = activeSubs.reduce((sum, s) => {
       const a = s.amount;
       switch (s.interval) {
+        case "hourly":
+          return sum + a * 730;
         case "weekly":
         case "week":
           return sum + a * 4.345;

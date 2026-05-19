@@ -19,11 +19,12 @@ const RECURRING_POPULAR = 500;
 const MAX_AMOUNT = 500_000;
 const MIN_AMOUNT = 1;
 
-type Frequency = "weekly" | "biweekly" | "monthly";
-const frequencyOptions: { id: Frequency; label: string; popular?: boolean }[] = [
+type Frequency = "hourly" | "weekly" | "biweekly" | "monthly";
+const frequencyOptions: { id: Frequency; label: string; popular?: boolean; hint?: string }[] = [
   { id: "weekly", label: "Раз в неделю" },
   { id: "biweekly", label: "Раз в 2 недели" },
   { id: "monthly", label: "Раз в месяц", popular: true },
+  { id: "hourly", label: "Каждый час", hint: "Тестирование автосписаний" },
 ];
 
 type PaymentMethod = "sbp" | "card" | "sber" | "tinkoff";
@@ -380,8 +381,8 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
       {allowRecurring && recurring && (
         <div className="mb-5 animate-fade-in">
           <p className="text-sm font-medium text-foreground mb-2.5 px-0.5">Как часто помогать?</p>
-          <div className="grid grid-cols-3 gap-2">
-            {frequencyOptions.map(({ id, label, popular }) => {
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {frequencyOptions.map(({ id, label, popular, hint }) => {
               const active = frequency === id;
               return (
                 <button
@@ -389,8 +390,9 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                   type="button"
                   onClick={() => setFrequency(id)}
                   aria-pressed={active}
+                  title={hint ?? undefined}
                   className={cn(
-                    "relative h-12 rounded-xl text-xs sm:text-sm font-medium border transition-all duration-200 px-2",
+                    "relative h-12 rounded-xl text-xs sm:text-sm font-medium border transition-all duration-200 px-2 flex flex-col items-center justify-center leading-tight",
                     active
                       ? "bg-primary text-primary-foreground border-primary shadow-md"
                       : "bg-background border-border hover:border-foreground/30 text-foreground"
@@ -399,7 +401,12 @@ const DonationWidget = ({ mode = "general", campaign = null, embedded = false }:
                   {popular && !active && (
                     <Star className="absolute top-1 right-1 w-3 h-3 text-primary fill-primary/40" aria-hidden />
                   )}
-                  {label}
+                  <span>{label}</span>
+                  {hint && (
+                    <span className={cn("text-[10px] mt-0.5 opacity-80", active ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                      {hint}
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { recurringFlags } from "@/lib/recurring-config";
 
 export type RecurringStatus = "active" | "paused" | "past_due" | "canceled";
-export type RecurringFrequency = "weekly" | "biweekly" | "monthly" | "month" | "week";
+export type RecurringFrequency = "hourly" | "weekly" | "biweekly" | "monthly" | "month" | "week";
 
 export type RecurringSubscription = {
   id: string;
